@@ -82,6 +82,16 @@ Goal: run `love .` and see a randomly generated hex map that you can pan, zoom a
 
 **Done when** `love .` shows a valid random map, R regenerates it, and the hex tests pass.
 
+### Progress checklist (P1 / M0) — updated 2026-10-04
+- [x] 1. Repo setup — git `main` (`5279bbd`), `.gitignore`, `.gitattributes`, `conf.lua`, `main.lua`, `.luarc.json`, `.vscode/extensions.json`, `run.bat`; removed `New folder/`
+- [ ] 2. Folder layout + static data (`src/config/constants.lua`, `src/data/{terrains,strategic,resources}.lua`)
+- [ ] 3. Libraries — decided: none for M0 (own camera/scene manager); tests via LÖVE (`lovec . --test`) instead of busted
+- [ ] 4. Hex math `src/core/hex.lua` + tests
+- [ ] 5. Map generation v1 `src/core/mapgen.lua` (+ `rng.lua`, `map.lua`) + tests
+- [ ] 6. Rendering: camera, hover, debug overlay (F1), regenerate (R)
+- [ ] 7. Slice art: quads in `src/render/tileset.lua`
+- [ ] P0 #3 decided: map 16×8 (1–2 players) / 32×16 (3–4 players), pointy-top, sprite 32×32, pitch 32×24 → record in `docs/Decisions.md`
+
 ---
 
 ## P2 — M1 Core Loop: playable hot-seat game without buildings beyond Basic C1 (≈2–3 weeks)
