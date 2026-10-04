@@ -4,7 +4,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project status
 
-**Perisol** is a turn-based hex-territory strategy board game for 1–4 players, targeting **PC via Love2D (Lua)**. The repo is in pre-production: right now it only holds design documents in `docs/`, with no source code, build setup, or tests yet. Once code exists, the standard way to run a Love2D project is `love .` from the folder that contains `main.lua`.
+**Perisol** is a turn-based hex-territory strategy board game for 1–4 players, targeting **PC via Love2D (Lua)**. The repo is in early development: design documents live in `docs/`, and milestone **M0 Sandbox** (see `plan.md`) is implemented — a seeded random hex map you can pan/zoom/hover. Gameplay (M1+) is not built yet.
+
+### Commands (LÖVE 11.5 at `C:\Program Files\LOVE\`, not on PATH)
+- Run: `run.bat` (= `love.exe .`). Options: `--seed N`, `--players 1-4`, `--shot name.png` (screenshot into `%APPDATA%/LOVE/perisol`, then quit).
+- Test: `test.bat` (= `lovec.exe . --test`; headless, exit code 1 on failure). The mini-runner is `tests/runner.lua` (`describe`/`it`/`expect.*`); specs are `tests/*_spec.lua`. There is no standalone Lua/busted on this machine.
+- Sandbox keys: R new seed · 1–4 players · Z zones · F1 debug · wheel zoom · RMB-drag/WASD pan.
+
+### Code conventions
+- `src/core/` is pure Lua and must **never call `love.*`** (keeps it testable headless and reusable for AI/multiplayer). `src/render/` and `src/scenes/` hold all LÖVE-specific code.
+- Randomness goes through `src/core/rng.lua` (deterministic, seeded) — not `math.random` / `love.math`.
+- Balance and map-gen numbers live in `src/config/constants.lua`; static data keyed by doc IDs in `src/data/`.
+- Hex grid: axial `(q, r)`, pointy-top, odd-r offset for the rectangular map; sprites are 32×32 with pitch 32×24. Decisions are logged in `docs/Decisions.md`.
 
 All design docs are written in **Vietnamese**. Game terms (Long Mạch, Phiến Quân, Sắc Lệnh, Chi Phối, etc.) should be kept as-is in identifiers' comments and UI text, not translated loosely. English equivalents exist for some entities (e.g. terrain `Plains`, `Forest`; units `Expedition`, `Trade`) in `docs/Perisol_Data.md`.
 
