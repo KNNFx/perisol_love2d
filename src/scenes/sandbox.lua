@@ -18,6 +18,7 @@ local function cliOption(name)
     for i, a in pairs(args) do
         if a == name then return args[i + 1] end
     end
+    return nil   -- phải trả nil tường minh: tonumber() không đối số sẽ báo lỗi
 end
 
 function Sandbox:enter()
