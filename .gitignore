@@ -1,0 +1,19 @@
+# Build / package
+*.love
+build/
+dist/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor / tooling (cá nhân)
+.claude/settings.local.json
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+
+# Test / log
+luacov.*.out
+*.log
