@@ -336,6 +336,19 @@ function M.validate(map, players)
     if distinct ~= C.TERRAINS_PER_GAME then return false, "có " .. distinct .. " loại địa hình" end
 
     if #map.starts ~= players then return false, "số vùng khởi đầu sai" end
+
+    -- Công bằng: mỗi vùng khởi đầu đủ ô xây được và không chênh nhau quá nhiều.
+    local buildable = {}
+    for i = 1, players do buildable[i] = 0 end
+    for _, t in ipairs(map.list) do
+        if t.zone and terrainOf(t).canBuild then buildable[t.zone] = buildable[t.zone] + 1 end
+    end
+    local lo, hi = math.huge, 0
+    for i = 1, players do
+        lo, hi = math.min(lo, buildable[i]), math.max(hi, buildable[i])
+    end
+    if lo < C.START_ZONE_MIN_BUILDABLE then return false, "vùng khởi đầu ít ô xây được (" .. lo .. ")" end
+    if hi - lo > C.START_ZONE_MAX_SPREAD then return false, "vùng khởi đầu chênh lệch " .. (hi - lo) end
     if #map.settlements ~= players + 1 then return false, "số Khu Dân Cư sai" end
     if #map.landmarks ~= players + 1 then return false, "số Danh Thắng sai" end
 

@@ -21,6 +21,12 @@ Mỗi quyết định ghi: bối cảnh, lựa chọn, lý do. Khi tài liệu t
 ## D-004 — RNG tự viết — 2026-10-04
 - Park–Miller (`s = s * 48271 % 2147483647`), thuần Lua, tất định theo seed, không phụ thuộc `love.math`.
 
+## D-005 — Áp dụng skill dự án (love2d-core, camera-systems, procedural-gen, level-design, create-game-assets) — 2026-10-04
+- Scene manager là **ngăn xếp** (push/pop/switch, vẽ từ dưới lên, chỉ màn trên cùng nhận input/update).
+- Camera: zoom **chỉ bậc nguyên** (1–4×), giới hạn theo khung nhìn (+ lề `CAMERA_MARGIN`), vị trí vẽ snap về pixel.
+- Mapgen: kiểm tra **công bằng vùng khởi đầu** (`START_ZONE_MIN_BUILDABLE`, `START_ZONE_MAX_SPREAD`) ngoài kiểm tra kết nối.
+- Art: ghi `docs/art-direction-brief.md` và `docs/asset-manifest.json`; nguồn gốc/giấy phép sheet ô hex **chưa rõ** — cần chủ dự án xác nhận.
+
 ## Xung đột tài liệu đã phát hiện (chọn theo Data)
 | Chủ đề | GDD §3.1 / §8 | Data | Chọn |
 |---|---|---|---|

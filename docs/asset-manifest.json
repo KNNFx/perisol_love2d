@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "art_direction_brief": "docs/art-direction-brief.md",
+  "note": "Nguồn gốc/giấy phép của HexaTiles_Test_V001.png chưa được ghi nhận. Chủ dự án cần điền source.creator / license trước khi phát hành.",
+  "assets": [
+    {
+      "id": "tiles-sheet-test-v001",
+      "role": "sheet ô hex thử nghiệm (nguồn của mọi terrain sprite hiện tại)",
+      "path": "Image/HexaTiles_Test_V001.png",
+      "status": "placeholder",
+      "technical": {
+        "dimensions": "448x360",
+        "alpha": true,
+        "anchor": "tâm ô (16,16) trong ô 32x32",
+        "frames": 1,
+        "filtering": "nearest",
+        "qa": "scripts/asset_report.py: ok, RGBA, 838 màu, không có vấn đề"
+      },
+      "visual_locks": ["palette", "view", "light-direction", "tile-pitch-32x24"],
+      "source": {
+        "kind": "unknown",
+        "url_or_tool": "",
+        "creator": "",
+        "created_at": "2025-09-20 (ngày sửa file)",
+        "license": "",
+        "attribution": "",
+        "prompt_or_source_record": ""
+      },
+      "verification": {
+        "native_scale_reviewed": true,
+        "in_engine_reviewed": true,
+        "technical_checks_passed": true,
+        "approved_by": ""
+      }
+    },
+    { "id": "tile-plains",     "role": "DH-01 Đồng Bằng",   "path": "Image/HexaTiles_Test_V001.png", "status": "placeholder", "cells": [[128,128],[192,128]], "overhang": 0 },
+    { "id": "tile-forest",     "role": "DH-02 Rừng",        "path": "Image/HexaTiles_Test_V001.png", "status": "placeholder", "cells": [[96,32],[160,32],[32,64],[128,64],[64,96],[160,96],[224,32],[256,32]], "overhang": 4 },
+    { "id": "tile-mountain",   "role": "DH-03 Núi (tạm: đá xám)", "path": "Image/HexaTiles_Test_V001.png", "status": "placeholder", "cells": [[256,160],[288,160]], "overhang": 0 },
+    { "id": "tile-water",      "role": "DH-04 Sông (tạm: nước)", "path": "Image/HexaTiles_Test_V001.png", "status": "placeholder", "cells": [[160,192],[192,192],[160,224]], "overhang": 0 },
+    { "id": "tile-coast",      "role": "DH-05 Bờ Biển (tạm: cát)", "path": "Image/HexaTiles_Test_V001.png", "status": "placeholder", "cells": [[128,192]], "overhang": 0 },
+    { "id": "tile-tundra",     "role": "DH-06 Lãnh Nguyên (tạm: rừng tuyết)", "path": "Image/HexaTiles_Test_V001.png", "status": "placeholder", "cells": [[192,64]], "overhang": 4 },
+    { "id": "tile-desert",     "role": "DH-07 Sa Mạc",      "path": "Image/HexaTiles_Test_V001.png", "status": "placeholder", "cells": [[256,96],[320,96]], "overhang": 0 },
+    { "id": "tile-hills",      "role": "DH-09 Đồi Cỏ",      "path": "Image/HexaTiles_Test_V001.png", "status": "placeholder", "cells": [[224,160]], "overhang": 4 },
+    { "id": "tile-settlement", "role": "DH-10 Khu Dân Cư",  "path": "Image/HexaTiles_Test_V001.png", "status": "placeholder", "cells": [[224,224],[256,224]], "overhang": 4 },
+    { "id": "tile-snow",       "role": "DH-12 Núi Tuyết",   "path": "Image/HexaTiles_Test_V001.png", "status": "placeholder", "cells": [[320,192],[352,192]], "overhang": 4 },
+    { "id": "tile-swamp",      "role": "DH-08 Đầm Lầy",     "path": "", "status": "planned", "note": "chưa có sprite; đang vẽ đa giác màu" },
+    { "id": "tile-landmark",   "role": "DH-11 Danh Thắng",  "path": "", "status": "planned", "note": "chưa có sprite; đang vẽ đa giác tím + kim cương" },
+    { "id": "tile-river-dedicated", "role": "DH-04 Sông (bản riêng, có bờ)", "path": "", "status": "planned" }
+  ]
+}

@@ -22,7 +22,7 @@ function love.load()
 end
 
 function love.update(dt) manager.call("update", dt) end
-function love.draw() manager.call("draw") end
+function love.draw() manager.draw() end
 function love.keypressed(key, scancode, isrepeat) manager.call("keypressed", key, scancode, isrepeat) end
 function love.mousepressed(x, y, button) manager.call("mousepressed", x, y, button) end
 function love.mousereleased(x, y, button) manager.call("mousereleased", x, y, button) end

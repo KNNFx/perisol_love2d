@@ -57,13 +57,17 @@ C.STRATEGIC_CHANCE = {           -- Xác suất mỗi ô hợp lệ mang 1 TN, t
 }
 C.LEY_NODE_COUNT        = { 1, 2 } -- TN-12 Địa Linh: 1–2 ô/ván
 C.MAPGEN_MAX_ATTEMPTS   = 50
+-- Công bằng giữa các người chơi: số ô xây được trong vùng khởi đầu (19 ô).
+C.START_ZONE_MIN_BUILDABLE = 12  -- mỗi vùng tối thiểu
+C.START_ZONE_MAX_SPREAD    = 4   -- chênh lệch tối đa giữa vùng nhiều nhất và ít nhất
 
 -- ─── Render ────────────────────────────────────────────────────────────────
 -- Sprite hex pointy-top 32×32; lát gạch bước ngang 32, bước dọc 24.
 C.TILE_W      = 32
 C.TILE_H      = 32
 C.TILE_STEP_Y = 24
-C.ZOOM_LEVELS = { 1, 1.5, 2, 3, 4 }
+C.ZOOM_LEVELS = { 1, 2, 3, 4 }   -- chỉ số nguyên: pixel art không méo khi phóng
 C.CAMERA_PAN_SPEED = 600         -- px màn hình / giây
+C.CAMERA_MARGIN    = 48          -- px thế giới cho phép kéo quá mép bản đồ
 
 return C

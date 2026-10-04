@@ -105,6 +105,35 @@ describe("mapgen", function()
         end
     end)
 
+    it("vùng khởi đầu công bằng: đủ ô xây được và chênh lệch nhỏ", function()
+        for players = 2, 4 do
+            for seed = 1, 30 do
+                local map = Mapgen.generate({ seed = seed, players = players })
+                local buildable = {}
+                for i = 1, players do buildable[i] = 0 end
+                for _, t in ipairs(map.list) do
+                    if t.zone and Terrains.byId[t.terrain].canBuild then buildable[t.zone] = buildable[t.zone] + 1 end
+                end
+                local lo, hi = math.huge, 0
+                for i = 1, players do lo, hi = math.min(lo, buildable[i]), math.max(hi, buildable[i]) end
+                local tag = "players " .. players .. " seed " .. seed
+                expect.truthy(lo >= C.START_ZONE_MIN_BUILDABLE, tag .. ": min " .. lo)
+                expect.truthy(hi - lo <= C.START_ZONE_MAX_SPREAD, tag .. ": spread " .. (hi - lo))
+            end
+        end
+    end)
+
+    it("quét 100 seed: luôn sinh được và ít phải thử lại", function()
+        for players = 1, 4 do
+            local retries = 0
+            for seed = 1000, 1099 do
+                local map = Mapgen.generate({ seed = seed, players = players })
+                retries = retries + (map.attempt - 1)
+            end
+            expect.truthy(retries / 100 < 3, "players " .. players .. ": trung bình " .. retries / 100 .. " lần thử lại")
+        end
+    end)
+
     it("số người không hợp lệ báo lỗi", function()
         expect.error(function() Mapgen.generate({ seed = 1, players = 5 }) end)
     end)

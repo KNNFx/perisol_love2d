@@ -1,4 +1,6 @@
--- Camera 2D: (x, y) là điểm thế giới nằm giữa màn hình, zoom theo các bậc cố định.
+-- Camera 2D: (x, y) là điểm thế giới nằm giữa màn hình, zoom theo các bậc nguyên cố định.
+-- Theo skill camera-systems: giới hạn theo KHUNG NHÌN (không chỉ tâm) và chạy theo dt.
+-- Vị trí khi vẽ được làm tròn về pixel màn hình để pixel art không bị rung/nhòe.
 
 local C = require("src.config.constants")
 
@@ -14,12 +16,20 @@ function Camera:setWorld(w, h)
     self:clamp()
 end
 
-function Camera:clamp()
-    self.x = math.max(0, math.min(self.worldW, self.x))
-    self.y = math.max(0, math.min(self.worldH, self.y))
+local function clampAxis(v, worldSize, halfView, margin)
+    local lo, hi = halfView - margin, worldSize - halfView + margin
+    if lo > hi then return worldSize / 2 end   -- bản đồ nhỏ hơn khung nhìn: giữ ở giữa
+    return math.max(lo, math.min(hi, v))
 end
 
--- Chọn bậc zoom lớn nhất mà toàn bản đồ còn vừa chiều ngang màn hình, rồi căn giữa.
+-- Giữ khung nhìn trong bản đồ (cộng lề CAMERA_MARGIN).
+function Camera:clamp()
+    local w, h = love.graphics.getDimensions()
+    self.x = clampAxis(self.x, self.worldW, w / (2 * self.zoom), C.CAMERA_MARGIN)
+    self.y = clampAxis(self.y, self.worldH, h / (2 * self.zoom), C.CAMERA_MARGIN)
+end
+
+-- Chọn bậc zoom lớn nhất mà toàn bộ chiều ngang bản đồ còn vừa màn hình, rồi căn giữa.
 function Camera:fit(viewW)
     self.zoomIndex = 1
     for i, z in ipairs(C.ZOOM_LEVELS) do
@@ -27,14 +37,22 @@ function Camera:fit(viewW)
     end
     self.zoom = C.ZOOM_LEVELS[self.zoomIndex]
     self.x, self.y = self.worldW / 2, self.worldH / 2
+    self:clamp()
+end
+
+-- Vị trí camera đã snap về pixel màn hình (dùng chung cho vẽ và đổi tọa độ chuột).
+function Camera:position()
+    local z = self.zoom
+    return math.floor(self.x * z + 0.5) / z, math.floor(self.y * z + 0.5) / z
 end
 
 function Camera:attach()
     local w, h = love.graphics.getDimensions()
+    local px, py = self:position()
     love.graphics.push()
     love.graphics.translate(math.floor(w / 2), math.floor(h / 2))
     love.graphics.scale(self.zoom)
-    love.graphics.translate(-self.x, -self.y)
+    love.graphics.translate(-px, -py)
 end
 
 function Camera:detach()
@@ -43,7 +61,8 @@ end
 
 function Camera:screenToWorld(sx, sy)
     local w, h = love.graphics.getDimensions()
-    return (sx - math.floor(w / 2)) / self.zoom + self.x, (sy - math.floor(h / 2)) / self.zoom + self.y
+    local px, py = self:position()
+    return (sx - math.floor(w / 2)) / self.zoom + px, (sy - math.floor(h / 2)) / self.zoom + py
 end
 
 -- Kéo bản đồ theo pixel màn hình.
@@ -66,6 +85,7 @@ function Camera:zoomAt(steps, sx, sy)
     self:clamp()
 end
 
+-- Di chuyển bằng phím; tốc độ tính theo dt nên không phụ thuộc FPS.
 function Camera:update(dt)
     local dx, dy = 0, 0
     local kb = love.keyboard
