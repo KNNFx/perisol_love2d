@@ -117,7 +117,7 @@ This is the most important milestone. It proves whether Long Mạch is fun.
 
 ### Progress checklist (P2 / M1) — added 2026-10-05
 - [x] P0 decisions needed by M1 answered → `docs/Decisions.md` D-006..D-011
-- [ ] 1. Data + constants: `src/data/buildings.lua` (B-01..B-05 × 3 levels + placement matrix), `src/data/movement.lua`, M1 block in `constants.lua` + `data_spec`
+- [x] 1. Data + constants: `src/data/buildings.lua` (B-01..B-05 × 3 levels + placement matrix), `src/data/movement.lua`, M1 block in `constants.lua` + `data_spec`
 - [ ] 2. Core utils: `dice.lua`, `modifiers.lua` (Base→Character→Tech→Aura→Strategic→Road→floor), `serialize.lua` + specs
 - [ ] 3. Territory `territory.lua`: home 7 tiles, votes, thresholds 1/2/3 (TN-06 −1), contested → owned, locked tiles + spec
 - [ ] 4. Production `production.lua`: shared Long Mạch, × matching dice, Hex → votes, 7 → nothing, blockade, strategic bonuses + spec

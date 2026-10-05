@@ -61,6 +61,30 @@ C.MAPGEN_MAX_ATTEMPTS   = 50
 C.START_ZONE_MIN_BUILDABLE = 12  -- mỗi vùng tối thiểu
 C.START_ZONE_MAX_SPREAD    = 4   -- chênh lệch tối đa giữa vùng nhiều nhất và ít nhất
 
+-- ─── M1 core loop (docs/Decisions.md D-006..D-010) ─────────────────────────
+C.ROUNDS_PER_GAME = 20
+C.EVENT_ROUNDS    = { 5, 10, 15, 20 }   -- lật Sự Kiện Tổng (stub ở M1)
+C.SEVEN           = 7                    -- tổng hai mặt kích hoạt Phiến Quân (D-008)
+
+C.STARTING_RESOURCES = { science = 2, culture = 2, engineering = 2, faith = 2, gold = 5 }  -- D-007
+C.BANK_TRADE_RATE    = 4                 -- 4 tài nguyên cùng loại đổi 1 loại bất kỳ (D-007)
+
+C.VOTES_PER_HEX_FACE = 1                 -- phiếu Chi Phối cho mỗi viên ra mặt Hex (D-006)
+C.VOTE_COST          = { culture = 1, gold = 1 }  -- giá mua thêm 1 phiếu
+C.CHI_PHOI_THRESHOLD = { 1, 2, 3 }       -- phiếu cần ở khoảng cách 1 / 2 / 3+ tới HQ
+C.INFLUENCE_RADIUS   = 1                 -- vùng ảnh hưởng quanh HQ (7 ô)
+
+C.REBEL_SPAWN_TERRAINS   = { "DH-01", "DH-06", "DH-07" }  -- Data §2 (U-03)
+C.REBEL_SPAWN_MIN_HQ_DIST = 2
+C.REBEL_MOUNTAIN_COST    = 3             -- sau khi hết khóa (REBEL_MOUNTAIN_LOCK_ROUNDS)
+
+C.SCORE_TILE         = 1                 -- GDD §11.2 (D-010)
+C.SCORE_LANDMARK     = 3
+C.SCORE_BUILDING_C2  = 2
+C.SCORE_RES_PER_POINT = 5
+
+C.SAVE_VERSION       = 1                 -- version file save (D-011)
+
 -- ─── Render ────────────────────────────────────────────────────────────────
 -- Sprite hex pointy-top 32×32; lát gạch bước ngang 32, bước dọc 24.
 C.TILE_W      = 32
