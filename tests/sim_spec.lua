@@ -1,0 +1,33 @@
+local Game  = require("src.core.game")
+local Sim   = require("src.core.sim")
+local State = require("src.core.state")
+
+describe("sim: ván ngẫu nhiên", function()
+    it("30 ván 2-4 người chạy hết 20 vòng, không lỗi, bất biến luôn đúng", function()
+        local sum = Sim.batch(30, 1000)
+        expect.eq(sum.games, 30)
+        expect.truthy(sum.sevens > 0, "phải có ván ra 7")
+        expect.truthy(sum.builds > 0, "phải có công trình được xây")
+        expect.truthy(sum.claims > 0, "phải có ô được chiếm")
+    end)
+
+    it("ván 1 người cũng chạy tới hết", function()
+        local state = Sim.play(77, 1)
+        expect.eq(state.phase, "over")
+    end)
+
+    it("cùng seed cho cùng ván (tất định)", function()
+        local a = Sim.play(321, 3)
+        local b = Sim.play(321, 3)
+        expect.deepEq(State.snapshot(a), State.snapshot(b))
+        local c = Sim.play(322, 3)
+        expect.truthy(Game.save(a) ~= Game.save(c))
+    end)
+
+    it("bất biến bắt được state hỏng", function()
+        local s = Sim.play(5, 2)
+        s.players[1].res.gold = -1
+        local ok = Sim.invariants(s)
+        expect.falsy(ok)
+    end)
+end)

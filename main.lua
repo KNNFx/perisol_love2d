@@ -1,8 +1,28 @@
 -- Perisol — bootstrap. Logic game nằm trong src/, test trong tests/.
 
-local testMode = false
-for _, a in pairs(arg or {}) do
+local testMode, simCount = false, nil
+for i, a in pairs(arg or {}) do
     if a == "--test" then testMode = true end
+    if a == "--sim" then simCount = tonumber(arg[i + 1]) or 100 end
+end
+
+-- Mô phỏng headless: `lovec.exe . --sim 100` chơi 100 ván ngẫu nhiên (2-4 người) và in thống kê.
+if simCount then
+    function love.load()
+        local Sim = require("src.core.sim")
+        local sum = Sim.batch(simCount, 1, function(i, seed, players, state, ranking)
+            print(string.format("ván %3d seed %-4d %d người  thắng P%d (%d điểm, %d ô)", i, seed, players,
+                ranking[1].pid, ranking[1].total, ranking[1].tileCount))
+        end)
+        local g = sum.games
+        print(string.format("\n%d ván, không lỗi. Trung bình/ván: %.1f lần ra 7, %.1f công trình, %.1f lần chiếm ô, %.0f lệnh",
+            g, sum.sevens / g, sum.builds / g, sum.claims / g, sum.commands / g))
+        print(string.format("Điểm trung bình/người: %.1f · ô thực hữu trung bình/người: %.1f · ô của người thắng: %.1f",
+            sum.score / sum.players, sum.tiles / sum.players, sum.winnerTiles / g))
+        io.stdout:flush()
+        love.event.quit(0)
+    end
+    return
 end
 
 if testMode then

@@ -1,4 +1,4 @@
--- Chế độ test: `lovec.exe . --test` -> không mở cửa sổ/âm thanh.
+-- Chế độ headless: `lovec.exe . --test` hoặc `--sim N` -> không mở cửa sổ/âm thanh.
 local function hasFlag(flag)
     for _, a in pairs(arg or {}) do
         if a == flag then return true end
@@ -22,7 +22,7 @@ function love.conf(t)
     t.modules.joystick = false      -- không dùng tay cầm
     t.modules.physics = false       -- board game, không cần Box2D
 
-    if hasFlag("--test") then
+    if hasFlag("--test") or hasFlag("--sim") then
         t.window = false
         t.console = false
         t.modules.audio = false
