@@ -47,6 +47,20 @@ function Drive.update(scene, drv, dt)
         end
     elseif st.phase == "roll" then
         drv.actions = 0
+        -- kiểm tra F5/F9: lưu ở lượt 2, nạp lại ở lượt 5 và so sánh lịch sử lệnh
+        if drv.turns == 2 and not drv.saved then
+            scene:keypressed("f5")
+            drv.saved, drv.savedLen = true, #st.history
+            print("DRIVE: F5 lưu nhanh tại lệnh " .. drv.savedLen)
+        elseif drv.turns == 5 and drv.saved and not drv.loaded then
+            scene:keypressed("f9")
+            drv.loaded = true
+            local n = #scene.state.history
+            print(string.format("DRIVE: F9 nạp -> %d lệnh (mong đợi %d) %s", n, drv.savedLen,
+                n == drv.savedLen and "OK" or "SAI"))
+            io.stdout:flush()
+            return
+        end
         scene:keypressed("space")
     elseif st.phase == "rebel_move" then
         local t = Rebel.legalSteps(st)[1]

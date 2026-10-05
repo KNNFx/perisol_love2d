@@ -4,16 +4,22 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project status
 
-**Perisol** is a turn-based hex-territory strategy board game for 1–4 players, targeting **PC via Love2D (Lua)**. The repo is in early development: design documents live in `docs/`, and milestone **M0 Sandbox** (see `plan.md`) is implemented — a seeded random hex map you can pan/zoom/hover. Gameplay (M1+) is not built yet.
+**Perisol** is a turn-based hex-territory strategy board game for 1–4 players, targeting **PC via Love2D (Lua)**. Milestones **M0 Sandbox** and **M1 Core Loop** (see `plan.md`) are implemented: a hot-seat game of 20 rounds (Production → Resolution → Action) on a seeded random hex map, with shared Long Mạch production, Chi Phối territory votes, Basic level-1 buildings, the Rebel, bank trading, scoring and a results screen. Buildings above level 1, roads/units, cards and characters (M1.5+) are not built yet. M1 still needs a human playtest (see the `plan.md` P2 checklist) to tune `constants.lua`.
 
 ### Commands (LÖVE 11.5 at `C:\Program Files\LOVE\`, not on PATH)
-- Run: `run.bat` (= `love.exe .`). Options: `--seed N`, `--players 1-4`, `--shot name.png` (screenshot into `%APPDATA%/LOVE/perisol`, then quit).
+- Run: `run.bat` (= `love.exe .`) opens the menu. Dev flags: `--sandbox` (M0 map viewer), `--newgame` (straight into a game; with `--seed N --players 1-4`), `--results` (results screen of a simulated game), `--shot name.png` (screenshot into `%APPDATA%/LOVE/perisol`, then quit).
+- Dev helpers for screenshots/UI checks: `--play N` (auto-play N random commands first), `--until PHASE` (auto-play until that phase), `--demo loss` (canned Rebel-loss popup, `src/dev/demo.lua`), `--drive N` (clicks the real UI for N turns via `src/dev/drive.lua`; real-time, so a full game takes minutes).
 - Test: `test.bat` (= `lovec.exe . --test`; headless, exit code 1 on failure). The mini-runner is `tests/runner.lua` (`describe`/`it`/`expect.*`); specs are `tests/*_spec.lua`. There is no standalone Lua/busted on this machine.
-- Sandbox keys: R new seed · 1–4 players · Z zones · F1 debug · wheel zoom · RMB-drag/WASD pan.
+- Simulate: `lovec.exe . --sim N` plays N random 2–4 player games headless (invariants checked after every turn) and prints stats; takes seconds.
+- Game keys: Space roll · E end turn · Esc cancel/pause · F5/F9 quicksave/quickload · F1 debug · Z zones · wheel zoom · RMB-drag/WASD pan. Sandbox keys: R new seed · 1–4 players · Z zones · F1 debug.
 
 ### Code conventions
-- `src/core/` is pure Lua and must **never call `love.*`** (keeps it testable headless and reusable for AI/multiplayer). `src/render/` and `src/scenes/` hold all LÖVE-specific code.
-- Randomness goes through `src/core/rng.lua` (deterministic, seeded) — not `math.random` / `love.math`.
+- `src/core/` is pure Lua and must **never call `love.*`** (keeps it testable headless and reusable for AI/multiplayer). `src/render/`, `src/scenes/`, `src/ui/`, `src/input/`, `src/save.lua` and `src/dev/` hold all LÖVE-specific code.
+- **Every state change goes through `Game.check` / `Game.apply`** (`src/core/game.lua`; commands `placeHQ, roll, rebelStep, chooseLoss, trade, buyVote, placeVote, build, endTurn`). UI, the simulator, future AI and multiplayer all use this one API, and `Game.legal` lists valid commands. Scenes only read `state` and send commands.
+- Game state (`src/core/state.lua`) is plain data. The map is **not** saved: it is regenerated from `(seed, players)`. Save files carry a `version` (`C.SAVE_VERSION`); replay = seed + `state.history`.
+- Randomness goes through `src/core/rng.lua` (deterministic, seeded) — not `math.random` / `love.math`. (Cosmetic UI randomness, such as the dice-roll animation, may use `love.math`.)
+- Production modifiers register into `Production.modifiers` (`src/core/modifiers.lua`; stages Base → Character → Tech → Aura → Strategic → Road, floor at the end).
+- UI text uses Be Vietnam Pro (`assets/fonts/`), which lacks arrow/geometric glyphs, so write words instead of symbols. Keys map to named actions in `src/input/actions.lua`.
 - Balance and map-gen numbers live in `src/config/constants.lua`; static data keyed by doc IDs in `src/data/`.
 - Hex grid: axial `(q, r)`, pointy-top, odd-r offset for the rectangular map; sprites are 32×32 with pitch 32×24. Decisions are logged in `docs/Decisions.md`.
 
@@ -50,7 +56,7 @@ Balance numbers live in `Perisol_Data.md` §8.1 ("HẰNG SỐ CÂN BẰNG"). Kee
 
 ## Roadmap context
 
-Milestones from GDD §12: Sandbox (M0) → Core Loop (M1) → Buildings & Infrastructure (M1.5) → Cards (M2) → Characters (M3) → Polish (M4) → Multiplayer (M5). M1.5–M3 are complete **as designs only**; implementation starts from M0.
+Milestones from GDD §12: Sandbox (M0) → Core Loop (M1) → Buildings & Infrastructure (M1.5) → Cards (M2) → Characters (M3) → Polish (M4) → Multiplayer (M5). M1.5–M3 are complete **as designs only**; M0 and M1 are implemented.
 
 ## Git Commit Guidelines
 - Never append or include the "Co-authored-by: Claude" line in any git commit messages.

@@ -48,6 +48,11 @@ end
 function love.load()
     love.graphics.setDefaultFilter("nearest", "nearest") -- pixel art
     love.graphics.setBackgroundColor(0.10, 0.12, 0.15)
+    local size = Cli.option("--size")   -- dev: `--size 1024x576` thử bố cục ở kích thước cửa sổ khác
+    if size then
+        local w, h = size:match("^(%d+)x(%d+)$")
+        if w then love.window.setMode(tonumber(w), tonumber(h), { resizable = true, minwidth = 1024, minheight = 576, vsync = 1 }) end
+    end
     require("src.ui.theme").update(love.graphics.getDimensions())
 
     -- Mặc định mở menu. Tham số dev: --sandbox (bản đồ M0), --newgame (vào thẳng ván, dùng --seed/--players), --results (xem màn hình điểm),
