@@ -121,7 +121,7 @@ This is the most important milestone. It proves whether Long Mạch is fun.
 - [x] 2. Core utils: `dice.lua`, `modifiers.lua` (Base→Character→Tech→Aura→Strategic→Road→floor), `serialize.lua` + specs
 - [x] 3. Territory `territory.lua`: home 7 tiles, votes, thresholds 1/2/3 (TN-06 −1), contested → owned, locked tiles + spec
 - [x] 4. Production `production.lua`: shared Long Mạch, × matching dice, Hex → votes, 7 → nothing, blockade, strategic bonuses + spec
-- [ ] 5. Rebel `rebel.lua`: spawn rule, 1d6 steered steps with U-03 costs, Mountain lock 10 rounds, 7-tile blockade, loss/steal + tie choice + spec
+- [x] 5. Rebel `rebel.lua`: spawn rule, 1d6 steered steps with U-03 costs, Mountain lock 10 rounds, 7-tile blockade, loss/steal + tie choice + spec
 - [ ] 6. Game `game.lua` (commands check/apply/legal/actor, phase FSM, setup, 20 rounds) + `scoring.lua` + versioned save/load + replay; `game_spec`, `sim_spec`, `--sim N`
 - [ ] 7. UI foundation: Vietnamese font (Be Vietnam Pro, OFL), theme, widgets, input action map, menu + results scenes
 - [ ] 8. Game scene: territory/building/HQ/rebel layers, placement ghost + reasons, HUD (top bar, player panels, dice + animation, actions, log), rebel steering, loss popup, F5/F9
