@@ -125,6 +125,21 @@ function Sim.play(seed, players)
     return state, stats
 end
 
+-- Tự chơi tối đa `n` lệnh trên state sẵn có (dùng để dựng thế cờ cho ảnh chụp / debug). Trả số lệnh đã chạy.
+function Sim.advance(state, n, seed)
+    local prng = Rng.new("advance:" .. tostring(seed or state.seed))
+    local perTurn, done = 0, 0
+    while done < n and state.phase ~= "over" do
+        local legal = Game.legal(state)
+        if #legal == 0 then break end
+        local cmd = chooseCommand(prng, state, legal, perTurn)
+        perTurn = cmd.type == "endTurn" and 0 or perTurn + 1
+        Game.apply(state, cmd)
+        done = done + 1
+    end
+    return done
+end
+
 -- Chạy `count` ván, số người xoay vòng 2..4. Trả bảng thống kê gộp.
 function Sim.batch(count, firstSeed, onGame)
     local sum = { games = 0, sevens = 0, builds = 0, claims = 0, commands = 0, rebelStops = 0, losses = 0,

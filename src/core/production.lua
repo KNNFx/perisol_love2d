@@ -30,7 +30,7 @@ end)
 -- Tính (không đổi state) danh sách sự kiện của một lần đổ.
 --   { kind = "seven" }
 --   { kind = "votes",   pid, amount }
---   { kind = "produce", pid, key, buildingId, level, face, res, amount, dice }  (dice = số viên khớp)
+--   { kind = "produce", pid, key, buildingId, level, face, res, amount, dice, roller }  (dice = số viên khớp)
 function P.compute(state, dice, activePid)
     if Dice.isSeven(dice) then return { { kind = "seven" } } end
 
@@ -55,7 +55,7 @@ function P.compute(state, dice, activePid)
                     if perDie > 0 then
                         events[#events + 1] = {
                             kind = "produce", pid = b.owner, key = k, buildingId = b.id, level = b.level,
-                            face = face, res = res, amount = perDie * matching, dice = matching,
+                            face = face, res = res, amount = perDie * matching, dice = matching, roller = activePid,
                         }
                     end
                 end

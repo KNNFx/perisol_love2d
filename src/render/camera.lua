@@ -25,8 +25,9 @@ end
 -- Giữ khung nhìn trong bản đồ (cộng lề CAMERA_MARGIN).
 function Camera:clamp()
     local w, h = love.graphics.getDimensions()
-    self.x = clampAxis(self.x, self.worldW, w / (2 * self.zoom), C.CAMERA_MARGIN)
-    self.y = clampAxis(self.y, self.worldH, h / (2 * self.zoom), C.CAMERA_MARGIN)
+    local margin = self.margin or C.CAMERA_MARGIN   -- scene có HUD che mép màn hình có thể đặt lề lớn hơn
+    self.x = clampAxis(self.x, self.worldW, w / (2 * self.zoom), margin)
+    self.y = clampAxis(self.y, self.worldH, h / (2 * self.zoom), margin)
 end
 
 -- Chọn bậc zoom lớn nhất mà toàn bộ chiều ngang bản đồ còn vừa màn hình, rồi căn giữa.

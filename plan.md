@@ -124,7 +124,7 @@ This is the most important milestone. It proves whether Long Mạch is fun.
 - [x] 5. Rebel `rebel.lua`: spawn rule, 1d6 steered steps with U-03 costs, Mountain lock 10 rounds, 7-tile blockade, loss/steal + tie choice + spec
 - [x] 6. Game `game.lua` (commands check/apply/legal/actor, phase FSM, setup, 20 rounds) + `scoring.lua` + versioned save/load + replay; `game_spec`, `sim_spec`, `--sim N`
 - [x] 7. UI foundation: Vietnamese font (Be Vietnam Pro, OFL), theme, widgets, input action map, menu + results scenes
-- [ ] 8. Game scene: territory/building/HQ/rebel layers, placement ghost + reasons, HUD (top bar, player panels, dice + animation, actions, log), rebel steering, loss popup, F5/F9
+- [x] 8. Game scene: territory/building/HQ/rebel layers, placement ghost + reasons, HUD (top bar, player panels, dice + animation, actions, log), rebel steering, loss popup, F5/F9
 - [ ] 9. Docs + acceptance: CLAUDE.md updated, 2-player hot-seat game to the score screen, `--sim 100` clean
 - [ ] Playtest #1 → tune `constants.lua`
 

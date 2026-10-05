@@ -42,6 +42,8 @@ local function hexPolygon(cx, cy)
     }
 end
 
+R.hexPolygon = hexPolygon   -- dùng chung với src/render/game_layers.lua
+
 local function drawFallback(def, cx, cy)
     local poly = hexPolygon(cx, cy)
     local c = def.color
@@ -52,11 +54,10 @@ local function drawFallback(def, cx, cy)
     love.graphics.polygon("line", poly)
 end
 
--- opts = { tileset, hover = tile|nil, zoom = số, showZones = bool }
-function R.draw(map, opts)
-    local tileset, zoom = opts.tileset, opts.zoom or 1
-
-    -- Lượt 1: địa hình, vẽ theo hàng từ trên xuống để hàng dưới đè phần nhô lên.
+-- Lượt 1: địa hình, vẽ theo hàng từ trên xuống để hàng dưới đè phần nhô lên.
+-- opts = { tileset }
+function R.drawTerrain(map, opts)
+    local tileset = opts.tileset
     for _, tile in ipairs(map.list) do
         local def = Terrains.byId[tile.terrain]
         local cx, cy = R.tileCenter(tile)
@@ -67,8 +68,12 @@ function R.draw(map, opts)
             drawFallback(def, cx, cy)
         end
     end
+end
 
-    -- Lượt 2: lớp phủ (vùng khởi đầu, Danh Thắng, tài nguyên chiến lược, hover).
+-- Lượt 2: lớp phủ của bản đồ (vùng khởi đầu, Danh Thắng, tài nguyên chiến lược).
+-- opts = { zoom, showZones }
+function R.drawMarkers(map, opts)
+    local zoom = opts.zoom or 1
     for _, tile in ipairs(map.list) do
         local cx, cy = R.tileCenter(tile)
 
@@ -77,7 +82,7 @@ function R.draw(map, opts)
             love.graphics.setColor(pc[1], pc[2], pc[3], 0.28)
             love.graphics.polygon("fill", hexPolygon(cx, cy))
         end
-        if tile.isStart then
+        if opts.showZones and tile.isStart then
             local pc = R.PLAYER_COLORS[tile.isStart]
             love.graphics.setColor(pc[1], pc[2], pc[3])
             love.graphics.setLineWidth(2 / zoom)
@@ -106,16 +111,24 @@ function R.draw(map, opts)
             end
         end
     end
+end
 
-    if opts.hover then
-        local cx, cy = R.tileCenter(opts.hover)
-        love.graphics.setColor(1, 1, 1, 0.22)
-        love.graphics.polygon("fill", hexPolygon(cx, cy))
-        love.graphics.setColor(1, 1, 1)
-        love.graphics.setLineWidth(2 / zoom)
-        love.graphics.polygon("line", hexPolygon(cx, cy))
-        love.graphics.setLineWidth(1)
-    end
+function R.drawHover(tile, zoom, color)
+    local cx, cy = R.tileCenter(tile)
+    local c = color or { 1, 1, 1 }
+    love.graphics.setColor(c[1], c[2], c[3], 0.22)
+    love.graphics.polygon("fill", hexPolygon(cx, cy))
+    love.graphics.setColor(c[1], c[2], c[3])
+    love.graphics.setLineWidth(2 / zoom)
+    love.graphics.polygon("line", hexPolygon(cx, cy))
+    love.graphics.setLineWidth(1)
+end
+
+-- opts = { tileset, hover = tile|nil, zoom = số, showZones = bool }
+function R.draw(map, opts)
+    R.drawTerrain(map, opts)
+    R.drawMarkers(map, opts)
+    if opts.hover then R.drawHover(opts.hover, opts.zoom or 1) end
     love.graphics.setColor(1, 1, 1)
 end
 

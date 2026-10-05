@@ -1,5 +1,5 @@
 -- Sandbox M0: sinh và xem bản đồ.
--- Phím: R = seed mới · 1-4 = số người chơi · F1 = debug · Z = vùng khởi đầu · Esc = thoát
+-- Phím: R = seed mới · 1-4 = số người chơi · F1 = debug · Z = vùng khởi đầu · Esc = về menu
 -- Chuột: kéo phải/giữa = di chuyển · con lăn = zoom · WASD/mũi tên = di chuyển
 -- Tham số dòng lệnh: --seed N  --players N
 
@@ -13,13 +13,7 @@ local Strategic   = require("src.data.strategic")
 
 local Sandbox = {}
 
-local function cliOption(name)
-    local args = arg or {}
-    for i, a in pairs(args) do
-        if a == name then return args[i + 1] end
-    end
-    return nil   -- phải trả nil tường minh: tonumber() không đối số sẽ báo lỗi
-end
+local cliOption = require("src.cli").option
 
 function Sandbox:enter()
     self.tileset = Tileset.load()
@@ -58,16 +52,6 @@ function Sandbox:draw()
     })
     self.camera:detach()
     self:drawOverlay()
-
-    -- Dev: `--shot ten.png` chụp màn hình vào thư mục save (%APPDATA%/LOVE/perisol) rồi thoát.
-    self.frames = (self.frames or 0) + 1
-    local shot = cliOption("--shot")
-    if shot and self.frames == 3 then
-        love.graphics.captureScreenshot(function(img)
-            img:encode("png", shot)
-            love.event.quit()
-        end)
-    end
 end
 
 function Sandbox:drawOverlay()
@@ -111,7 +95,7 @@ end
 
 function Sandbox:keypressed(key)
     if key == "escape" then
-        love.event.quit()
+        require("src.scenes.manager").switch(require("src.scenes.menu"))
     elseif key == "r" then
         self:regenerate()
     elseif key == "f1" then
