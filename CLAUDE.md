@@ -44,9 +44,14 @@ When implementing data, use the IDs from these docs (`DH-01`, `TN-05`, `B-01.2`,
 - **Units:** no player-vs-player combat. Units pass through each other. Harm comes only via the Rebel, Edicts, or infrastructure sabotage. Movement uses per-terrain costs (∞ = impassable) with road bonuses. Infrastructure durability is **per tile**, and route durability = MIN over its tiles.
 - **Modifier application order:** Base → Character → Tech → Building aura → Strategic resource → Road. Round down at the final step.
 - **Characters:** 5 (Địa Sư, Thương Nhân, Pháp Sư, Tướng Quân, Học Sĩ). Each has 1 passive skill and 4 alternate win conditions, which are checked alongside end-of-game scoring.
+- **Rules the GDD leaves open are decided in `docs/Decisions.md`.** D-006 covers Chi Phối thresholds and the Hex face, D-007 starting resources and setup, D-008 sum-of-7 and production, D-009 Rebel effects, D-010 C1 placement and scoring, and D-011 the M1 architecture. Read these before changing any rule. Record new decisions there rather than editing the design docs.
 
 Balance numbers live in `Perisol_Data.md` §8.1 ("HẰNG SỐ CÂN BẰNG"). Keep them as named constants in a single config module (e.g. `MAX_EXPEDITION_PER_PLAYER`, `SUPPRESS_THRESHOLD_EXPEDITION`) so playtesting can tune them without touching logic.
 
 ## Roadmap context
 
 Milestones from GDD §12: Sandbox (M0) → Core Loop (M1) → Buildings & Infrastructure (M1.5) → Cards (M2) → Characters (M3) → Polish (M4) → Multiplayer (M5). M1.5–M3 are complete **as designs only**; implementation starts from M0.
+
+## Git Commit Guidelines
+- Never append or include the "Co-authored-by: Claude" line in any git commit messages.
+- Commit messages must strictly contain only the title and description of the changes made, without any AI authorship metadata.
