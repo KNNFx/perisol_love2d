@@ -128,6 +128,37 @@ Mỗi quyết định ghi: bối cảnh, lựa chọn, lý do. Khi tài liệu t
   - Chia mức theo độ quan trọng: ra 7 và Phiến Quân dừng ở mức lớn; sản xuất ở mức nhỏ.
   - Có tùy chọn giảm rung màn hình.
 
+## D-012 — Đối chiếu GDD v1.2 bản đầy đủ (PDF) với M1 — 2026-10-05
+`docs/Perisol_GDD_v1.2_Full.md` đã được chép lại khớp 100% với `Perisol_GDD_v1.2.pdf`. Bản cũ là bản rút gọn và thiếu nhiều luật. Đối chiếu bản đầy đủ với các quyết định D-006..D-011 và code M1 cho kết quả dưới đây.
+
+**PDF xác nhận (không cần đổi):**
+- Ngưỡng phiếu 1 / 2 / 3+ theo khoảng cách (§5.4 khung "Phân biệt quan trọng", Phụ lục A). D-006 trước đây là suy luận, nay đã có chữ.
+- Mỗi mặt Hex cho người đang lượt 1 phiếu Chi Phối, dùng trong Khâu Hành Động (§5.2). Khớp D-006.
+- Tổng 7: không ai nhận tài nguyên, Phiến Quân kích hoạt (§5.2). Công trình trong vùng phong tỏa không sản xuất (§5.2 khung "Cơ chế Long Mạch", §6.2). Khớp D-008 và D-009.
+- Công thức sản lượng `Cấp × Sản lượng cơ bản × số viên khớp` (§5.2) cho cùng kết quả với bảng theo cấp ở §8.1 / Data khi sản lượng cơ bản = 1: C1 = 1, C2 = 2, C3 = 3 cho mặt chính. Các dòng "cross-resource" (vd. "+1 KT khi ra KH") chỉ có trong bảng. D-008 vẫn đúng. Ví dụ "nhà máy thép, cơ bản 2" ở §5.2 chỉ là minh họa.
+- Thứ tự lượt: cao nhất đi trước (§11.1 bước 5). Bảng điểm (§11.2) khớp D-010 (ngoại trừ cách tính Danh Thắng, xem bảng dưới).
+
+**Mâu thuẫn giữa PDF và M1 (cần chủ dự án quyết định):**
+
+| # | Chủ đề | PDF nói | M1 hiện tại | Đề xuất |
+|---|---|---|---|---|
+| 1 | Vùng ảnh hưởng ≠ thực hữu | 6 ô quanh HQ là **vùng ảnh hưởng**, chỉ thu tài nguyên và bỏ phiếu, **không xây được** (§5.4, §7.1, Phụ lục A). Chỉ đặt phiếu **trong** vùng ảnh hưởng. Muốn với tới ô xa phải nâng HQ lên C2 (19 ô) hoặc lập Sub (§7.2, §9.1). | 7 ô nhà là của người chơi ngay từ đầu. Được đặt phiếu lên ô kề lãnh thổ của mình (D-006). | Nếu theo đúng PDF, M1 cần thêm **nâng HQ C2** và **Sub** (đang để M1.5). Nếu không, người chơi tối đa chỉ có 7 ô. Phương án tạm: giữ D-006 cho M1 và áp luật PDF khi làm M1.5. |
+| 2 | Cướp ô | Người đạt ngưỡng trước được ô. Đối thủ muốn tranh lại phải trả **gấp đôi yêu cầu** (§7.2). Công trình đã xây không bị mất. | Cần nhiều phiếu hơn hẳn chủ và đạt ngưỡng; ô có công trình bị khóa (D-006). | Đổi theo PDF: ngưỡng cướp = 2 × ngưỡng. Phần khóa ô có công trình vẫn khớp. |
+| 3 | Mua đất | Bỏ Vàng + Văn Hóa mua thẳng **tile** trong vùng ảnh hưởng, phí **gấp đôi theo khoảng cách** (§7.2). PDF không cho giá gốc. | Mua **phiếu** giá 1 VH + 1 V (D-006). | Cần chốt giá gốc. Gợi ý: (1 V + 1 VH) × 2^(khoảng cách − 1) cho cả ô. |
+| 4 | Khu Dân Cư / Danh Thắng | 1 phiếu mỗi ô. Ai chiếm nhiều ô hơn trong cụm thì chi phối **cả cụm**. Hòa thì tranh chấp với chi phí cấp số cộng (+1) (§7.2). | Ngưỡng thường theo khoảng cách. Danh Thắng chỉ tính điểm khi sở hữu **mọi** ô (D-010). | Đổi theo PDF. Luật này ảnh hưởng trực tiếp tới điểm Danh Thắng (3 điểm/cụm). |
+| 5 | Phiến Quân di chuyển | Đi **đúng** số bước; **không đi lại ô đã qua** trong lượt; Núi cấm trong "10 **lượt** đầu"; Rừng/Sông/Núi tốn thêm 1 bước (tốn 2) (§6.2). | Chi phí theo Data U-03 (Rừng 2, Sông 2, **Đầm Lầy 2**, Núi **3** sau vòng 10). **Được** đi lại ô cũ. Khóa Núi theo **vòng** (D-009). | Thêm luật không đi lại ô cũ (PDF ghi rõ, Data không nói gì). Núi giữ chi phí 3 của Data hay đổi thành 2 theo GDD: cần chốt. "Lượt" hiểu là "vòng". |
+| 6 | Phiến Quân xuất hiện | Đặt ở **tile trung tâm** (hoặc tile chỉ định), **trước** khi đặt HQ (§11.1 bước 4). | Ngẫu nhiên trên Đồng Bằng/Lãnh Nguyên/Sa Mạc, cách HQ ≥ 2, **sau** khi đặt HQ (Data U-03, D-009). | Cần chốt. Data mới hơn và tránh việc PQ chặn chỗ đặt HQ. |
+| 7 | Tài nguyên khởi đầu | Nhận "**từ 6 ô xung quanh HQ**" (§11.1 bước 8). | Cố định 2/2/2/2/5 (D-007). | PDF không nói địa hình nào cho tài nguyên gì. Cần bảng địa hình → tài nguyên, hoặc giữ D-007. |
+| 8 | Trao đổi | Chỉ giữa **người chơi**, cần đường nối hai Khu Chợ, phí 1 Vàng mỗi ô (§5.4). §5.4 tự mâu thuẫn: "không được cho không" và "bao gồm cả cho không". | Đổi với **ngân hàng** 4:1 (D-007, PDF không có). | Giữ ngân hàng làm phương án tạm của M1 (chưa có đường). Đổi giữa người chơi làm ở M1.5. Cần chốt chuyện "cho không". |
+| 9 | Hiệu ứng địa hình | Lãnh Nguyên: Vàng −1 sản lượng, xây công trình −1 KT. Sa Mạc: không sản xuất Tín Ngưỡng. Đồi Cỏ: Trại KT C2 +1 KT. Rừng: Viện NC C1 +1 KH thụ động. Đầm Lầy: "Tín Ngưỡng & Văn Hóa cao" (§3.1). | Chưa làm. | Thêm vào pipeline modifier (stage `base`). Riêng "Đầm Lầy cao" chưa có con số. |
+| 10 | Đặt HQ | Chọn **tile bất kỳ** hợp lệ, có kiểm tra tự động (§11.1 bước 6). | Chọn một trong các vùng khởi đầu do mapgen tạo sẵn. | Giữ cho M1, vì như vậy công bằng hơn. Có thể mở cho chọn tự do khi có kiểm tra hợp lệ. |
+| 11 | Xây trên Khu Dân Cư | §3.1: Khu Dân Cư / Danh Thắng chỉ cho Chi Phối, không xây. Nhưng §9.4 của **chính PDF** cho Nhà Văn Hóa và Khu Chợ C1–C2 ⭐ trên Khu DC. | Theo ma trận (§9.4 / Data): cho xây. | Giữ ma trận. Ghi nhận PDF tự mâu thuẫn. |
+
+**Ghi nhận khác:**
+- Trang bìa PDF ghi "PC (Godot 4 / C#)", trong khi bảng §1.2 ghi "PC — Love2D, Lua". Đây là chữ sót lại; engine đích là Love2D.
+- Danh Thắng có "4 kiểu hình (đơn/tam giác/tứ giác)" (§3.1). Mapgen hiện có 3 hình (1/3/4 ô).
+- Mục lộ trình nay là **§13.1** (bản cũ ghi §12).
+
 ## Xung đột tài liệu đã phát hiện (chọn theo Data)
 | Chủ đề | GDD §3.1 / §8 | Data | Chọn |
 |---|---|---|---|
@@ -138,3 +169,6 @@ Mỗi quyết định ghi: bối cảnh, lựa chọn, lý do. Khi tài liệu t
 | Trại Khai Thác C1 trên Rừng/Bờ Biển | Đồng Bằng, Núi (§8.1) | Ma trận ✅ Rừng/Bờ Biển; sheet Công trình ❌ | Ma trận cho C1 ở M1 (D-010); C2/C3 chốt ở M1.5 |
 | Sản lượng công trình | `Cấp × Cơ bản × số viên` (§5.2) | Bảng sản lượng theo cấp | Data × số viên khớp (D-008) |
 | Phiến Quân cướp tài nguyên | 2 dòng tách rời, mơ hồ (§6.2) | — | Gộp: chủ mất ceil(½), người đổ nhận ceil(½) (D-009) |
+| Chi phí Phiến Quân vào Núi (sau khóa) | −1 bước (= 2) (§6.2) | 3 (U-03) | Đang dùng Data. Chờ chốt (D-012 #5) |
+| Phiến Quân vào Đầm Lầy | Không nhắc (= 1) (§6.2) | 2 (U-03) | Đang dùng Data |
+| Đầm Lầy đặt HQ/Sub | ❌ cả hai (§3.1 bản PDF) | Sub ✅ | Data (như trên). GDD bản PDF xác nhận lại ❌ |

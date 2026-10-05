@@ -29,14 +29,14 @@ All design docs are written in **Vietnamese**. Game terms (Long Mạch, Phiến 
 
 | File | Contents |
 |---|---|
-| `docs/Perisol_GDD_v1.2_Full.md` | Master GDD: core loop, map, resources, dice, characters, territory, buildings, infrastructure, setup & scoring |
+| `docs/Perisol_GDD_v1.2_Full.md` | Master GDD, transcribed 1:1 from `Perisol_GDD_v1.2.pdf` (keep it identical to the PDF, do not add notes inside it): core loop, map, resources, dice, characters, territory, buildings, infrastructure, cards summary, setup & scoring, roadmap (§13.1) |
 | `docs/Perisol_Data.md` | Static data tables exported from `Perisol Data.xlsx`: terrains (DH-xx), strategic resources (TN-xx), buildings with costs/footprints (B/D/S-xx), building×terrain placement matrix, infrastructure, units (U-xx), unit actions (A-xx), movement-cost table, durability rules, modifier order, **tunable constants**, unit FSM states, open design Q&A |
 | `docs/Perisol_Buildings_v1.0.md` | Detailed per-building descriptions (Basic → Derived → Special) |
 | `docs/Perisol_Cards_v1.2.md` | All 80 cards: 30 Tech (T-ENG/…, 5 schools × 6, 3 levels each), 30 Edicts (Tức Thì / Phản Ứng / Nội Tại), 20 Global Events (rounds 5/10/15/20) |
 
 When implementing data, use the IDs from these docs (`DH-01`, `TN-05`, `B-01.2`, `D-03`, `S-04`, `U-01K`, `A-03`, `T-ENG-02`, `HT-03`) as stable keys so code can be traced back to the design.
 
-**Docs disagree in places.** For example, valid terrains for Trại Khai Thác / Nhà Văn Hóa differ between the GDD §8.1, the Data "Công trình" sheet, and the "Đặt công trình" matrix. `Perisol_Data.md` is the newest and most detailed; prefer it for numbers and placement rules, and flag the conflict to the user rather than silently picking one. Rows marked "ĐỀ XUẤT" (proposed) or "Dự kiến có thay đổi" are not final. The Data doc mentions "Godot 4 / C#" in the unit FSM section; that is a leftover, and the target engine is Love2D/Lua.
+**Docs disagree in places.** For example, valid terrains for Trại Khai Thác / Nhà Văn Hóa differ between the GDD §8.1, the Data "Công trình" sheet, and the "Đặt công trình" matrix. `Perisol_Data.md` is the newest and most detailed; prefer it for numbers and placement rules, and flag the conflict to the user rather than silently picking one. Rows marked "ĐỀ XUẤT" (proposed) or "Dự kiến có thay đổi" are not final. The Data doc (unit FSM section) and the GDD cover page mention "Godot 4 / C#"; that is a leftover, and the target engine is Love2D/Lua. Where the full GDD differs from the implemented M1 rules (influence zone vs owned land, retake cost, cluster control, Rebel movement/spawn, starting resources, trading), the open items are listed in `docs/Decisions.md` D-012 — ask before changing those rules.
 
 ## Core game architecture (cross-document summary)
 
@@ -50,13 +50,13 @@ When implementing data, use the IDs from these docs (`DH-01`, `TN-05`, `B-01.2`,
 - **Units:** no player-vs-player combat. Units pass through each other. Harm comes only via the Rebel, Edicts, or infrastructure sabotage. Movement uses per-terrain costs (∞ = impassable) with road bonuses. Infrastructure durability is **per tile**, and route durability = MIN over its tiles.
 - **Modifier application order:** Base → Character → Tech → Building aura → Strategic resource → Road. Round down at the final step.
 - **Characters:** 5 (Địa Sư, Thương Nhân, Pháp Sư, Tướng Quân, Học Sĩ). Each has 1 passive skill and 4 alternate win conditions, which are checked alongside end-of-game scoring.
-- **Rules the GDD leaves open are decided in `docs/Decisions.md`.** D-006 covers Chi Phối thresholds and the Hex face, D-007 starting resources and setup, D-008 sum-of-7 and production, D-009 Rebel effects, D-010 C1 placement and scoring, and D-011 the M1 architecture. Read these before changing any rule. Record new decisions there rather than editing the design docs.
+- **Rules the GDD leaves open are decided in `docs/Decisions.md`.** D-006 covers Chi Phối thresholds and the Hex face, D-007 starting resources and setup, D-008 sum-of-7 and production, D-009 Rebel effects, D-010 C1 placement and scoring, D-011 the M1 architecture, and D-012 the open differences between the full GDD PDF and M1. Read these before changing any rule. Record new decisions there rather than editing the design docs.
 
 Balance numbers live in `Perisol_Data.md` §8.1 ("HẰNG SỐ CÂN BẰNG"). Keep them as named constants in a single config module (e.g. `MAX_EXPEDITION_PER_PLAYER`, `SUPPRESS_THRESHOLD_EXPEDITION`) so playtesting can tune them without touching logic.
 
 ## Roadmap context
 
-Milestones from GDD §12: Sandbox (M0) → Core Loop (M1) → Buildings & Infrastructure (M1.5) → Cards (M2) → Characters (M3) → Polish (M4) → Multiplayer (M5). M1.5–M3 are complete **as designs only**; M0 and M1 are implemented.
+Milestones from GDD §13.1: Sandbox (M0) → Core Loop (M1) → Buildings & Infrastructure (M1.5) → Cards (M2) → Characters (M3) → Polish (M4) → Multiplayer (M5). M1.5–M3 are complete **as designs only**; M0 and M1 are implemented.
 
 ## Git Commit Guidelines
 - Never append or include the "Co-authored-by: Claude" line in any git commit messages.

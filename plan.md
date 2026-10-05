@@ -9,7 +9,7 @@
 - Design docs are rich and mostly complete: GDD v1.2, Data tables, Buildings v1.0, and 80 cards in Cards v1.2.
 - Art: one test sheet, `Image/HexaTiles_Test_V001.png`. It holds pixel-art hex tiles (forest, plains, desert, river/water, mountain, snow, settlements, roads) and is not yet sliced into individual sprites.
 - Engine: **LÖVE 11.5** is installed at `C:\Program Files\LOVE\`. The `New folder/` directory at the project root is empty and can be deleted.
-- Roadmap (GDD §12) is M0 Sandbox → M1 Core Loop → M1.5 Buildings & Infra → M2 Cards → M3 Characters → M4 Polish → M5 Multiplayer. M1.5–M3 are designed on paper only.
+- Roadmap (GDD §13.1) is M0 Sandbox → M1 Core Loop → M1.5 Buildings & Infra → M2 Cards → M3 Characters → M4 Polish → M5 Multiplayer. M1.5–M3 are designed on paper only.
 
 **Goal:** turn the design into a playable hot-seat prototype as fast as possible, then layer the systems on in the order of risk and dependency. The guiding rule is to **validate the fun of the core loop (Long Mạch dice + territory) before building the 80 cards**.
 
@@ -37,9 +37,15 @@ These are gaps or contradictions found in the docs. Each needs a decision, and t
 | 8 | **Contested/claim flow:** what action places a Chi Phối token, and what does it cost? | GDD §5.4, §7 | M1 | ✅ Decided → D-006 |
 | 9 | **Rebel effects:** "half of the most-held resource" — a tie-break rule is needed. The "Ô có tài nguyên ngoài chủ" row is ambiguous. | GDD §6.2 | M1 | ✅ Decided → D-009 |
 | 10 | **Win condition timing:** does a character win end the game immediately or give bonus points? (GDD: "Thắng ngay / điểm thưởng lớn".) | GDD §11.2 | M3 | Open |
-| 11 | Leftover references to "Godot 4 / C#" and to U-06 (`ENVOY_LIFETIME_ROUNDS`). U-05 Sứ Giả has a proposed cost. Hảo Cảm (favor) appears in the units sheet but not in the GDD. | Data §8–9 | M1.5 | Open |
+| 11 | Leftover references to "Godot 4 / C#" (Data §9 and the GDD PDF cover) and to U-06 (`ENVOY_LIFETIME_ROUNDS`). U-05 Sứ Giả has a proposed cost. Hảo Cảm (favor) appears in the units sheet and in GDD §5.4 ("Nâng Hảo Cảm với Khu Dân Cư") without numbers. | Data §8–9, GDD §5.4 | M1.5 | Open |
+| 12 | **Influence zone ≠ owned (full GDD PDF).** The 6 tiles around HQ are an influence zone (vote, collect, **no building**); votes go only inside the influence zone; reaching farther needs HQ C2 or a Sub. M1 instead gifts the 7 home tiles and allows votes on tiles adjacent to owned land. | GDD §5.4, §7.1–7.2, App. A | M1 rework or M1.5 | Open → D-012 #1 |
+| 13 | **Retaking a tile** costs double the requirement (GDD); M1 uses "strictly more votes and meets threshold". **Buying land:** GDD buys a tile with Gold + Culture, doubling per distance, base price not given; M1 buys a vote for 1 VH + 1 V. | GDD §7.2 | M1 rework | Open → D-012 #2–3 |
+| 14 | **Settlement / Landmark control:** 1 vote per tile, the majority of tiles in the cluster controls the whole cluster, ties contested at +1 cost. M1 uses normal thresholds and scores a landmark only when all its tiles are owned. | GDD §7.2 | M1 rework | Open → D-012 #4 |
+| 15 | **Rebel movement:** no revisiting tiles in one move (GDD only); Mountain cost after the lock is 2 (GDD) vs 3 (Data); Swamp cost 1 (GDD) vs 2 (Data). **Rebel spawn:** central tile before HQs (GDD) vs random Plains/Tundra/Desert after HQs (Data). | GDD §6.2, §11.1 | M1 rework | Open → D-012 #5–6 |
+| 16 | **Starting resources "from the 6 tiles around HQ"** has no terrain → resource table. M1 gives fixed 2/2/2/2/5. | GDD §11.1 step 8 | M1 rework | Open → D-012 #7 |
+| 17 | **Trading** is player ↔ player over roads (1 Gold/tile), and the GDD contradicts itself on gifts; M1 uses a 4:1 bank instead. **Terrain effects** (Tundra −1 Gold output and −1 KT build cost, Desert no Faith, Hills Mining Camp C2 +1 KT, Forest Research C1 +1 KH passive, Swamp "high Faith & Culture") are not implemented. | GDD §5.4, §3.1 | M1.5 | Open → D-012 #8–9 |
 
-**Recommendation:** start M0 in parallel with P0. M0 needs only decision #3. *(Update 2026-10-05: everything M1 needs is decided; #10 and #11 remain open for M1.5/M3.)*
+**Recommendation:** start M0 in parallel with P0. M0 needs only decision #3. *(Update 2026-10-05: everything M1 needs is decided; #10 and #11 remain open for M1.5/M3.)* *(Update 2026-10-05, later: the full GDD PDF was transcribed into `docs/Perisol_GDD_v1.2_Full.md`. It confirms #1, #4, #5 and is compatible with #7, but it adds rules that differ from the M1 implementation: #12–#17, detailed in `docs/Decisions.md` D-012.)*
 
 ---
 
@@ -126,6 +132,7 @@ This is the most important milestone. It proves whether Long Mạch is fun.
 - [x] 7. UI foundation: Vietnamese font (Be Vietnam Pro, OFL), theme, widgets, input action map, menu + results scenes
 - [x] 8. Game scene: territory/building/HQ/rebel layers, placement ghost + reasons, HUD (top bar, player panels, dice + animation, actions, log), rebel steering, loss popup, F5/F9
 - [x] 9. Docs + acceptance: CLAUDE.md updated, hot-seat games (2 and 4 players) driven through the real UI to the score screen, `--sim 100` clean
+- [ ] Align M1 rules with the full GDD PDF where the owner decides to (P0 #12–#16, `docs/Decisions.md` D-012). Candidate changes: influence zone not owned at start + HQ C2/Sub to expand, retake at 2× threshold, buy tile with Gold + Culture, cluster majority for Settlement/Landmark, Rebel no-revisit rule
 - [ ] Playtest #1 → tune `constants.lua`
 
 ---
@@ -133,13 +140,13 @@ This is the most important milestone. It proves whether Long Mạch is fun.
 ## P3 — M1.5 Buildings & Infrastructure (≈3 weeks)
 
 Do this in order:
-1. **Basic buildings C2/C3 with multi-hex footprints:** triangle (3), 2-adjacent, 4-rectangle, trapezoid/cluster (6), and L (3). Store each shape as a list of axial offsets × 6 rotations. Add placement preview with rotation (Q/E keys). Allow upgrading in place.
-2. **Strategic resource bonuses:** tile bonuses (no ownership needed) and building bonuses (ownership needed), applied through the modifier pipeline. Warn the player when demolishing a building on a TN.
+1. **Basic buildings C2/C3 with multi-hex footprints:** triangle (3), 2-adjacent, 4-rectangle, trapezoid/cluster (6), and L (3). Store each shape as a list of axial offsets × 6 rotations. Add placement preview with rotation (Q/E keys). Allow upgrading in place. **Demolish** (GDD §5.4): no refund, takes 1 round, returns the tile's original resource; an Edict can demolish instantly with a refund.
+2. **Strategic resource bonuses:** tile bonuses (no ownership needed) and building bonuses (ownership needed), applied through the modifier pipeline. Warn the player when demolishing a building on a TN. Also add the **terrain effects** from GDD §3.1 (Tundra −1 Gold output and −1 KT build cost, Desert no Faith, Hills Mining Camp C2 +1 KT, Forest Research C1 +1 KH passive), see D-012 #9.
 3. **HQ L1–5 and Subsidiary L1–3:** costs, gates (round 11+ / round 16+, needs a Market, and so on) and the influence radius increase.
 4. **Units:** U-01 Expedition (buy, move with per-terrain cost, flood-fill reachable tiles, A* path preview), A-02 found a Subsidiary (consumes the unit), A-03 suppress the Rebel (1d6 vs threshold, pay 2 TN to guarantee), A-04 garrison, and A-06 disband. Add quotas and upkeep. Build the unit FSM from Data §9 (IDLE/MOVING/EXHAUSTED/…).
-5. **Roads & trade:** U-02 auto-builds Dirt Road (Đường Đất) as it moves, road movement bonuses, the Stone Road upgrade, A-07 trade completion with a per-tile fee, and the Market's road requirement to reach HQ.
-6. **Derived buildings D-01..D-05:** detect when two qualifying basics are adjacent or road-connected (BFS over the road graph). They produce materials (Hợp Kim, Giấy, Thép, Lụa, Tín Phiếu).
-7. **Special buildings S-01..S-05:** large footprints, material costs and **auras** (radius-based modifier registration). Implement each S-ability (dice preview, rebel block, vote ×1.5, Long Mạch radius, cancel 7).
+5. **Roads & trade:** U-02 auto-builds Dirt Road (Đường Đất) as it moves, road movement bonuses, the Stone Road upgrade, A-07 trade completion with a per-tile fee, and the Market's road requirement to reach HQ. **Player ↔ player trade** (GDD §5.4): only the active player proposes, both Markets must be road-connected, fee 1 Gold per tile, no same-type swap; settle the "gifts allowed?" contradiction first (D-012 #8). Settlements with a Port/Market trade at a fixed rate; Hảo Cảm (favor) gives extra benefits.
+6. **Derived buildings D-01..D-05:** detect when two qualifying basics are adjacent or road-connected (BFS over the road graph). They produce materials (Hợp Kim, Giấy, Thép, Lụa, Tín Phiếu). Distance rule (GDD §8.2): adjacent = combine at once; 1–2 tiles = needs a continuous Dirt Road; 3+ tiles = impossible even with a road.
+7. **Special buildings S-01..S-05:** large footprints, material costs and **auras** (radius-based modifier registration). Implement each S-ability (dice preview, rebel block, vote ×1.5, Long Mạch radius, cancel 7). Each special building has **2 upgrade levels** (+1, +2) with their own costs and effects (GDD §8.3).
 8. **Industrial layer (lowest in M1.5):** Coal Mine, Oil Well, Railway (+ U-02T train transform), Pipeline (U-04 auto transport), and per-tile **durability** with route = MIN(tile), damage sources, and repair (manual / auto from HQ). Consider deferring this to after M3 if time is short; it is the most complex and least core part.
 
 ---
