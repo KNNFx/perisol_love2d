@@ -33,6 +33,7 @@ Theo mẫu của skill `create-game-assets`. Phần bỏ trống = chưa quyết
 - Anchor/pivot/baseline: tâm ô; phần nhô lên trên khai báo bằng `overhang` trong `src/render/tileset.lua`.
 - Filtering/mipmaps/compression: `nearest`, không mipmap, PNG không nén mất dữ liệu.
 - Color space: sRGB.
+- UI font: **Be Vietnam Pro** (Regular + Bold, SIL OFL 1.1) trong `assets/fonts/`, hỗ trợ đủ dấu tiếng Việt. Font **không** có các glyph mũi tên (↑↓←→) và ký hiệu hình học (◄ ●): không dùng chúng trong chữ UI, hãy viết bằng chữ hoặc vẽ icon. Chữ trên bản đồ (KT, KH, PQ...) dùng font mặc định của LÖVE, chỉ ASCII.
 - Naming and folders: sheet hiện ở `Image/`; sprite tách riêng (khi có) vào `assets/tiles/<terrain>_<n>.png`.
 
 ## Visual target

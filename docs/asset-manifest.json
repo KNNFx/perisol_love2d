@@ -45,6 +45,34 @@
     { "id": "tile-snow",       "role": "DH-12 Núi Tuyết",   "path": "Image/HexaTiles_Test_V001.png", "status": "placeholder", "cells": [[320,192],[352,192]], "overhang": 4 },
     { "id": "tile-swamp",      "role": "DH-08 Đầm Lầy",     "path": "", "status": "planned", "note": "chưa có sprite; đang vẽ đa giác màu" },
     { "id": "tile-landmark",   "role": "DH-11 Danh Thắng",  "path": "", "status": "planned", "note": "chưa có sprite; đang vẽ đa giác tím + kim cương" },
-    { "id": "tile-river-dedicated", "role": "DH-04 Sông (bản riêng, có bờ)", "path": "", "status": "planned" }
+    { "id": "tile-river-dedicated", "role": "DH-04 Sông (bản riêng, có bờ)", "path": "", "status": "planned" },
+    {
+      "id": "font-ui-regular",
+      "role": "Font giao diện tiếng Việt (thường)",
+      "path": "assets/fonts/BeVietnamPro-Regular.ttf",
+      "status": "final",
+      "source": {
+        "kind": "third-party",
+        "url_or_tool": "https://github.com/google/fonts/tree/main/ofl/bevietnampro",
+        "creator": "Be Vietnam Pro Project Authors (Google Fonts)",
+        "created_at": "2026-10-05 (ngày tải về)",
+        "license": "SIL Open Font License 1.1",
+        "attribution": "assets/fonts/OFL.txt"
+      }
+    },
+    {
+      "id": "font-ui-bold",
+      "role": "Font giao diện tiếng Việt (đậm)",
+      "path": "assets/fonts/BeVietnamPro-Bold.ttf",
+      "status": "final",
+      "source": {
+        "kind": "third-party",
+        "url_or_tool": "https://github.com/google/fonts/tree/main/ofl/bevietnampro",
+        "creator": "Be Vietnam Pro Project Authors (Google Fonts)",
+        "created_at": "2026-10-05 (ngày tải về)",
+        "license": "SIL Open Font License 1.1",
+        "attribution": "assets/fonts/OFL.txt"
+      }
+    }
   ]
 }
