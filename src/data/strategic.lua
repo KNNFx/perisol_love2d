@@ -49,6 +49,19 @@ for i, s in ipairs(S.list) do
     S.byId[s.id] = s
 end
 
+-- Bonus sản lượng của ô (M1, D-008): công trình đứng trên ô có TN nhận thêm `n` mỗi viên xúc xắc khớp.
+--   face/res: chỉ cộng khi dòng sản xuất của công trình đúng mặt `face` và ra đúng tài nguyên `res`.
+--   all = true: cộng cho mọi dòng sản xuất (TN-08).  building: chỉ áp dụng cho công trình này.
+-- Các bonus còn lại (thụ động mỗi vòng, di chuyển, TN-12...) làm ở M1.5.
+S.productionBonus = {
+    ["TN-01"] = { face = 3, res = "engineering", n = 1 },
+    ["TN-03"] = { face = 5, res = "gold", n = 2, building = "B-05" },
+    ["TN-05"] = { face = 3, res = "engineering", n = 2 },
+    ["TN-06"] = { face = 5, res = "gold", n = 3 },
+    ["TN-07"] = { face = 4, res = "faith", n = 2 },
+    ["TN-08"] = { all = true, n = 1 },
+}
+
 S.LEY_NODE = "TN-12"
 
 -- true nếu TN `id` được phép xuất hiện trên địa hình `terrainId`.
