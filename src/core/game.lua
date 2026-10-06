@@ -9,8 +9,8 @@
 --   Game.legal(state)         -> danh sách lệnh hợp lệ của Game.actor (cho sim/AI/nút)
 --
 -- Pha: setup_hq -> [roll -> (rebel_move -> rebel_loss?) -> action] x lượt x 20 vòng -> over
--- Lệnh: placeHQ{start} · roll · rebelStep{q,r} · chooseLoss{res} · trade{give,get} · buyVote ·
---       placeVote{q,r} · build{id,q,r} · endTurn
+-- Lệnh: placeHQ{start} · roll · rebelStep{q,r} · chooseLoss{res} · trade{give,get} · placeVote{q,r} ·
+--       buyTile{q,r} · upgradeHQ · foundSub{q,r} · build{id,q,r} · endTurn
 
 local C           = require("src.config.constants")
 local Dice        = require("src.core.dice")
@@ -22,6 +22,7 @@ local Serialize   = require("src.core.serialize")
 local State       = require("src.core.state")
 local Territory   = require("src.core.territory")
 local Buildings   = require("src.data.buildings")
+local Terrains    = require("src.data.terrains")
 local Resources   = require("src.data.resources")
 
 local Game = {}
@@ -114,13 +115,18 @@ end
 
 -- ─── Điều kiện xây ──────────────────────────────────────────────────────────
 
-local function isAnchor(state, tile)
-    for pid in ipairs(state.players) do
-        for _, a in ipairs(Territory.anchors(state, pid)) do
-            if a.q == tile.q and a.r == tile.r then return true end
+-- Chi phí xây thực tế của công trình `id` cấp 1 trên `tile` (hiệu ứng địa hình giảm chi phí).
+local function buildCost(state, pid, id, tile)
+    local def = Buildings.level(id, 1)
+    local cost = {}
+    for k, n in pairs(def.cost) do cost[k] = n end
+    local fx = tile and Terrains.byId[tile.terrain].effects
+    if fx and fx.buildDiscount then
+        for k, n in pairs(fx.buildDiscount) do
+            if cost[k] then cost[k] = math.max(0, cost[k] - n) end
         end
     end
-    return false
+    return cost
 end
 
 local function buildCheck(state, pid, id, tile)
@@ -128,13 +134,14 @@ local function buildCheck(state, pid, id, tile)
     if not def then return false, "Công trình không tồn tại" end
     if not tile then return false, "Không có ô này" end
     if state.owner[key(tile)] ~= pid then return false, "Chỉ xây được trên lãnh thổ thực hữu của bạn" end
-    if state.buildings[key(tile)] or isAnchor(state, tile) then return false, "Ô đã có công trình" end
+    if state.buildings[key(tile)] or Territory.isAnchorTile(state, tile) then return false, "Ô đã có công trình" end
     if Rebel.isBlockaded(state, tile) then return false, "Ô đang bị Phiến Quân phong tỏa" end
     if not Buildings.allowedOn(id, 1, tile.terrain) then return false, "Địa hình này không xây được công trình này" end
-    if not canAfford(state.players[pid].res, def.cost) then return false, "Không đủ tài nguyên" end
+    if not canAfford(state.players[pid].res, buildCost(state, pid, id, tile)) then return false, "Không đủ tài nguyên" end
     return true
 end
 
+Game.buildCost = buildCost
 Game.buildCheck = buildCheck
 
 -- ─── Bảng lệnh ──────────────────────────────────────────────────────────────
@@ -152,8 +159,19 @@ H.placeHQ = {
     apply = function(state, cmd, pid, events)
         local st = state.map.starts[cmd.start]
         state.takenStarts[cmd.start] = pid
-        Territory.placeHQ(state, pid, state.map:get(st.q, st.r))
+        local hqTile = state.map:get(st.q, st.r)
+        Territory.placeHQ(state, pid, hqTile)
         events[#events + 1] = { kind = "place_hq", pid = pid, q = st.q, r = st.r }
+        -- thưởng khởi đầu từ 6 ô quanh HQ (GDD §11.1 bước 8, D-013)
+        local gains = {}
+        for _, n in ipairs(state.map:neighbors(hqTile)) do
+            local res = C.START_BONUS_BY_TERRAIN[n.terrain]
+            if res then
+                state.players[pid].res[res] = state.players[pid].res[res] + C.START_BONUS_PER_TILE
+                gains[res] = (gains[res] or 0) + C.START_BONUS_PER_TILE
+            end
+        end
+        events[#events + 1] = { kind = "start_bonus", pid = pid, gains = gains }
         state.setupIdx = state.setupIdx + 1
         if state.setupIdx > state.playerCount then
             local t = Rebel.spawn(state)
@@ -228,17 +246,61 @@ H.trade = {
     end,
 }
 
-H.buyVote = {
+H.buyTile = {
     phase = "action",
     check = function(state, cmd, pid)
-        if not canAfford(state.players[pid].res, C.VOTE_COST) then return false, "Không đủ tài nguyên mua phiếu" end
+        local tile = state.map:get(cmd.q, cmd.r)
+        local ok, why = Territory.canBuyTile(state, pid, tile)
+        if not ok then return false, why end
+        if not canAfford(state.players[pid].res, Territory.buyTileCost(state, pid, tile)) then
+            return false, "Không đủ tài nguyên mua ô"
+        end
+        return true
+    end,
+    apply = function(state, cmd, pid, events)
+        local tile = state.map:get(cmd.q, cmd.r)
+        pay(state.players[pid].res, Territory.buyTileCost(state, pid, tile))
+        Territory.buyTile(state, pid, tile)
+        events[#events + 1] = { kind = "buy_tile", pid = pid, q = tile.q, r = tile.r }
+        events[#events + 1] = { kind = "claim", pid = pid, q = tile.q, r = tile.r }
+    end,
+}
+
+H.upgradeHQ = {
+    phase = "action",
+    check = function(state, cmd, pid)
+        local ok, why = Territory.canUpgradeHQ(state, pid)
+        if not ok then return false, why end
+        local level = state.players[pid].hqLevel + 1
+        if not canAfford(state.players[pid].res, C.HQ_UPGRADE_COST[level]) then
+            return false, "Không đủ tài nguyên nâng cấp"
+        end
         return true
     end,
     apply = function(state, cmd, pid, events)
         local p = state.players[pid]
-        pay(p.res, C.VOTE_COST)
-        p.votes = p.votes + 1
-        events[#events + 1] = { kind = "buy_vote", pid = pid }
+        pay(p.res, C.HQ_UPGRADE_COST[p.hqLevel + 1])
+        Territory.upgradeHQ(state, pid)
+        events[#events + 1] = { kind = "upgrade_hq", pid = pid, level = p.hqLevel, q = p.hq.q, r = p.hq.r }
+    end,
+}
+
+H.foundSub = {
+    phase = "action",
+    check = function(state, cmd, pid)
+        local tile = state.map:get(cmd.q, cmd.r)
+        local ok, why = Territory.canFoundSub(state, pid, tile)
+        if not ok then return false, why end
+        if not canAfford(state.players[pid].res, C.SUB_COST) then
+            return false, "Không đủ tài nguyên lập Khu Trực Thuộc"
+        end
+        return true
+    end,
+    apply = function(state, cmd, pid, events)
+        local tile = state.map:get(cmd.q, cmd.r)
+        pay(state.players[pid].res, C.SUB_COST)
+        Territory.addSub(state, pid, tile)
+        events[#events + 1] = { kind = "found_sub", pid = pid, q = tile.q, r = tile.r }
     end,
 }
 
@@ -264,8 +326,7 @@ H.build = {
         return buildCheck(state, pid, cmd.id, state.map:get(cmd.q, cmd.r))
     end,
     apply = function(state, cmd, pid, events)
-        local def = Buildings.level(cmd.id, 1)
-        pay(state.players[pid].res, def.cost)
+        pay(state.players[pid].res, buildCost(state, pid, cmd.id, state.map:get(cmd.q, cmd.r)))
         state.buildings[key({ q = cmd.q, r = cmd.r })] = { id = cmd.id, level = 1, owner = pid }
         events[#events + 1] = { kind = "build", pid = pid, id = cmd.id, level = 1, q = cmd.q, r = cmd.r }
     end,
@@ -352,12 +413,26 @@ function Game.legal(state)
                 end
             end
         end
-        if canAfford(p.res, C.VOTE_COST) then out[#out + 1] = { type = "buyVote", pid = actor } end
+        for _, t in ipairs(Territory.buyTargets(state, actor)) do
+            if canAfford(p.res, Territory.buyTileCost(state, actor, t)) then
+                out[#out + 1] = { type = "buyTile", pid = actor, q = t.q, r = t.r }
+            end
+        end
+        if Territory.canUpgradeHQ(state, actor) and canAfford(p.res, C.HQ_UPGRADE_COST[p.hqLevel + 1]) then
+            out[#out + 1] = { type = "upgradeHQ", pid = actor }
+        end
+        if canAfford(p.res, C.SUB_COST) then
+            for _, t in ipairs(Territory.ownedTiles(state, actor)) do
+                if Territory.canFoundSub(state, actor, t) then
+                    out[#out + 1] = { type = "foundSub", pid = actor, q = t.q, r = t.r }
+                end
+            end
+        end
         for _, t in ipairs(Territory.voteTargets(state, actor)) do
             out[#out + 1] = { type = "placeVote", pid = actor, q = t.q, r = t.r }
         end
         for _, b in ipairs(Buildings.list) do
-            if canAfford(p.res, b.levels[1].cost) then
+            do
                 for _, t in ipairs(Territory.ownedTiles(state, actor)) do
                     if buildCheck(state, actor, b.id, t) then
                         out[#out + 1] = { type = "build", pid = actor, id = b.id, q = t.q, r = t.r }
@@ -378,7 +453,17 @@ Game.ranking = Scoring.ranking
 local PHASES = { setup_hq = true, roll = true, rebel_move = true, rebel_loss = true, action = true, over = true }
 
 -- Migration: MIGRATIONS[v] đưa dữ liệu version v lên v+1 (chưa cần ở version 1).
-local MIGRATIONS = {}
+local MIGRATIONS = {
+    -- v1 -> v2 (D-013): thêm cấp HQ/Sub. Save cũ có 6 ô nhà đã là thực hữu nên vẫn hợp lệ.
+    [1] = function(data)
+        for _, p in ipairs(data.state.players or {}) do
+            p.hqLevel = p.hqLevel or 1
+            for _, sub in ipairs(p.subs or {}) do sub.level = sub.level or 1 end
+        end
+        data.version = 2
+        return data
+    end,
+}
 
 -- Chuỗi save: dữ liệu thuần có `version`, KHÔNG gồm bản đồ (sinh lại từ seed + số người).
 function Game.save(state)

@@ -86,6 +86,12 @@ describe("data: movement + constants M1", function()
         expect.eq(C.ROUNDS_PER_GAME, 20)
         for _, r in ipairs(C.REBEL_SPAWN_TERRAINS) do expect.truthy(Terrains.byId[r], r) end
         for key in pairs(C.STARTING_RESOURCES) do expect.truthy(Resources.byKey[key], key) end
-        for key in pairs(C.VOTE_COST) do expect.truthy(Resources.byKey[key], key) end
+        for key in pairs(C.BUY_TILE_BASE) do expect.truthy(Resources.byKey[key], key) end
+        for key in pairs(C.SUB_COST) do expect.truthy(Resources.byKey[key], key) end
+        for terrain, res in pairs(C.START_BONUS_BY_TERRAIN) do
+            expect.truthy(Resources.byKey[res], res)
+            expect.truthy(Terrains.byId[terrain], terrain)
+        end
+        expect.eq(#C.INFLUENCE_RADIUS_HQ, C.HQ_MAX_LEVEL_M1)
     end)
 end)

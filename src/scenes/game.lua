@@ -163,7 +163,7 @@ function Scene:onEvents(events)
         local k = e.kind
         if k == "produce" then
             self:popValue(e.pid, e.res)
-        elseif k == "votes" or k == "buy_vote" then
+        elseif k == "votes" then
             self:popValue(e.pid, "votes")
         elseif k == "seven" then
             self:addTrauma(0.7)
@@ -180,7 +180,7 @@ function Scene:onEvents(events)
             self:addTrauma(0.3)
             self:popValue(e.victim, e.res)
             self:popValue(e.roller, e.res)
-        elseif k == "claim" or k == "build" or k == "place_hq" then
+        elseif k == "claim" or k == "build" or k == "place_hq" or k == "found_sub" or k == "upgrade_hq" then
             self:pulseAt(e.q, e.r)
         elseif k == "end_turn" then
             local nextActor = Game.actor(state)
@@ -301,6 +301,18 @@ function Scene:computeTargets()
             items[#items + 1] = { tile = t, color = { 0.4, 0.8, 1 }, alpha = 0.25 }
         end
         ghostCheck = function(t) return Territory.canVote(state, actor, t) end
+    elseif state.phase == "action" and self.mode and self.mode.kind == "buy" then
+        for _, t in ipairs(Territory.buyTargets(state, actor)) do
+            items[#items + 1] = { tile = t, color = { 1, 0.85, 0.3 }, alpha = 0.25 }
+        end
+        ghostCheck = function(t) return Game.check(state, { type = "buyTile", q = t.q, r = t.r }) end
+    elseif state.phase == "action" and self.mode and self.mode.kind == "sub" then
+        for _, t in ipairs(Territory.ownedTiles(state, actor)) do
+            if Territory.canFoundSub(state, actor, t) then
+                items[#items + 1] = { tile = t, color = { 0.9, 0.5, 1 }, alpha = 0.3 }
+            end
+        end
+        ghostCheck = function(t) return Game.check(state, { type = "foundSub", q = t.q, r = t.r }) end
     end
     return items, ghostCheck
 end
@@ -317,6 +329,7 @@ function Scene:drawMap()
     self.camera:attach()
 
     MapRenderer.drawTerrain(state.map, { tileset = self.tileset })
+    Layers.drawInfluence(state, { zoom = zoom })
     Layers.drawTerritory(state, {
         zoom = zoom,
         thresholdFn = function(tile, pid) return Territory.threshold(state, pid, tile) end,
@@ -370,7 +383,12 @@ function Scene:hintText()
         if self.mode and self.mode.kind == "build" then
             return "Chọn ô để xây " .. Buildings.byId[self.mode.id].name .. " (Esc để hủy)"
         elseif self.mode and self.mode.kind == "vote" then
-            return string.format("Chọn ô để đặt phiếu Chi Phối — còn %d phiếu (Esc để hủy)", state.players[actor].votes)
+            return string.format("Chọn ô trong vùng ảnh hưởng để đặt phiếu Chi Phối — còn %d phiếu (Esc để hủy)",
+                state.players[actor].votes)
+        elseif self.mode and self.mode.kind == "buy" then
+            return "Chọn ô sáng trong vùng ảnh hưởng để mua (di chuột để xem giá, Esc để hủy)"
+        elseif self.mode and self.mode.kind == "sub" then
+            return "Chọn ô thực hữu của bạn để lập Khu Trực Thuộc (Esc để hủy)"
         end
         return who .. ": chọn hành động hoặc Kết thúc lượt (" .. Actions.label("endTurn") .. ")"
     end
@@ -524,20 +542,42 @@ function Scene:drawActions(x, y, w)
     end
     y = y + buildH + gap
 
-    -- phiếu, đổi, kết thúc
+    -- lãnh thổ, đổi, kết thúc
+    local function toggle(kind)
+        self.mode = (self.mode and self.mode.kind == kind) and nil or { kind = kind }
+    end
+    local function isMode(kind) return self.mode and self.mode.kind == kind end
+
     local votes = p and p.votes or 0
     ui:button("vote", x, y, w, bh, string.format("Đặt phiếu Chi Phối (%d)", votes), {
-        enabled = inAction and votes > 0, focused = self.mode and self.mode.kind == "vote",
-        font = Theme.font(11, true),
-        tip = "Đặt 1 phiếu lên ô trong vùng ảnh hưởng hoặc kề lãnh thổ của bạn. Ô cần 1 / 2 / 3 phiếu tùy khoảng cách tới Nhà Chính.",
-        onClick = function() self.mode = (self.mode and self.mode.kind == "vote") and nil or { kind = "vote" } end,
+        enabled = inAction and votes > 0, focused = isMode("vote"), font = Theme.font(11, true),
+        tip = "Đặt 1 phiếu lên ô trong vùng ảnh hưởng của bạn. Ô cần 1 / 2 / 3 phiếu tùy khoảng cách tới Nhà Chính. Muốn cướp ô của người khác cần gấp đôi ngưỡng và hơn phiếu của chủ.",
+        onClick = function() toggle("vote") end,
     })
     y = y + bh + gap
-    local costVote = costText(C.VOTE_COST)
-    ui:button("buyvote", x, y, w, bh, "Mua 1 phiếu (" .. costVote .. ")", {
-        enabled = inAction and p and canAfford(p.res, C.VOTE_COST), font = Theme.font(11, true),
-        tip = "Mua thêm phiếu Chi Phối bằng " .. costVote .. ".",
-        onClick = function() self:cmd({ type = "buyVote" }) end,
+    local buyBase = costText(C.BUY_TILE_BASE)
+    ui:button("buytile", x, y, w, bh, "Mua ô trong vùng ảnh hưởng", {
+        enabled = inAction, focused = isMode("buy"), font = Theme.font(11, true),
+        tip = "Mua ô chưa có chủ trong vùng ảnh hưởng bằng tài nguyên. Giá cơ bản " .. buyBase
+            .. " ở ô sát mốc, gấp đôi mỗi vòng xa hơn.",
+        onClick = function() toggle("buy") end,
+    })
+    y = y + bh + gap
+    local hqLevel = p and p.hqLevel or 1
+    local upgradeOk = inAction and Game.check(state, { type = "upgradeHQ" })
+    local upCost = C.HQ_UPGRADE_COST[hqLevel + 1]
+    ui:button("upgradehq", x, y, w, bh, upCost and ("Nâng Nhà Chính C" .. hqLevel + 1) or "Nhà Chính đã tối đa (M1)", {
+        enabled = upgradeOk and true or false, font = Theme.font(11, true),
+        tip = upCost and ("Nâng Nhà Chính lên cấp " .. hqLevel + 1 .. ": " .. costText(upCost)
+            .. ". Mở rộng vùng ảnh hưởng thêm 1 vòng (tổng 18 ô quanh Nhà Chính).") or nil,
+        onClick = function() self:cmd({ type = "upgradeHQ" }) end,
+    })
+    y = y + bh + gap
+    local subCost = costText(C.SUB_COST)
+    ui:button("foundsub", x, y, w, bh, "Lập Khu Trực Thuộc", {
+        enabled = inAction and p and canAfford(p.res, C.SUB_COST), focused = isMode("sub"), font = Theme.font(11, true),
+        tip = "Đặt Khu Trực Thuộc (" .. subCost .. ") lên ô thực hữu của bạn cách Nhà Chính ít nhất 2 ô và cách đối thủ ít nhất 3 ô. Mở thêm vùng ảnh hưởng quanh nó.",
+        onClick = function() toggle("sub") end,
     })
     y = y + bh + gap
     ui:button("trade", x, y, w, bh, string.format("Đổi tài nguyên (%d:1)", C.BANK_TRADE_RATE), {
@@ -821,6 +861,10 @@ function Scene:mousepressed(x, y, button)
         elseif self.mode.kind == "vote" then
             self:cmd({ type = "placeVote", q = tile.q, r = tile.r })
             if state.players[actor].votes < 1 then self.mode = nil end
+        elseif self.mode.kind == "buy" then
+            self:cmd({ type = "buyTile", q = tile.q, r = tile.r })
+        elseif self.mode.kind == "sub" then
+            if self:cmd({ type = "foundSub", q = tile.q, r = tile.r }) then self.mode = nil end
         end
     end
 end

@@ -177,3 +177,33 @@ describe("rebel: hiệu ứng khi dừng", function()
         expect.eq(#Rebel.stop(s3), 1)
     end)
 end)
+
+describe("rebel: không đi lại ô cũ (GDD §6.2)", function()
+    it("ô đã đi qua trong lần di chuyển này không còn là bước hợp lệ", function()
+        local s = newState()
+        local here = arena(s)
+        local start = { q = here.q, r = here.r }
+        Rebel.startMove(s, 1)
+        s.rebel.pending.points = 6
+        local first = Rebel.legalSteps(s)[1]
+        Rebel.step(s, first.q, first.r)
+        for _, t in ipairs(Rebel.legalSteps(s)) do
+            expect.truthy(not (t.q == start.q and t.r == start.r), "không được quay lại ô xuất phát")
+            expect.truthy(not (t.q == first.q and t.r == first.r))
+        end
+    end)
+
+    it("kẹt giữa các ô đã đi thì dừng sớm", function()
+        local s = newState()
+        local here = arena(s)
+        local ns = s.map:neighbors(here)
+        for i = 2, #ns do ns[i].terrain = "DH-03" end         -- Núi: cấm trong 10 vòng đầu
+        for _, n in ipairs(s.map:neighbors(ns[1])) do
+            if not (n.q == here.q and n.r == here.r) then n.terrain = "DH-03" end
+        end
+        s.rebel.pending = { stage = "move", points = 6, roller = 1, visited = { [State.key(here)] = true } }
+        local ev = Rebel.step(s, ns[1].q, ns[1].r)
+        expect.eq(ev[#ev].kind, "rebel_stop")
+        expect.eq(Rebel.stage(s), nil)
+    end)
+end)

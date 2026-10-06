@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project status
 
-**Perisol** is a turn-based hex-territory strategy board game for 1–4 players, targeting **PC via Love2D (Lua)**. Milestones **M0 Sandbox** and **M1 Core Loop** (see `plan.md`) are implemented: a hot-seat game of 20 rounds (Production → Resolution → Action) on a seeded random hex map, with shared Long Mạch production, Chi Phối territory votes, Basic level-1 buildings, the Rebel, bank trading, scoring and a results screen. Buildings above level 1, roads/units, cards and characters (M1.5+) are not built yet. M1 still needs a human playtest (see the `plan.md` P2 checklist) to tune `constants.lua`.
+**Perisol** is a turn-based hex-territory strategy board game for 1–4 players, targeting **PC via Love2D (Lua)**. Milestones **M0 Sandbox** and **M1 Core Loop** (see `plan.md`) are implemented: a hot-seat game of 20 rounds (Production → Resolution → Action) on a seeded random hex map, with shared Long Mạch production, Chi Phối territory (influence zone vs owned land, buy/retake tiles, HQ C2, Subsidiary), Basic level-1 buildings, the Rebel, bank trading, scoring and a results screen. Buildings above level 1, roads/units, cards and characters (M1.5+) are not built yet. M1 still needs a human playtest (see the `plan.md` P2 checklist) to tune `constants.lua`.
 
 ### Commands (LÖVE 11.5 at `C:\Program Files\LOVE\`, not on PATH)
 - Run: `run.bat` (= `love.exe .`) opens the menu. Dev flags: `--sandbox` (M0 map viewer), `--newgame` (straight into a game; with `--seed N --players 1-4`), `--results` (results screen of a simulated game), `--shot name.png` (screenshot into `%APPDATA%/LOVE/perisol`, then quit).
@@ -15,7 +15,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Code conventions
 - `src/core/` is pure Lua and must **never call `love.*`** (keeps it testable headless and reusable for AI/multiplayer). `src/render/`, `src/scenes/`, `src/ui/`, `src/input/`, `src/save.lua` and `src/dev/` hold all LÖVE-specific code.
-- **Every state change goes through `Game.check` / `Game.apply`** (`src/core/game.lua`; commands `placeHQ, roll, rebelStep, chooseLoss, trade, buyVote, placeVote, build, endTurn`). UI, the simulator, future AI and multiplayer all use this one API, and `Game.legal` lists valid commands. Scenes only read `state` and send commands.
+- **Every state change goes through `Game.check` / `Game.apply`** (`src/core/game.lua`; commands `placeHQ, roll, rebelStep, chooseLoss, trade, placeVote, buyTile, upgradeHQ, foundSub, build, endTurn`). UI, the simulator, future AI and multiplayer all use this one API, and `Game.legal` lists valid commands. Scenes only read `state` and send commands.
 - Game state (`src/core/state.lua`) is plain data. The map is **not** saved: it is regenerated from `(seed, players)`. Save files carry a `version` (`C.SAVE_VERSION`); replay = seed + `state.history`.
 - Randomness goes through `src/core/rng.lua` (deterministic, seeded) — not `math.random` / `love.math`. (Cosmetic UI randomness, such as the dice-roll animation, may use `love.math`.)
 - Production modifiers register into `Production.modifiers` (`src/core/modifiers.lua`; stages Base → Character → Tech → Aura → Strategic → Road, floor at the end).
@@ -50,7 +50,7 @@ When implementing data, use the IDs from these docs (`DH-01`, `TN-05`, `B-01.2`,
 - **Units:** no player-vs-player combat. Units pass through each other. Harm comes only via the Rebel, Edicts, or infrastructure sabotage. Movement uses per-terrain costs (∞ = impassable) with road bonuses. Infrastructure durability is **per tile**, and route durability = MIN over its tiles.
 - **Modifier application order:** Base → Character → Tech → Building aura → Strategic resource → Road. Round down at the final step.
 - **Characters:** 5 (Địa Sư, Thương Nhân, Pháp Sư, Tướng Quân, Học Sĩ). Each has 1 passive skill and 4 alternate win conditions, which are checked alongside end-of-game scoring.
-- **Rules the GDD leaves open are decided in `docs/Decisions.md`.** D-006 covers Chi Phối thresholds and the Hex face, D-007 starting resources and setup, D-008 sum-of-7 and production, D-009 Rebel effects, D-010 C1 placement and scoring, D-011 the M1 architecture, and D-012 the open differences between the full GDD PDF and M1. Read these before changing any rule. Record new decisions there rather than editing the design docs.
+- **Rules the GDD leaves open are decided in `docs/Decisions.md`.** D-006 covers Chi Phối thresholds and the Hex face, D-007 starting resources and setup, D-008 sum-of-7 and production, D-009 Rebel effects, D-010 C1 placement and scoring, D-011 the M1 architecture, and D-012 the differences between the full GDD PDF and M1, and D-013 the M1 rules changed to follow the PDF (territory model, starting resources). Read these before changing any rule. Record new decisions there rather than editing the design docs.
 
 Balance numbers live in `Perisol_Data.md` §8.1 ("HẰNG SỐ CÂN BẰNG"). Keep them as named constants in a single config module (e.g. `MAX_EXPEDITION_PER_PLAYER`, `SUPPRESS_THRESHOLD_EXPEDITION`) so playtesting can tune them without touching logic.
 

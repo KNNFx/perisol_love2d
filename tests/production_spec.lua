@@ -122,3 +122,20 @@ describe("production: bonus tài nguyên chiến lược", function()
         expect.eq(sum(Production.compute(s, { 2, 2 }, 1), 1, "culture"), 4)
     end)
 end)
+
+describe("production: hiệu ứng địa hình (GDD §3.1)", function()
+    it("Lãnh Nguyên: Vàng −1 sản lượng; Sa Mạc: không ra Tín Ngưỡng", function()
+        local s, put = newState()
+        local market = put(10, "B-05", 1, 1)
+        market.terrain = "DH-06"
+        expect.eq(sum(Production.compute(s, { 5, 1 }, 1), 1, "gold"), 0)
+        market.terrain = "DH-01"
+        expect.eq(sum(Production.compute(s, { 5, 1 }, 1), 1, "gold"), 1)
+
+        local temple = put(11, "B-04", 1, 1)
+        temple.terrain = "DH-07"
+        expect.eq(sum(Production.compute(s, { 4, 1 }, 1), 1, "faith"), 0)
+        temple.terrain = "DH-01"
+        expect.eq(sum(Production.compute(s, { 4, 1 }, 1), 1, "faith"), 1)
+    end)
+end)

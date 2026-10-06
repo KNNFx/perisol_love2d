@@ -1,6 +1,9 @@
 -- Địa hình DH-01..DH-12. Nguồn: docs/Perisol_Data.md, sheet "Địa hình".
 -- rarity: "common" (Phổ biến) | "uncommon" (Không phổ biến) | "rare" (Hiếm)
 -- sprite = key trong src/render/tileset.lua, nil = vẽ đa giác màu fallback.
+-- effects (GDD §3.1, chỉ phần tác dụng với công trình cấp 1, D-013):
+--   buildDiscount = { [res] = n }  giảm chi phí xây (không xuống dưới 0)
+--   output = { [res] = -n | "none" }  chỉnh sản lượng mỗi viên khớp; "none" = không sản xuất loại đó
 
 local T = {}
 
@@ -22,10 +25,12 @@ T.list = {
       color = { 0.92, 0.82, 0.45 }, sprite = "coast" },
     { id = "DH-06", name = "Lãnh Nguyên", en = "Tundra",          rarity = "uncommon",
       canHQ = true,  canSub = true,  canBuild = true,  canSpecial = false, passable = true,
-      color = { 0.80, 0.86, 0.88 }, sprite = "tundra" },
+      color = { 0.80, 0.86, 0.88 }, sprite = "tundra",
+      effects = { buildDiscount = { engineering = 1 }, output = { gold = -1 } } },
     { id = "DH-07", name = "Sa Mạc",      en = "Desert",          rarity = "uncommon",
       canHQ = true,  canSub = true,  canBuild = true,  canSpecial = false, passable = true,
-      color = { 0.90, 0.68, 0.30 }, sprite = "desert" },
+      color = { 0.90, 0.68, 0.30 }, sprite = "desert",
+      effects = { output = { faith = "none" } } },
     { id = "DH-08", name = "Đầm Lầy",     en = "Swamp",           rarity = "uncommon",
       canHQ = false, canSub = true,  canBuild = true,  canSpecial = false, passable = true,
       color = { 0.36, 0.45, 0.34 }, sprite = nil },

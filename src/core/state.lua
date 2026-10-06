@@ -26,7 +26,7 @@ function State.new(map, playerCount, seed)
     for pid = 1, playerCount do
         local res = {}
         for _, r in ipairs(Resources.core) do res[r.key] = 0 end
-        players[pid] = { id = pid, res = res, votes = 0, hq = nil, subs = {} }
+        players[pid] = { id = pid, res = res, votes = 0, hq = nil, hqLevel = 1, subs = {} }
     end
     local order = {}
     for pid = 1, playerCount do order[pid] = pid end

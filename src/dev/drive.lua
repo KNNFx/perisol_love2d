@@ -71,25 +71,31 @@ function Drive.update(scene, drv, dt)
         drv.actions = (drv.actions or 0) + 1
         if scene.mode then
             local items = scene:computeTargets()
-            if #items > 0 then clickTile(scene, items[1].tile) else scene:keypressed("escape") end
+            if #items > 0 and drv.actions <= 12 then clickTile(scene, items[1].tile) else scene:keypressed("escape") end
         elseif drv.actions > 8 then
             drv.turns = drv.turns + 1
             scene:keypressed("e")
         else
             for _, b in ipairs(Buildings.list) do
-                if canAfford(p.res, b.levels[1].cost) then
-                    for _, t in ipairs(Territory.ownedTiles(st, actor)) do
-                        if Game.buildCheck(st, actor, b.id, t) then
-                            scene.ui:activate("build" .. b.id)
-                            return
-                        end
+                for _, t in ipairs(Territory.ownedTiles(st, actor)) do
+                    if Game.buildCheck(st, actor, b.id, t) then
+                        scene.ui:activate("build" .. b.id)
+                        return
                     end
                 end
             end
-            if p.votes > 0 and #Territory.voteTargets(st, actor) > 0 then
+            local buyable = false
+            for _, t in ipairs(Territory.buyTargets(st, actor)) do
+                if canAfford(p.res, Territory.buyTileCost(st, actor, t)) then buyable = true break end
+            end
+            if Game.check(st, { type = "upgradeHQ" }) then
+                scene.ui:activate("upgradehq")
+            elseif p.votes > 0 and #Territory.voteTargets(st, actor) > 0 then
                 scene.ui:activate("vote")
-            elseif canAfford(p.res, { culture = 1, gold = 1 }) and drv.actions % 2 == 0 then
-                scene.ui:activate("buyvote")
+            elseif buyable then
+                scene.ui:activate("buytile")
+            elseif canAfford(p.res, require("src.config.constants").SUB_COST) and drv.actions % 3 == 0 then
+                scene.ui:activate("foundsub")
             else
                 drv.turns = drv.turns + 1
                 scene:keypressed("e")

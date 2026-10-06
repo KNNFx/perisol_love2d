@@ -11,11 +11,21 @@ local Modifiers = require("src.core.modifiers")
 local Rebel     = require("src.core.rebel")
 local Buildings = require("src.data.buildings")
 local Strategic = require("src.data.strategic")
+local Terrains  = require("src.data.terrains")
 
 local P = {}
 
 -- Registry modifier dùng chung. Hệ thống khác (nhân vật, công nghệ, aura...) register vào đây.
 P.modifiers = Modifiers.new()
+
+-- Stage "base": hiệu ứng địa hình lên sản lượng (GDD §3.1: Lãnh Nguyên Vàng −1, Sa Mạc không ra Tín Ngưỡng).
+P.modifiers:register("base", function(value, ctx)
+    local fx = Terrains.byId[ctx.tile.terrain].effects
+    local o = fx and fx.output and fx.output[ctx.res]
+    if o == "none" then return 0 end
+    if o then return math.max(0, value + o) end
+    return value
+end)
 
 -- Stage "strategic": bonus ô của tài nguyên chiến lược (ctx.tile.strategic).
 P.modifiers:register("strategic", function(value, ctx)

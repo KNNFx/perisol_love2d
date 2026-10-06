@@ -129,6 +129,7 @@ Mỗi quyết định ghi: bối cảnh, lựa chọn, lý do. Khi tài liệu t
   - Có tùy chọn giảm rung màn hình.
 
 ## D-012 — Đối chiếu GDD v1.2 bản đầy đủ (PDF) với M1 — 2026-10-05
+*(Trạng thái 2026-10-06: các điểm #1–#7 và #9 đã xử lý ở D-013; #8, #10, #11 giữ nguyên có chủ đích.)*
 `docs/Perisol_GDD_v1.2_Full.md` đã được chép lại khớp 100% với `Perisol_GDD_v1.2.pdf`. Bản cũ là bản rút gọn và thiếu nhiều luật. Đối chiếu bản đầy đủ với các quyết định D-006..D-011 và code M1 cho kết quả dưới đây.
 
 **PDF xác nhận (không cần đổi):**
@@ -158,6 +159,25 @@ Mỗi quyết định ghi: bối cảnh, lựa chọn, lý do. Khi tài liệu t
 - Trang bìa PDF ghi "PC (Godot 4 / C#)", trong khi bảng §1.2 ghi "PC — Love2D, Lua". Đây là chữ sót lại; engine đích là Love2D.
 - Danh Thắng có "4 kiểu hình (đơn/tam giác/tứ giác)" (§3.1). Mapgen hiện có 3 hình (1/3/4 ô).
 - Mục lộ trình nay là **§13.1** (bản cũ ghi §12).
+
+## D-013 — Chỉnh M1 theo GDD v1.2 bản đầy đủ — 2026-10-06
+Chủ dự án chọn các điểm dưới đây từ D-012. Điểm không nêu giữ như cũ. D-013 thay thế các phần tương ứng của D-006, D-007, D-009 và D-010.
+- **Vùng ảnh hưởng (D-012 #1, thay D-006):**
+  - Lúc đầu chỉ **ô HQ** là thực hữu. 6 ô quanh HQ là vùng ảnh hưởng, ngưỡng 1 phiếu. Chỉ **đặt phiếu và mua ô trong vùng ảnh hưởng**; không đặt lên ô HQ/Sub.
+  - **Nâng HQ C2** (4 KT + 2 KH + 3 V) mở vùng ảnh hưởng ra bán kính 2 (18 ô). C3+ cần vật liệu phái sinh nên để M1.5.
+  - **Khu Trực Thuộc** lập thẳng trên ô thực hữu của mình (3 TN + 3 V + 3 KT), không cần Viễn Chinh (đơn vị để M1.5). Điều kiện: địa hình `canSub`, đủ 6 ô kề, **cách HQ/Sub của mình ≥ 2**, **cách của đối thủ ≥ 3**, vòng 6 ô quanh không có Khu Dân Cư/Danh Thắng, không bị phong tỏa. Bán kính vùng ảnh hưởng của Sub: 1. (GDD §7.3 viết hai cách khoảng cách; đây là cách hiểu để lập được Sub.)
+- **Cướp ô và mua ô (#2, #3):**
+  - Ô chưa có chủ: ai đạt ngưỡng trước được ô.
+  - Cướp ô thường: phiếu ≥ **2 × ngưỡng** của mình và hơn phiếu của chủ. Ô có công trình vẫn bị khóa.
+  - Lệnh `buyVote` bị bỏ. Thay bằng **`buyTile`**: mua ô chưa có chủ trong vùng ảnh hưởng, giá (1 V + 1 VH) × 2^(khoảng cách − 1). Ô mua được ghi phiếu bằng ngưỡng nên vẫn bị cướp theo luật ×2.
+- **Khu Dân Cư / Danh Thắng (#4):** mỗi ô cần 1 phiếu; ai sở hữu nhiều ô nhất trong cụm (hơn hẳn) chi phối cả cụm; Danh Thắng cho người chi phối 3 điểm. Cướp ô trong cụm cần phiếu của chủ + 1. (Thay D-010 về "sở hữu mọi ô".)
+- **Phiến Quân (#5, #6):** thêm luật **không đi lại ô đã qua** trong cùng một lần di chuyển (kẹt thì dừng sớm). Chi phí địa hình và cách xuất hiện giữ theo Data như D-009.
+- **Khởi đầu (#7, thay D-007):** nền 1 KH, 1 VH, 1 KT, 1 TN, 3 V + **1 tài nguyên cho mỗi ô trong 6 ô quanh HQ** theo bảng `START_BONUS_BY_TERRAIN` (Đồng Bằng/Bờ Biển/Sa Mạc → V; Rừng → KH; Núi/Lãnh Nguyên/Đồi Cỏ/Núi Tuyết → KT; Sông/Đầm Lầy → TN; Khu Dân Cư/Danh Thắng → VH). Bảng này là đề xuất của dự án vì PDF không cho; chỉnh trong `constants.lua`.
+- **Địa hình (#9):** chỉ phần tác dụng với công trình cấp 1: Lãnh Nguyên xây −1 KT và Vàng −1 sản lượng mỗi viên; Sa Mạc không sản xuất Tín Ngưỡng. Phần thụ động (Rừng) và cấp 2 (Đồi Cỏ) để M1.5.
+- **Giữ nguyên:** đổi tài nguyên với ngân hàng 4:1 (#8), chọn vùng khởi đầu do mapgen tạo (#10), ma trận cho xây trên Khu Dân Cư (#11).
+- **Save:** `SAVE_VERSION = 2`; save v1 được nâng cấp khi nạp (thêm `hqLevel`, `level` của Sub).
+- **Tunable:** `INFLUENCE_RADIUS_HQ/SUB`, `HQ_UPGRADE_COST`, `SUB_COST`, `SUB_MIN_DIST_*`, `RETAKE_MULTIPLIER`, `CLUSTER_*`, `BUY_TILE_BASE/GROWTH`, `STARTING_RESOURCES`, `START_BONUS_*`.
+- **Hệ quả cần theo dõi khi playtest:** mô phỏng ngẫu nhiên cho khoảng 6–7 ô thực hữu mỗi người sau 20 vòng (trước đó khoảng 9). Cụm Khu Dân Cư/Danh Thắng chỉ với tới được sau khi có Sub, nên điểm Danh Thắng hiếm.
 
 ## Xung đột tài liệu đã phát hiện (chọn theo Data)
 | Chủ đề | GDD §3.1 / §8 | Data | Chọn |

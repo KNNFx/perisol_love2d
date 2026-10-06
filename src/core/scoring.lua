@@ -2,6 +2,7 @@
 
 local C         = require("src.config.constants")
 local State     = require("src.core.state")
+local Territory = require("src.core.territory")
 local Resources = require("src.data.resources")
 
 local Scoring = {}
@@ -23,16 +24,10 @@ function Scoring.score(state)
         if o then tileCount[o] = tileCount[o] + 1 end
     end
 
-    -- Danh Thắng chỉ tính khi sở hữu MỌI ô của nó
+    -- Danh Thắng: người sở hữu nhiều ô nhất trong cụm (hơn hẳn) chi phối cả cụm (GDD §7.2, D-013)
     for _, lm in ipairs(state.map.landmarks or {}) do
-        local owner = state.owner[State.key(lm.tiles[1])]
-        if owner then
-            local all = true
-            for _, t in ipairs(lm.tiles) do
-                if state.owner[State.key(t)] ~= owner then all = false break end
-            end
-            if all then landmarkCount[owner] = landmarkCount[owner] + 1 end
-        end
+        local owner = Territory.clusterController(state, lm)
+        if owner then landmarkCount[owner] = landmarkCount[owner] + 1 end
     end
 
     for _, b in pairs(state.buildings) do

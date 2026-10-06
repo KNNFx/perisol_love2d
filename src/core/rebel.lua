@@ -80,7 +80,7 @@ function Rebel.stage(state)
     return rb and rb.pending and rb.pending.stage or nil
 end
 
--- Các ô kề Phiến Quân có thể bước vào với số điểm còn lại.
+-- Các ô kề Phiến Quân có thể bước vào với số điểm còn lại (không đi lại ô đã qua trong lần này).
 function Rebel.legalSteps(state)
     local out = {}
     local rb = state.rebel
@@ -88,7 +88,8 @@ function Rebel.legalSteps(state)
     local here = state.map:get(rb.q, rb.r)
     local points = rb.pending.points
     for _, n in ipairs(state.map:neighbors(here)) do
-        if Movement.stepCost("rebel", n.terrain, state.round) <= points then out[#out + 1] = n end
+        local seen = rb.pending.visited and rb.pending.visited[State.key(n)]   -- GDD §6.2: không đi lại ô cũ
+        if not seen and Movement.stepCost("rebel", n.terrain, state.round) <= points then out[#out + 1] = n end
     end
     return out
 end
@@ -97,7 +98,8 @@ end
 function Rebel.startMove(state, roller)
     assert(state.rebel, "chưa có Phiến Quân")
     local points = Dice.rollOne(state.rng)
-    state.rebel.pending = { stage = "move", points = points, roller = roller }
+    state.rebel.pending = { stage = "move", points = points, roller = roller,
+                            visited = { [State.key(state.rebel)] = true } }
     local events = { { kind = "rebel_roll", roller = roller, points = points } }
     if #Rebel.legalSteps(state) == 0 then
         for _, e in ipairs(Rebel.stop(state)) do events[#events + 1] = e end
@@ -119,6 +121,8 @@ function Rebel.step(state, q, r)
     local from = { q = rb.q, r = rb.r }
     rb.pending.points = rb.pending.points - cost
     rb.q, rb.r = target.q, target.r
+    rb.pending.visited = rb.pending.visited or {}
+    rb.pending.visited[State.key(target)] = true
     local events = { { kind = "rebel_step", from = from, to = { q = target.q, r = target.r },
                        left = rb.pending.points } }
     if rb.pending.points <= 0 or #Rebel.legalSteps(state) == 0 then

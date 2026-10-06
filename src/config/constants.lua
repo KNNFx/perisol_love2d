@@ -66,13 +66,36 @@ C.ROUNDS_PER_GAME = 20
 C.EVENT_ROUNDS    = { 5, 10, 15, 20 }   -- lật Sự Kiện Tổng (stub ở M1)
 C.SEVEN           = 7                    -- tổng hai mặt kích hoạt Phiến Quân (D-008)
 
-C.STARTING_RESOURCES = { science = 2, culture = 2, engineering = 2, faith = 2, gold = 5 }  -- D-007
+-- Khởi đầu (D-013): nền cố định + thưởng từ 6 ô quanh HQ theo bảng địa hình.
+C.STARTING_RESOURCES = { science = 1, culture = 1, engineering = 1, faith = 1, gold = 3 }
+C.START_BONUS_PER_TILE = 1
+C.START_BONUS_BY_TERRAIN = {
+    ["DH-01"] = "gold", ["DH-05"] = "gold", ["DH-07"] = "gold",
+    ["DH-02"] = "science",
+    ["DH-03"] = "engineering", ["DH-06"] = "engineering", ["DH-09"] = "engineering", ["DH-12"] = "engineering",
+    ["DH-04"] = "faith", ["DH-08"] = "faith",
+    ["DH-10"] = "culture", ["DH-11"] = "culture",
+}
 C.BANK_TRADE_RATE    = 4                 -- 4 tài nguyên cùng loại đổi 1 loại bất kỳ (D-007)
 
 C.VOTES_PER_HEX_FACE = 1                 -- phiếu Chi Phối cho mỗi viên ra mặt Hex (D-006)
-C.VOTE_COST          = { culture = 1, gold = 1 }  -- giá mua thêm 1 phiếu
-C.CHI_PHOI_THRESHOLD = { 1, 2, 3 }       -- phiếu cần ở khoảng cách 1 / 2 / 3+ tới HQ
-C.INFLUENCE_RADIUS   = 1                 -- vùng ảnh hưởng quanh HQ (7 ô)
+C.CHI_PHOI_THRESHOLD = { 1, 2, 3 }       -- phiếu cần ở khoảng cách 1 / 2 / 3+ tới mốc (HQ/Sub)
+C.CLUSTER_TILE_VOTES  = 1                -- Khu Dân Cư / Danh Thắng: mỗi ô 1 phiếu (GDD §7.2, D-013)
+C.CLUSTER_RETAKE_STEP = 1                -- cướp ô trong cụm: phiếu của chủ + 1
+C.RETAKE_MULTIPLIER   = 2                -- cướp ô thường: phiếu >= 2 × ngưỡng của mình
+
+-- Bán kính vùng ảnh hưởng theo cấp (GDD §5.4, §9.1): HQ C1 = 6 ô, C2 = 18 ô.
+C.INFLUENCE_RADIUS_HQ  = { 1, 2 }
+C.INFLUENCE_RADIUS_SUB = { 1, 2 }
+C.HQ_MAX_LEVEL_M1 = 2                    -- C3+ cần vật liệu phái sinh (M1.5)
+C.HQ_UPGRADE_COST = { [2] = { engineering = 4, science = 2, gold = 3 } }
+C.SUB_COST = { faith = 3, gold = 3, engineering = 3 }
+C.SUB_MIN_DIST_OWN   = 2                 -- cách HQ/Sub của chính mình >= 2
+C.SUB_MIN_DIST_RIVAL = 3                 -- cách HQ/Sub của đối thủ >= 3
+
+-- Mua ô trong vùng ảnh hưởng (GDD §7.2): giá = BASE × GROWTH^(khoảng cách − 1).
+C.BUY_TILE_BASE   = { gold = 1, culture = 1 }
+C.BUY_TILE_GROWTH = 2
 
 C.REBEL_SPAWN_TERRAINS   = { "DH-01", "DH-06", "DH-07" }  -- Data §2 (U-03)
 C.REBEL_SPAWN_MIN_HQ_DIST = 2
@@ -83,7 +106,7 @@ C.SCORE_LANDMARK     = 3
 C.SCORE_BUILDING_C2  = 2
 C.SCORE_RES_PER_POINT = 5
 
-C.SAVE_VERSION       = 1                 -- version file save (D-011)
+C.SAVE_VERSION       = 2                 -- version file save (D-011)
 
 -- ─── Render ────────────────────────────────────────────────────────────────
 -- Sprite hex pointy-top 32×32; lát gạch bước ngang 32, bước dọc 24.

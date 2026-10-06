@@ -43,6 +43,29 @@ local function hatch(cx, cy, color, zoom)
     love.graphics.setStencilTest()
 end
 
+-- Vùng ảnh hưởng chưa sở hữu quanh HQ/Sub: tô nhạt màu phe (GDD §7.1: bỏ phiếu/mua ô được, chưa xây được).
+function L.drawInfluence(state, opts)
+    local Territory = require("src.core.territory")
+    for pid in ipairs(state.players) do
+        local pc = PLAYER[pid]
+        for _, a in ipairs(Territory.anchors(state, pid)) do
+            for _, h in ipairs(Hex.range(a, a.radius)) do
+                local t = state.map:get(h.q, h.r)
+                if t and state.owner[key(t)] ~= pid then
+                    local cx, cy = tileCenter(t)
+                    love.graphics.setColor(pc[1], pc[2], pc[3], 0.10)
+                    love.graphics.polygon("fill", hexPolygon(cx, cy))
+                    love.graphics.setColor(pc[1], pc[2], pc[3], 0.35)
+                    love.graphics.setLineWidth(1 / (opts.zoom or 1))
+                    love.graphics.polygon("line", hexPolygon(cx, cy))
+                    love.graphics.setLineWidth(1)
+                end
+            end
+        end
+    end
+    love.graphics.setColor(1, 1, 1)
+end
+
 -- Lãnh thổ: tô màu chủ, viền ở cạnh giáp ô khác chủ, gạch chéo ô Tranh chấp kèm phiếu/ngưỡng.
 -- opts = { zoom, thresholdFn = function(tile, pid) -> số phiếu cần }
 function L.drawTerritory(state, opts)
@@ -129,7 +152,7 @@ function L.drawBuildings(state, opts)
 
     for pid, p in ipairs(state.players) do
         local anchors = {}
-        if p.hq then anchors[#anchors + 1] = { at = p.hq, scale = 1 } end
+        if p.hq then anchors[#anchors + 1] = { at = p.hq, scale = 1, level = p.hqLevel } end
         for _, sub in ipairs(p.subs or {}) do anchors[#anchors + 1] = { at = sub, scale = 0.7 } end
         for _, item in ipairs(anchors) do
             local cx, cy = tileCenter(item.at)
@@ -144,6 +167,10 @@ function L.drawBuildings(state, opts)
             love.graphics.rectangle("line", cx - 5 * s, cy - 2 * s, 10 * s, 7 * s)
             love.graphics.polygon("line", cx - 7 * s, cy - 2 * s, cx, cy - 9 * s, cx + 7 * s, cy - 2 * s)
             love.graphics.setLineWidth(1)
+            if item.level and item.level > 1 then
+                love.graphics.setColor(0.08, 0.08, 0.1)
+                worldText(tostring(item.level), cx, cy + 2 * s, 0.45)
+            end
         end
     end
     love.graphics.setColor(1, 1, 1)

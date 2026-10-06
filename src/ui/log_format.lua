@@ -60,8 +60,19 @@ function Fmt.line(e)
     elseif k == "trade" then
         return { text = string.format("%s đổi %d %s lấy 1 %s", P(e.pid), e.rate, Fmt.res(e.give), Fmt.res(e.get)),
                  pid = e.pid, tier = "small" }
-    elseif k == "buy_vote" then
-        return { text = P(e.pid) .. " mua 1 phiếu Chi Phối", pid = e.pid, tier = "small" }
+    elseif k == "buy_tile" then
+        return { text = string.format("%s mua ô %s", P(e.pid), at(e)), pid = e.pid, tier = "medium" }
+    elseif k == "upgrade_hq" then
+        return { text = string.format("%s nâng Nhà Chính lên cấp %d", P(e.pid), e.level), pid = e.pid, tier = "medium" }
+    elseif k == "found_sub" then
+        return { text = string.format("%s lập Khu Trực Thuộc tại %s", P(e.pid), at(e)), pid = e.pid, tier = "medium" }
+    elseif k == "start_bonus" then
+        local parts = {}
+        for _, r in ipairs(Resources.core) do
+            if e.gains[r.key] then parts[#parts + 1] = "+" .. e.gains[r.key] .. " " .. r.abbr end
+        end
+        return { text = string.format("%s nhận thưởng khởi đầu từ 6 ô quanh Nhà Chính: %s", P(e.pid),
+            #parts > 0 and table.concat(parts, ", ") or "không có"), pid = e.pid, tier = "small" }
     elseif k == "vote" then
         local state = e.status == "owned" and "thực hữu" or (e.status == "contested" and "tranh chấp" or "chưa đủ")
         return { text = string.format("%s đặt phiếu tại %s (%s)", P(e.pid), at(e), state), pid = e.pid, tier = "small" }

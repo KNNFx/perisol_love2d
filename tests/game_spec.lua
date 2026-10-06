@@ -5,6 +5,7 @@ local Scoring  = require("src.core.scoring")
 local Serialize = require("src.core.serialize")
 local State    = require("src.core.state")
 local Rebel    = require("src.core.rebel")
+local Territory = require("src.core.territory")
 local Save     = require("src.save")
 
 -- Đặt HQ cho mọi người theo thứ tự (chọn vùng khởi đầu đầu tiên còn trống).
@@ -60,10 +61,18 @@ describe("game: setup", function()
         for pid = 1, 3 do
             local p = s.players[pid]
             expect.truthy(p.hq)
-            for k, v in pairs(C.STARTING_RESOURCES) do expect.eq(p.res[k], v) end
+            -- nền + thưởng từ 6 ô quanh HQ (D-013)
+            local expectedBonus = 0
+            for _, n in ipairs(s.map:neighbors(s.map:get(p.hq.q, p.hq.r))) do
+                if C.START_BONUS_BY_TERRAIN[n.terrain] then expectedBonus = expectedBonus + C.START_BONUS_PER_TILE end
+            end
+            local total, base = 0, 0
+            for _, v in pairs(p.res) do total = total + v end
+            for _, v in pairs(C.STARTING_RESOURCES) do base = base + v end
+            expect.eq(total, base + expectedBonus)
             local owned = 0
             for _, t in ipairs(s.map.list) do if s.owner[State.key(t)] == pid then owned = owned + 1 end end
-            expect.eq(owned, 7)
+            expect.eq(owned, 1, "chỉ ô HQ là thực hữu lúc đầu")
             expect.truthy(Hex.distance(p.hq, s.rebel) >= C.REBEL_SPAWN_MIN_HQ_DIST)
         end
         expect.eq(Game.actor(s), s.order[1])
@@ -148,16 +157,20 @@ describe("game: vòng chơi", function()
 end)
 
 describe("game: hành động", function()
-    it("mua phiếu, đổi tài nguyên 4:1, xây C1 đúng chi phí", function()
+    it("mua ô, đổi tài nguyên 4:1, xây C1 đúng chi phí", function()
         local s = setup(31, 2)
         toAction(s)
         local pid = Game.actor(s)
         local res = s.players[pid].res
 
         res.culture, res.gold = 3, 6
-        Game.apply(s, { type = "buyVote" })
-        expect.eq(s.players[pid].votes >= 1, true)
+        local buy = find(s, "buyTile")
+        expect.truthy(buy, "phải có ô mua được quanh HQ")
+        s.map:get(buy.q, buy.r).terrain = "DH-01"
+        Game.apply(s, buy)
+        expect.eq(s.owner[State.key(buy)], pid)
         expect.eq(res.culture, 2); expect.eq(res.gold, 5)
+        expect.falsy(Game.check(s, buy), "ô đã có chủ")
 
         res.science = 4
         local sci, eng = res.science, res.engineering
@@ -170,15 +183,66 @@ describe("game: hành động", function()
 
         res.engineering, res.gold = 5, 5
         local build = find(s, "build")
-        expect.truthy(build, "phải có ô xây được trong vùng nhà")
-        local def = require("src.data.buildings").level(build.id, 1)
+        expect.truthy(build, "phải xây được trên ô vừa mua")
+        expect.eq(build.q, buy.q)
+        local cost = Game.buildCost(s, pid, build.id, s.map:get(build.q, build.r))
         local before = {}
         for k, v in pairs(res) do before[k] = v end
         Game.apply(s, build)
-        for k, n in pairs(def.cost) do expect.eq(res[k], before[k] - n) end
+        for k, n in pairs(cost) do expect.eq(res[k], before[k] - n) end
         local b = s.buildings[State.key(build)]
         expect.eq(b.id, build.id); expect.eq(b.owner, pid); expect.eq(b.level, 1)
         expect.falsy(Game.check(s, build), "không xây chồng lên công trình")
+    end)
+
+    it("nâng HQ C2 trả đúng chi phí rồi mở vùng ảnh hưởng; chỉ nâng một lần", function()
+        local s = setup(32, 2)
+        toAction(s)
+        local pid = Game.actor(s)
+        local p = s.players[pid]
+        for k in pairs(p.res) do p.res[k] = 0 end
+        expect.falsy(Game.check(s, { type = "upgradeHQ" }), "thiếu tài nguyên")
+        for k, v in pairs(C.HQ_UPGRADE_COST[2]) do p.res[k] = v + 1 end
+        local ring2 = Hex.ring(p.hq, 2)[1]
+        expect.falsy(Territory.inInfluence(s, pid, s.map:get(ring2.q, ring2.r)))
+        local ev = Game.apply(s, { type = "upgradeHQ" })
+        expect.eq(ev[1].kind, "upgrade_hq")
+        expect.eq(p.hqLevel, 2)
+        for k in pairs(C.HQ_UPGRADE_COST[2]) do expect.eq(p.res[k], 1) end
+        expect.truthy(Territory.inInfluence(s, pid, s.map:get(ring2.q, ring2.r)))
+        expect.falsy(Game.check(s, { type = "upgradeHQ" }))
+    end)
+
+    it("lập Khu Trực Thuộc: trừ tiền, thêm mốc, có trong legal()", function()
+        local s = setup(33, 2)
+        toAction(s)
+        local pid = Game.actor(s)
+        local p = s.players[pid]
+        p.hqLevel = 2
+        for k in pairs(p.res) do p.res[k] = 10 end
+        local target   -- một ô cách HQ 2 ô đủ xa đối thủ
+        for _, h in ipairs(Hex.ring(p.hq, 2)) do
+            local t = s.map:get(h.q, h.r)
+            if t then
+                for _, n in ipairs(s.map:range(t, 1)) do n.terrain, n.settlement, n.landmark = "DH-01", nil, nil end
+                s.owner[State.key(t)] = pid
+                if Territory.canFoundSub(s, pid, t) then target = t break end
+                s.owner[State.key(t)] = nil
+            end
+        end
+        expect.truthy(target, "không có ô nào hợp lệ để lập Sub")
+        local sub
+        for _, cmd in ipairs(Game.legal(s)) do
+            if cmd.type == "foundSub" and cmd.q == target.q and cmd.r == target.r then sub = cmd end
+        end
+        expect.truthy(sub, "foundSub phải có trong legal()")
+        local before = p.res.faith
+        local ev = Game.apply(s, sub)
+        expect.eq(ev[1].kind, "found_sub")
+        expect.eq(p.res.faith, before - C.SUB_COST.faith)
+        expect.eq(#p.subs, 1)
+        expect.truthy(Territory.isAnchorTile(s, target))
+        expect.falsy(Game.check(s, sub))
     end)
 
     it("không xây khi thiếu tiền, ngoài lãnh thổ, sai địa hình", function()
@@ -312,7 +376,7 @@ describe("scoring", function()
         local s = setup(50, 2)
         for pid = 1, 2 do for k in pairs(s.players[pid].res) do s.players[pid].res[k] = 0 end end
         local base = Scoring.score(s)
-        expect.eq(base[1].tiles, 7); expect.eq(base[1].total, 7)
+        expect.eq(base[1].tiles, 1); expect.eq(base[1].total, 1)
 
         s.players[1].res.gold = 12                      -- 2 điểm (12 // 5)
         local lm = s.map.landmarks[1]
@@ -323,11 +387,14 @@ describe("scoring", function()
         expect.eq(sc[1].resources, 2)
         expect.eq(sc[1].landmarks, C.SCORE_LANDMARK)
         expect.eq(sc[1].buildings, C.SCORE_BUILDING_C2)
-        expect.eq(sc[1].tileCount, 7 + #lm.tiles)
+        expect.eq(sc[1].tileCount, 1 + #lm.tiles)
 
-        -- thiếu một ô của Danh Thắng thì không tính
-        if #lm.tiles > 1 then
-            s.owner[State.key(lm.tiles[1])] = nil
+        -- Danh Thắng tính cho người sở hữu nhiều ô nhất trong cụm (D-013), hòa thì không ai
+        if #lm.tiles > 2 then
+            s.owner[State.key(lm.tiles[1])] = 2
+            expect.eq(Scoring.score(s)[1].landmarks, C.SCORE_LANDMARK)   -- vẫn đa số
+            s.owner[State.key(lm.tiles[2])] = 2
+            expect.eq(Scoring.score(s)[2].landmarks, C.SCORE_LANDMARK)   -- P2 giờ đa số
             expect.eq(Scoring.score(s)[1].landmarks, 0)
         end
     end)
@@ -346,5 +413,31 @@ describe("scoring", function()
         s.players[2].res.gold = 3                       -- cùng điểm, nhiều tài nguyên hơn
         r = Scoring.ranking(s)
         expect.eq(r[1].pid, 2); expect.eq(r[1].total, r[2].total); expect.eq(r[2].rank, 2)
+    end)
+end)
+
+describe("game: địa hình và save cũ (D-013)", function()
+    it("Lãnh Nguyên giảm 1 KT chi phí xây, không xuống dưới 0", function()
+        local s = setup(60, 2)
+        local pid = s.order[1]
+        local tundra = s.map.list[1]
+        tundra.terrain = "DH-06"
+        local c = Game.buildCost(s, pid, "B-01", tundra)          -- 2 KT + 1 V
+        expect.eq(c.engineering, 1); expect.eq(c.gold, 1)
+        local c2 = Game.buildCost(s, pid, "B-02", tundra)         -- không có KT: không đổi
+        expect.eq(c2.science, 2)
+        tundra.terrain = "DH-01"
+        expect.eq(Game.buildCost(s, pid, "B-01", tundra).engineering, 2)
+    end)
+
+    it("save version 1 được nâng lên version 2 khi nạp", function()
+        local s = setup(61, 2)
+        local data = Serialize.load(Game.save(s))
+        data.version = 1
+        for _, p in ipairs(data.state.players) do p.hqLevel = nil end
+        local back, err = Game.load(Serialize.dump(data))
+        expect.truthy(back, err)
+        expect.eq(back.players[1].hqLevel, 1)
+        expect.eq(back.players[2].hqLevel, 1)
     end)
 end)

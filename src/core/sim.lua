@@ -15,7 +15,7 @@ local MAX_COMMANDS_PER_TURN = 40
 local MAX_TOTAL_COMMANDS    = 100000
 
 -- Trọng số chọn loại lệnh trong pha action (kiểu lệnh nào có thì mới được chọn).
-local TYPE_WEIGHT = { build = 6, placeVote = 3, buyVote = 2, trade = 1 }
+local TYPE_WEIGHT = { build = 6, buyTile = 4, placeVote = 3, foundSub = 2, upgradeHQ = 2, trade = 1 }
 local P_END_TURN  = 0.12
 
 -- Kiểm tra bất biến của state. Trả true hoặc false, mô tả lỗi.
@@ -49,11 +49,11 @@ function Sim.invariants(state)
         end
     end
 
-    -- ô ngoài vùng nhà chỉ có chủ khi chủ đủ phiếu theo ngưỡng
+    -- ô không phải HQ/Sub chỉ có chủ khi chủ đủ phiếu theo ngưỡng
     for k, pid in pairs(state.owner) do
         local q, r = k:match("^(-?%d+),(-?%d+)$")
         local tile = state.map:get(tonumber(q), tonumber(r))
-        if Territory.distanceToAnchor(state, pid, tile) > C.INFLUENCE_RADIUS then
+        if not Territory.isAnchorTile(state, tile) then
             local have = Territory.votesOn(state, tile, pid)
             local need = Territory.threshold(state, pid, tile)
             if have < need then
