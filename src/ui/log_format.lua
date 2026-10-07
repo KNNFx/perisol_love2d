@@ -143,6 +143,22 @@ function Fmt.line(e)
         end
         return { text = string.format("%s Trấn Áp thất bại (đổ %d / cần %d)", P(e.pid), e.roll, e.threshold),
                  pid = e.pid, tier = "large" }
+    elseif k == "special_built" then
+        return { text = string.format("%s xây %s tại %s", P(e.pid), buildingName(e.id), at(e)), pid = e.pid, tier = "large" }
+    elseif k == "special_upgrade" then
+        return { text = string.format("%s nâng %s lên +%d tại %s", P(e.pid), buildingName(e.id), e.level - 1, at(e)),
+                 pid = e.pid, tier = "medium" }
+    elseif k == "fortress_strike" then
+        return { text = string.format("Pháo Đài của %s phá %s của P%d tại %s", P(e.pid), buildingName(e.id), e.target, at(e)),
+                 pid = e.pid, tier = "large" }
+    elseif k == "broadcast" then
+        return { text = string.format("%s dùng Phát Sóng: cả hai viên thành %s", P(e.pid), Fmt.face(e.face)),
+                 pid = e.pid, tier = "large" }
+    elseif k == "seven_cancelled" then
+        return { text = string.format("Thiên Đình của %s hủy tổng 7 của %s (+1 TN cho người đổ)", P(e.pid), P(e.roller)),
+                 pid = e.pid, tier = "large" }
+    elseif k == "rebel_pushed" then
+        return { text = string.format("%s trả %d TN đẩy Phiến Quân tới %s", P(e.pid), e.cost, at(e)), pid = e.pid, tier = "large" }
     elseif k == "derived_built" then
         return { text = string.format("%s lập %s tại %s", P(e.pid), buildingName(e.id), at(e)), pid = e.pid, tier = "medium" }
     elseif k == "derived_lost" then

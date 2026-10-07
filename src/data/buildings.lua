@@ -124,6 +124,7 @@ end
 -- Công trình Phái Sinh tra được bằng byId/level/allowedOn (tên, biểu tượng, địa hình ô riêng); không có trong B.list
 -- nên không hiện ở menu xây thường. Loại không chiếm ô (tiles = 0) không bao giờ được đặt thành công trình.
 for _, d in ipairs(require("src.data.derived").list) do B.byId[d.id] = d end
+for _, d in ipairs(require("src.data.specials").list) do B.byId[d.id] = d end   -- Đặc Biệt: cũng tra được qua byId/level
 
 -- Cấp `level` của công trình `id` (nil nếu không tồn tại).
 function B.level(id, level)

@@ -13,6 +13,7 @@ local Dice      = require("src.core.dice")
 local State     = require("src.core.state")
 local Structures = require("src.core.structures")
 local Roads     = require("src.core.roads")
+local Aura      = require("src.core.aura")
 local Movement  = require("src.data.movement")
 local Resources = require("src.data.resources")
 
@@ -62,12 +63,15 @@ function Rebel.forbiddenStop(state, tile)
     for _, u in pairs(state.units) do
         if u.garrison and Hex.distance(u, tile) <= 1 then return true end
     end
-    return false
+    return Aura.fortressAt(state, tile) ~= nil     -- aura Pháo Đài S-02: Phiến Quân không được dừng
 end
 
 local function anyGarrison(state)
     for _, u in pairs(state.units) do
         if u.garrison then return true end
+    end
+    for _, b in pairs(state.buildings) do
+        if b.id == "S-02" and not b.demolishing then return true end   -- Pháo Đài cũng cấm dừng
     end
     return false
 end

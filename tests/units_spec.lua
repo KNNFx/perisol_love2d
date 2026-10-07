@@ -47,7 +47,7 @@ describe("units: mua và sinh", function()
         farRebel(s)
         local hq = s.players[pid].hq
         local ok, why = Game.check(s, { type = "buyUnit", unit = "expedition", q = c.q, r = c.r })
-        expect.falsy(ok); expect.eq(why, "Viễn Chinh chỉ sinh ở Nhà Chính hoặc Khu Trực Thuộc của bạn")
+        expect.falsy(ok); expect.eq(why, "Viễn Chinh chỉ sinh ở Nhà Chính, Khu Trực Thuộc hoặc Pháo Đài của bạn")
         for _ = 1, C.MAX_EXPEDITION_PER_PLAYER do
             Game.apply(s, { type = "buyUnit", unit = "expedition", q = hq.q, r = hq.r })
         end

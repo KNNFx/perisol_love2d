@@ -12,6 +12,7 @@
 local Hex        = require("src.core.hex")
 local Rebel      = require("src.core.rebel")
 local Roads      = require("src.core.roads")
+local Aura       = require("src.core.aura")
 local Structures = require("src.core.structures")
 local Territory  = require("src.core.territory")
 local Upkeep     = require("src.core.upkeep")
@@ -66,6 +67,7 @@ function K.checkFootprint(state, pid, b, q, r, rot)
     if not b then return false, "Không có công trình này" end
     if b.owner ~= pid then return false, "Không phải công trình của bạn" end
     if b.demolishing then return false, "Công trình đang chờ dỡ" end
+    if Aura.isSpecial(b) or b.id:sub(1, 2) == "D-" then return false, "Loại công trình này không nâng cấp bằng hình mới" end
     local newDef = Buildings.level(b.id, b.level + 1)
     if not newDef then return false, "Đã ở cấp tối đa" end
 
@@ -111,7 +113,7 @@ end
 function K.upgradeOptions(state, uid)
     local b = state.buildings[uid]
     local out = {}
-    if not b or b.demolishing then return out end
+    if not b or b.demolishing or Aura.isSpecial(b) or b.id:sub(1, 2) == "D-" then return out end
     local newDef = Buildings.level(b.id, b.level + 1)
     if not newDef then return out end
 

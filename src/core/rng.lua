@@ -64,6 +64,11 @@ function Rng:shuffle(t)
     return t
 end
 
+-- Bản sao cùng trạng thái: gọi next() trên bản sao không làm đổi RNG gốc (dùng để "xem trước" xúc xắc).
+function Rng:copy()
+    return setmetatable({ base = self.base, state = self.state }, Rng)
+end
+
 -- RNG con độc lập, chỉ phụ thuộc seed gốc + tag (không phụ thuộc số lần đã gọi next).
 function Rng:fork(tag)
     return Rng.new(self.base .. ":" .. tostring(tag))

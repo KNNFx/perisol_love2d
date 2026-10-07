@@ -368,6 +368,32 @@ Theo Data sheet "Công trình" (chuẩn); chỗ Data và GDD §8.2 khác nhau xe
 - **Save:** `state.derived`, `state.nextDerivedUid`. Save v3 tạo trước phase này được bù mặc định khi nạp (`Game.load`).
 - **Tunable mới:** `DERIVED_MAX_GAP`, `BOND_MAX`, `BOND_INTEREST`, `BOND_REDEEM_GOLD`, `TN05_ALLOY_BONUS`.
 
+## D-019 — Công trình Đặc Biệt S-01..S-05 (M1.5 phase H) — 2026-10-07
+Dữ liệu ở `src/data/specials.lua`, aura ở `src/core/aura.lua`, luật ở `src/core/specials.lua`. Nguồn: Data sheet "Công trình" (chuẩn) và GDD §8.3.
+- **Xây:** lệnh `buildSpecial{id, q, r, rot}`, cần **Nhà Chính C3** (Data §9.1), đủ vật liệu và công trình tiên quyết. Mỗi người chỉ có **một** công trình mỗi loại (đề xuất của dự án, để số lần "1 lần/ván" của S-05 rõ nghĩa).
+  - **Footprint** theo hình: S-01 và S-04 `hex7` (ô giữa + 6 ô kề), S-02 `fort4` (ô giữa + 3 ô kề xen kẽ), S-03 và S-05 `triangle` (ô giữa + 2 ô kề). **Mọi ô** của hình phải là ô thực hữu của chủ, trống và không bị phong tỏa. Data viết S-01 chỉ cần "6 ô xung quanh trống"; ở đây hiểu là 6 ô đó cũng thuộc footprint nên phải là ô thực hữu của chủ (khớp S-04 "6 ô đều thực hữu").
+  - **Địa hình:** theo danh sách của **ô trung tâm** trong sheet "Công trình" (S-05 gồm cả Đầm Lầy, khác sheet "Địa hình"; chọn sheet Công trình như D-013). Các ô còn lại phải xây được hoặc nằm trong danh sách; S-05 cần mọi ô cùng một loại địa hình. S-02 trên Núi cần ô trung tâm có TN-01 Đá Granite.
+  - **Tiên quyết** (công trình Cơ Bản của chủ, ô neo trong bán kính quanh ô trung tâm): S-01 Viện NC C3 trong 3; S-02 Trại KT C2+ trong 2; S-03 Nhà VH C3 trong 2 và Xưởng In Ấn (D-02) đang hoạt động; S-04 Viện NC C2+ và Trại KT C2+ trong 3; S-05 Đền Thờ C3 trong 2.
+  - Chi phí: bảng trong `specials.lua`. Riêng S-05 dùng **8 TN** (Data) thay vì 6 TN (GDD).
+- **Nâng cấp "+1", "+2":** lệnh `upgradeSpecial{uid}`, không đổi footprint; cấp nội bộ 1..3 (cấp 1 = vừa xây). Công trình Đặc Biệt **không** nâng bằng hình mới như công trình Cơ Bản. Tính điểm như công trình C2+ ở mọi cấp.
+- **Aura** (bán kính theo cấp; công trình chờ dỡ mất aura):
+  - **S-01:** công trình của chủ trong bán kính +1 mỗi viên KH (modifier stage `aura`). Hiểu "khi xúc xắc ra KH nhận +1 KH" là bonus theo công trình trong vùng chứ không phải cho chủ tháp. Bán kính 2, +1 → 3.
+  - **S-02:** Phiến Quân **không được dừng** trong aura (bao gồm Pháo Đài của chính người đổ; cùng cơ chế lọc bước của D-015, kèm lối thoát khi mọi bước đều bị cấm). Viễn Chinh/Hiệp Sĩ đối thủ vào ô trong aura tốn thêm 2 điểm; từ "+1" bị chặn đứng (hết điểm khi vào, không đi tiếp). Bán kính 2, +1 → 3.
+  - **S-03:** phiếu Chi Phối trên ô Khu Dân Cư / Danh Thắng trong aura nhân 1.5 làm tròn lên (hệ số áp ở `Territory.votesOn`, phiếu lưu vẫn là số nguyên). Bán kính 2, +1 → 3.
+  - **S-04:** khi **chủ đài** đổ, mọi công trình (kể cả của đối thủ) trong bán kính 3 có ô neo trong vùng sản xuất +1 mỗi viên khớp. "Aura Long Mạch +2 ô" và "PQ trong bán kính 1 chỉ phong tỏa 3 ô" **chưa làm** (D-014 còn mở).
+  - **S-05:** hai khả năng chủ động ở mục sau. Bán kính 2.
+- **Thụ động mỗi vòng** (qua `Passives`, bị phong tỏa thì mất): S-02 +1 KT; S-03 +2 VH; S-04 +1 KH +1 KT; S-05 +2 TN.
+- **Khả năng chủ động:**
+  - **S-01 xem trước:** hiện viên xúc xắc kế tiếp (1 viên, +2 thì 2 viên) mà không đổi RNG (`Rng:copy`). "Giữ 1 viên và đổ lại viên kia" (+2) **chưa làm**.
+  - **S-02 +2 "Pháo":** `fortressStrike{uid, target}`, 1 lần mỗi 5 vòng mỗi người chơi, phá hủy **ngay** một công trình **Cơ Bản cấp 1** của đối thủ trong bán kính 3. Data ghi "−2 độ bền" (hệ độ bền thuộc tầng công nghiệp bị hoãn) nên hiểu là phá hủy theo GDD §8.3; TN trên ô mất vĩnh viễn như khi dỡ (D-014).
+  - **S-02 sinh Viễn Chinh:** Viễn Chinh được mua ở ô thuộc footprint Pháo Đài; lượt đầu có +2 bước.
+  - **S-03 điểm cuối ván:** +1 điểm cho mỗi Khu Dân Cư mà chủ chi phối (hơn hẳn số ô trong cụm) có ô trong bán kính 3 quanh Bảo Tàng. Hiện ở cột "Bảo Tàng" của màn kết quả.
+  - **S-04 +2 "Phát Sóng":** khai báo trước khi đổ (`roll{broadcast=true}`), 1 lần mỗi 3 vòng; cả hai viên thành **mặt cao hơn** của lần đổ. Tổng chẵn nên không bao giờ ra 7; hai viên Hex cho 2 phiếu.
+  - **S-05 hủy tổng 7:** khi có người đổ 7, chủ Thiên Đình còn lượt (1 lần mỗi ván, +1: 2 lần) được hỏi qua lời nhắc `cancel7`; hủy thì Phiến Quân không đi và **người đổ nhận 1 TN**. Hỏi lần lượt các chủ còn lượt, người đổ trước. Việc Phiến Quân kề không vô hiệu hóa khả năng này.
+  - **S-05 đẩy Phiến Quân:** khi Phiến Quân dừng trong aura (sau khi xử lý mất tài nguyên) và chủ có ≥ 2 TN, lời nhắc `pushrebel` hỏi có trả 2 TN đẩy ra ngoài aura không. Ô đích nằm trong 2 bước quanh Phiến Quân, ngoài aura, Phiến Quân đứng được; cấp xây = **ngẫu nhiên** (chọn bằng RNG ván), từ "+1" = **chủ chọn ô**. Đẩy không kích hoạt hiệu ứng dừng mới.
+- **Chưa làm, để M2/M3 hoặc chờ chốt:** giảm giá Công Nghệ (S-01), phụ phí và miễn nhiễm Sắc Lệnh, "Triển Lãm" (S-03), "Niết Bàn" và giảm chi phí kỹ năng nhân vật (S-05), bonus TN-02/TN-07/TN-11 cho Đặc Biệt, "Pháp Sư"…
+- **Tunable mới:** nằm trong `src/data/specials.lua` (`STRIKE_COOLDOWN`, `STRIKE_RADIUS`, `BROADCAST_COOLDOWN`, `SCORE_SETTLEMENT_RADIUS`, bảng cấp) và `Specials.MIN_HQ_LEVEL`.
+
 ## Xung đột tài liệu đã phát hiện (chọn theo Data)
 | Chủ đề | GDD §3.1 / §8 | Data | Chọn |
 |---|---|---|---|

@@ -11,6 +11,7 @@
 local C          = require("src.config.constants")
 local Dice       = require("src.core.dice")
 local Hex        = require("src.core.hex")
+local Aura       = require("src.core.aura")
 local Rebel      = require("src.core.rebel")
 local Roads      = require("src.core.roads")
 local State      = require("src.core.state")
@@ -104,7 +105,19 @@ function U.stepCost(state, u, tile)
     if Structures.strategicAt(state, tile) == "TN-11" and u.type ~= "trade" then
         c = math.max(0, c - C.TN11_STEP_REFUND)
     end
+    -- aura Pháo Đài S-02 của đối thủ: đơn vị quân sự vào ô trong aura tốn thêm `speed` điểm (D-019)
+    if u.type ~= "trade" then
+        local f = Aura.fortressAt(state, tile, u.owner)
+        if f then c = c + Aura.levelDef(f).speed end
+    end
     return c
+end
+
+-- Ô nằm trong aura "chặn đứng" (Pháo Đài +1 trở lên) của đối thủ: vào rồi là hết điểm di chuyển.
+local function stallsUnit(state, u, tile)
+    if u.type == "trade" then return false end
+    local f = Aura.fortressAt(state, tile, u.owner)
+    return f ~= nil and Aura.levelDef(f).stall == true
 end
 
 -- Dijkstra trong ngân sách `u.mp`. Trả { [key] = { tile, cost, prev = key|nil } } gồm cả ô đang đứng (cost 0).
@@ -121,7 +134,8 @@ function U.reachable(state, u)
         if not closed[k] then
             closed[k] = true
             local node = best[k]
-            for _, n in ipairs(state.map:neighbors(node.tile)) do
+            local stalled = node.prev ~= nil and stallsUnit(state, u, node.tile)   -- vào aura chặn đứng thì không đi tiếp
+            for _, n in ipairs(stalled and {} or state.map:neighbors(node.tile)) do
                 local step = U.stepCost(state, u, n)
                 local total = node.cost + step
                 local nk = key(n)
@@ -186,6 +200,9 @@ function U.move(state, u, q, r)
     state.players[u.owner].res.gold = state.players[u.owner].res.gold - gold
     u.mp = u.mp - cost
     u.q, u.r = q, r
+    for _, t in ipairs(path) do
+        if stallsUnit(state, u, t) then u.mp = 0 break end    -- aura Pháo Đài +1: bị chặn đứng
+    end
     return cost, built, gold
 end
 
@@ -197,6 +214,12 @@ local function isOwnAnchor(state, pid, tile)
         if a.q == tile.q and a.r == tile.r then return true end
     end
     return false
+end
+
+-- Ô thuộc footprint Pháo Đài S-02 của `pid` (nơi sinh Viễn Chinh, Data §2).
+local function isOwnFortress(state, pid, tile)
+    local b = Structures.at(state, tile)
+    return b ~= nil and b.id == "S-02" and b.owner == pid and not b.demolishing
 end
 
 -- Số Khu Chợ (B-05, không chờ dỡ) của `pid`.
@@ -220,8 +243,8 @@ function U.checkBuy(state, pid, unitType, tile)
     if unitType ~= "expedition" and unitType ~= "trade" then return false, "Loại đơn vị này chưa mua được" end
     if not tile then return false, "Không có ô này" end
     if unitType == "expedition" then
-        if not isOwnAnchor(state, pid, tile) then
-            return false, "Viễn Chinh chỉ sinh ở Nhà Chính hoặc Khu Trực Thuộc của bạn"
+        if not isOwnAnchor(state, pid, tile) and not isOwnFortress(state, pid, tile) then
+            return false, "Viễn Chinh chỉ sinh ở Nhà Chính, Khu Trực Thuộc hoặc Pháo Đài của bạn"
         end
     elseif not isTradeSpawn(state, pid, tile) then
         return false, "Giao Thương sinh ở Khu Chợ của bạn (chưa có chợ thì ở Nhà Chính)"
@@ -240,6 +263,7 @@ function U.spawn(state, pid, unitType, tile)
     local u = { uid = uid, type = unitType, owner = pid, q = tile.q, r = tile.r, mp = 0, acted = false,
                 garrison = false, recentGarrison = false }
     if unitType == "trade" then u.mp = U.baseMove(state, u) end
+    if isOwnFortress(state, pid, tile) then u.spawnBonus = 2 end   -- xuất phát từ Pháo Đài: +2 bước lượt đầu
     state.units[uid] = u
     return u
 end
@@ -398,6 +422,7 @@ function U.startTurn(state, pid, events)
     for _, u in ipairs(U.ownedBy(state, pid)) do
         u.recentGarrison, u.garrison = u.garrison, false
         u.mp, u.acted = U.baseMove(state, u), false
+        if u.spawnBonus then u.mp, u.spawnBonus = u.mp + u.spawnBonus, nil end
     end
 end
 

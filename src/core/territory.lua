@@ -10,6 +10,7 @@ local State     = require("src.core.state")
 local Rebel     = require("src.core.rebel")
 local Structures = require("src.core.structures")
 local Roads     = require("src.core.roads")
+local Aura      = require("src.core.aura")
 local Terrains  = require("src.data.terrains")
 
 local T = {}
@@ -23,9 +24,12 @@ local TN_THRESHOLD_BONUS = "TN-06"
 
 function T.ownerOf(state, tile) return state.owner[key(tile)] end
 
+-- Phiếu hiệu lực của `pid` trên `tile`: phiếu đã đặt, nhân hệ số aura Bảo Tàng S-03 (làm tròn lên) trên cụm.
 function T.votesOn(state, tile, pid)
     local v = state.votes[key(tile)]
-    return v and v[pid] or 0
+    local n = v and v[pid] or 0
+    if n > 0 then n = math.ceil(n * Aura.voteMultiplier(state, pid, tile)) end
+    return n
 end
 
 -- HQ + Sub của người chơi, mỗi mốc kèm bán kính vùng ảnh hưởng: { q, r, radius, kind }.

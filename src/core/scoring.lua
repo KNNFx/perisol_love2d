@@ -3,6 +3,8 @@
 local C         = require("src.config.constants")
 local State     = require("src.core.state")
 local Territory = require("src.core.territory")
+local Aura      = require("src.core.aura")
+local Specials  = require("src.core.specials")
 local Resources = require("src.data.resources")
 
 local Scoring = {}
@@ -31,7 +33,7 @@ function Scoring.score(state)
     end
 
     for _, b in pairs(state.buildings) do
-        if b.level >= 2 then buildingCount[b.owner] = buildingCount[b.owner] + 1 end
+        if b.level >= 2 or Aura.isSpecial(b) then buildingCount[b.owner] = buildingCount[b.owner] + 1 end   -- Đặc Biệt tính như C2+ (D-019)
     end
 
     local out = {}
@@ -43,8 +45,9 @@ function Scoring.score(state)
             landmarks = landmarkCount[pid] * C.SCORE_LANDMARK,
             buildings = buildingCount[pid] * C.SCORE_BUILDING_C2,
             resources = math.floor(leftover / C.SCORE_RES_PER_POINT),
+            museum = Specials.museumBonus(state, pid),     -- S-03: +1 mỗi Khu Dân Cư chi phối gần Bảo Tàng
         }
-        s.total = s.tiles + s.landmarks + s.buildings + s.resources
+        s.total = s.tiles + s.landmarks + s.buildings + s.resources + s.museum
         out[pid] = s
     end
     return out

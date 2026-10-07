@@ -27,7 +27,10 @@ local Units        = require("src.core.units")      -- bước upkeep đơn vị
 local Roads        = require("src.core.roads")
 local Trade        = require("src.core.trade")
 local Derived      = require("src.core.derived")
+local Aura         = require("src.core.aura")
+local Specials     = require("src.core.specials")
 local DerivedData  = require("src.data.derived")
+local SpecialsData = require("src.data.specials")
 local Passives    = require("src.core.passives")   -- đăng ký bước upkeep thu nhập thụ động (sau bước dỡ)
 local Upkeep      = require("src.core.upkeep")
 local Territory   = require("src.core.territory")
@@ -118,11 +121,51 @@ local function resolution(state, events)
     state.phase = "action"
 end
 
+-- Thiên Đình S-05 (D-019): Phiến Quân vừa dừng trong aura của chủ Thiên Đình có đủ TN thì chủ được hỏi có trả TN để đẩy
+-- Phiến Quân ra ngoài aura không. `holders` = { { pid, uid } }; hỏi lần lượt từng người, người từ chối thì tới người kế.
+local function openPushPrompt(state, holders, events)
+    local h = holders[1]
+    local b = state.buildings[h.uid]
+    local lv = Aura.levelDef(b)
+    local cands = Specials.pushCandidates(state, b)
+    local rest = {}
+    for i = 2, #holders do rest[#rest + 1] = holders[i] end
+    local prompt = { kind = "pushrebel", pid = h.pid, uid = h.uid, rest = rest, resume = "action", cost = lv.pushPay }
+    if lv.pushChoose then          -- "+1": tự chọn ô; không thì ngẫu nhiên
+        prompt.options = { "decline" }
+        for _, t in ipairs(cands) do prompt.options[#prompt.options + 1] = key(t) end
+    else
+        prompt.options = { "push", "decline" }
+        prompt.target = key(state.rng:pick(cands))
+    end
+    Game.openPrompt(state, prompt)
+end
+
+local function afterRebelStop(state, events)
+    local holders = Specials.pushHolders(state)
+    if #holders > 0 then openPushPrompt(state, holders, events) else resolution(state, events) end
+end
+
 local function settleRebel(state, events)
     local stage = Rebel.stage(state)
     if stage == "move" then state.phase = "rebel_move"
     elseif stage == "loss" then state.phase = "rebel_loss"
-    else resolution(state, events) end
+    else afterRebelStop(state, events) end
+end
+
+-- Phiến Quân hành động sau tổng 7: người đổ điều khiển.
+local function runRebel(state, pid, events)
+    local _, ev = Rebel.startMove(state, pid)
+    for _, e in ipairs(ev) do events[#events + 1] = e end
+    settleRebel(state, events)
+end
+
+-- Thiên Đình S-05: hủy tổng 7. `holders` = danh sách pid còn lượt hủy; hỏi lần lượt.
+local function openCancel7Prompt(state, roller, holders)
+    local rest = {}
+    for i = 2, #holders do rest[#rest + 1] = holders[i] end
+    Game.openPrompt(state, { kind = "cancel7", pid = holders[1], roller = roller, rest = rest, resume = "action",
+                             options = { "cancel", "allow" } })
 end
 
 -- ─── Điều kiện xây ──────────────────────────────────────────────────────────
@@ -190,17 +233,29 @@ H.placeHQ = {
 
 H.roll = {
     phase = "roll",
-    check = function() return true end,
+    check = function(state, cmd, pid)
+        if cmd.broadcast then return Specials.checkBroadcast(state, pid) end   -- S-04 +2 "Phát Sóng"
+        return true
+    end,
     apply = function(state, cmd, pid, events)
         for _, e in ipairs(Upkeep.startTurn(state, pid)) do events[#events + 1] = e end
         local dice = Dice.roll(state.rng)
+        if cmd.broadcast then   -- cả hai viên thành mặt cao hơn của viên đã đổ
+            local m = math.max(dice[1], dice[2])
+            dice = { m, m }
+            state.players[pid].broadcastRound = state.round
+            events[#events + 1] = { kind = "broadcast", pid = pid, face = m }
+        end
         state.dice = dice
         events[#events + 1] = { kind = "roll", pid = pid, dice = dice }
         if Dice.isSeven(dice) then
             events[#events + 1] = { kind = "seven", pid = pid }
-            local _, ev = Rebel.startMove(state, pid)
-            for _, e in ipairs(ev) do events[#events + 1] = e end
-            settleRebel(state, events)
+            local holders = Specials.cancel7Holders(state, pid)
+            if #holders > 0 then
+                openCancel7Prompt(state, pid, holders)
+            else
+                runRebel(state, pid, events)
+            end
         else
             for _, e in ipairs(Production.run(state, dice, pid)) do events[#events + 1] = e end
             resolution(state, events)
@@ -314,6 +369,91 @@ H.upgradeSub = {
         pay(state.players[pid].res, C.SUB_UPGRADE_COST[sub.level + 1])
         local level = Territory.upgradeSub(state, pid, tile)
         events[#events + 1] = { kind = "upgrade_sub", pid = pid, level = level, q = tile.q, r = tile.r }
+    end,
+}
+
+-- ─── Công trình Đặc Biệt (D-019) ────────────────────────────────────────────
+
+H.buildSpecial = {
+    phase = "action",
+    check = function(state, cmd, pid)
+        local ok, why = Specials.checkBuild(state, pid, cmd.id, cmd.q, cmd.r, cmd.rot)
+        if not ok then return false, why end
+        if not canAfford(state.players[pid].res, Specials.def(cmd.id).levels[1].cost) then return false, "Không đủ tài nguyên" end
+        return true
+    end,
+    apply = function(state, cmd, pid, events)
+        pay(state.players[pid].res, Specials.def(cmd.id).levels[1].cost)
+        local b = Specials.build(state, pid, cmd.id, cmd.q, cmd.r, cmd.rot)
+        events[#events + 1] = { kind = "special_built", pid = pid, id = cmd.id, uid = b.uid, q = cmd.q, r = cmd.r }
+    end,
+}
+
+H.upgradeSpecial = {
+    phase = "action",
+    check = function(state, cmd, pid)
+        local b = state.buildings[cmd.uid]
+        local ok, why = Specials.checkUpgrade(state, pid, b)
+        if not ok then return false, why end
+        if not canAfford(state.players[pid].res, Specials.upgradeCost(b)) then return false, "Không đủ tài nguyên" end
+        return true
+    end,
+    apply = function(state, cmd, pid, events)
+        local b = state.buildings[cmd.uid]
+        pay(state.players[pid].res, Specials.upgradeCost(b))
+        Specials.upgrade(state, b)
+        local a = Structures.tilesOf(state, b)[1]
+        events[#events + 1] = { kind = "special_upgrade", pid = pid, id = b.id, level = b.level, uid = b.uid, q = a.q, r = a.r }
+    end,
+}
+
+H.fortressStrike = {
+    phase = "action",
+    check = function(state, cmd, pid) return Specials.checkStrike(state, pid, cmd.uid, cmd.target) end,
+    apply = function(state, cmd, pid, events)
+        for _, e in ipairs(Specials.strike(state, pid, cmd.uid, cmd.target)) do events[#events + 1] = e end
+    end,
+}
+
+-- Hủy tổng 7 (S-05): hỏi lần lượt các chủ Thiên Đình còn lượt hủy. Hủy: người đổ nhận 1 TN, Phiến Quân không đi.
+Game.prompts = Game.prompts or {}
+Game.prompts.cancel7 = {
+    check = function() return true end,
+    apply = function(state, p, choice, events)
+        if choice == "cancel" then
+            state.players[p.pid].cancel7Used = (state.players[p.pid].cancel7Used or 0) + 1
+            state.players[p.roller].res.faith = state.players[p.roller].res.faith + 1
+            events[#events + 1] = { kind = "seven_cancelled", pid = p.pid, roller = p.roller }
+            resolution(state, events)
+        elseif #p.rest > 0 then
+            openCancel7Prompt(state, p.roller, p.rest)
+        else
+            runRebel(state, p.roller, events)
+        end
+    end,
+}
+
+-- Đẩy Phiến Quân (S-05): "push" = ô đã định sẵn ngẫu nhiên; hoặc tên ô "q,r" do chủ chọn (+1). Trả TN, dời Phiến Quân.
+Game.prompts.pushrebel = {
+    check = function(state, p, choice)
+        if choice == "decline" then return true end
+        local b = state.buildings[p.uid]
+        if not b then return false, "Thiên Đình không còn" end
+        if state.players[p.pid].res.faith < p.cost then return false, "Không đủ Tín Ngưỡng" end
+        return true
+    end,
+    apply = function(state, p, choice, events)
+        if choice == "decline" then
+            if #p.rest > 0 then openPushPrompt(state, p.rest, events) else resolution(state, events) end
+            return
+        end
+        local target = choice == "push" and p.target or choice
+        local q, r = target:match("^(-?%d+),(-?%d+)$")
+        local from = { q = state.rebel.q, r = state.rebel.r }
+        state.players[p.pid].res.faith = state.players[p.pid].res.faith - p.cost
+        state.rebel.q, state.rebel.r = tonumber(q), tonumber(r)
+        events[#events + 1] = { kind = "rebel_pushed", pid = p.pid, from = from, q = tonumber(q), r = tonumber(r), cost = p.cost }
+        resolution(state, events)
     end,
 }
 
@@ -529,6 +669,7 @@ H.build = {
 
 -- Chi phí nâng `b` lên cấp kế, tính theo ô neo (nil nếu đã tối đa).
 local function upgradeCost(state, b)
+    if Aura.isSpecial(b) or b.id:sub(1, 2) == "D-" then return nil end   -- Đặc Biệt: lệnh upgradeSpecial; Phái Sinh: không nâng
     if not Buildings.level(b.id, b.level + 1) then return nil end
     return Construction.cost(state, b.id, b.level + 1, Structures.tilesOf(state, b)[1])
 end
@@ -663,6 +804,7 @@ function Game.legal(state)
         end
     elseif ph == "roll" then
         out[1] = { type = "roll", pid = actor }
+        if Specials.checkBroadcast(state, actor) then out[2] = { type = "roll", pid = actor, broadcast = true } end
     elseif ph == "rebel_move" then
         for _, t in ipairs(Rebel.legalSteps(state)) do
             out[#out + 1] = { type = "rebelStep", pid = actor, q = t.q, r = t.r }
@@ -791,6 +933,28 @@ function Game.legal(state)
                                               q = t and t.q or nil, r = t and t.r or nil }
                                 if Game.check(state, cmd) then out[#out + 1] = cmd end
                             end
+                        end
+                    end
+                end
+            end
+        end
+        -- Đặc Biệt: xây mới (đủ tài nguyên + HQ C3), nâng cấp +1/+2, "Pháo"
+        for _, def in ipairs(SpecialsData.list) do
+            if canAfford(p.res, def.levels[1].cost) then
+                for _, pl in ipairs(Specials.placements(state, actor, def.id)) do
+                    out[#out + 1] = { type = "buildSpecial", pid = actor, id = def.id, q = pl.q, r = pl.r, rot = pl.rot }
+                end
+            end
+        end
+        for _, b in ipairs(Structures.list(state)) do
+            if b.owner == actor and Aura.isSpecial(b) then
+                if Specials.checkUpgrade(state, actor, b) and canAfford(p.res, Specials.upgradeCost(b)) then
+                    out[#out + 1] = { type = "upgradeSpecial", pid = actor, uid = b.uid }
+                end
+                if b.id == "S-02" and Aura.levelDef(b).strike then
+                    for _, t in ipairs(Specials.strikeTargets(state, actor, b)) do
+                        if Specials.checkStrike(state, actor, b.uid, t.uid) then
+                            out[#out + 1] = { type = "fortressStrike", pid = actor, uid = b.uid, target = t.uid }
                         end
                     end
                 end

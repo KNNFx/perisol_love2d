@@ -20,6 +20,9 @@ local Construction = require("src.core.construction")
 local Units       = require("src.core.units")
 local Roads       = require("src.core.roads")
 local Derived     = require("src.core.derived")
+local Specials    = require("src.core.specials")
+local Aura        = require("src.core.aura")
+local SpecialsData = require("src.data.specials")
 local DerivedData = require("src.data.derived")
 local Trade       = require("src.core.trade")
 local Hex         = require("src.core.hex")
@@ -260,7 +263,9 @@ end
 
 function Scene:finishRoll()
     self.rollAnim = nil
-    if self:cmd({ type = "roll" }) then
+    local broadcast = self.broadcast and true or nil
+    self.broadcast = false
+    if self:cmd({ type = "roll", broadcast = broadcast }) then
         for i = 1, 2 do
             self.dieScale[i] = 1.4
             self.tween:to(self.dieScale, i, 1, 0.4, "outBack")
@@ -381,6 +386,33 @@ function Scene:computeTargets()
         ghostCheck = function(t)
             return Game.check(state, { type = "buildDerived", id = m.id, a = m.a, b = m.b, q = t.q, r = t.r })
         end
+    elseif state.phase == "action" and self.mode and self.mode.kind == "special" then
+        local seen = {}
+        for _, pl in ipairs(Specials.placements(state, actor, self.mode.id)) do
+            for _, t in ipairs(pl.tiles) do
+                if not seen[t] then seen[t] = true; items[#items + 1] = { tile = t, color = { 0.45, 0.85, 1 }, alpha = 0.16 } end
+            end
+        end
+        local cand = self:specialCandidate()
+        if cand then
+            for _, t in ipairs(cand.tiles) do items[#items + 1] = { tile = t, color = { 0.6, 1, 1 }, alpha = 0.5 } end
+        end
+        ghostCheck = function(t)
+            local c = self:specialCandidate()
+            if c then return Game.check(state, { type = "buildSpecial", id = self.mode.id, q = c.q, r = c.r, rot = c.rot }) end
+            local ok, why = Specials.checkBuild(state, actor, self.mode.id, t.q, t.r, 0)
+            return false, why or "Không có chỗ đặt hợp lệ chứa ô này"
+        end
+    elseif state.phase == "action" and self.mode and self.mode.kind == "strike" then
+        local fort = state.buildings[self.mode.uid]
+        for _, tb in ipairs(fort and Specials.strikeTargets(state, actor, fort) or {}) do
+            for _, t in ipairs(Structures.tilesOf(state, tb)) do items[#items + 1] = { tile = t, color = { 1, 0.35, 0.3 }, alpha = 0.4 } end
+        end
+        ghostCheck = function(t)
+            local tb = Structures.at(state, t)
+            if not tb then return false, "Chọn một công trình cấp 1 của đối thủ trong tầm" end
+            return Game.check(state, { type = "fortressStrike", uid = self.mode.uid, target = tb.uid })
+        end
     elseif state.phase == "action" and self.mode and self.mode.kind == "road" then
         for _, t in ipairs(Roads.list(state)) do
             if Game.roadUpgradeCheck(state, actor, t) then items[#items + 1] = { tile = t, color = { 0.85, 0.85, 0.95 }, alpha = 0.3 } end
@@ -464,6 +496,21 @@ function Scene:upgradeCandidate()
     return list[(mode.variant or 0) % #list + 1]
 end
 
+-- Cách đặt Đặc Biệt hợp lệ chứa ô đang hover; phím Q đổi giữa các cách đặt (mode.variant). Trả { q, r, rot, tiles } hoặc nil.
+function Scene:specialCandidate()
+    local mode, hover = self.mode, self.hover
+    if not (mode and mode.kind == "special" and hover) then return nil end
+    local actor = Game.actor(self.state)
+    local list = {}
+    for _, pl in ipairs(Specials.placements(self.state, actor, mode.id)) do
+        for _, t in ipairs(pl.tiles) do
+            if t == hover then list[#list + 1] = pl break end
+        end
+    end
+    if #list == 0 then return nil end
+    return list[(mode.variant or 0) % #list + 1]
+end
+
 -- Hướng (1..6) từ Phiến Quân tới ô kề `tile`, hoặc nil.
 function Scene:suppressDirOf(tile)
     local rb = self.state.rebel
@@ -510,6 +557,7 @@ function Scene:drawMap()
     else
         local items, ghostCheck = self:computeTargets()
         local sel = self.selected and state.buildings[self.selected]
+        if sel and Aura.isSpecial(sel) then Layers.drawAura(state, sel, zoom) end
         if sel then
             local selItems = {}
             for _, t in ipairs(Structures.tilesOf(state, sel)) do
@@ -584,6 +632,11 @@ function Scene:hintText()
             return "Chọn Khu Chợ (hoặc Nhà Chính nếu chưa có chợ) để sinh Giao Thương (Esc để hủy)"
         elseif self.mode and self.mode.kind == "road" then
             return "Chọn ô Đường Đất sáng để nâng lên Lát Đá (Esc để hủy)"
+        elseif self.mode and self.mode.kind == "special" then
+            return string.format("Chọn chỗ đặt %s: di chuột lên ô sáng, %s đổi cách đặt, bấm để xác nhận (Esc để hủy)",
+                Buildings.byId[self.mode.id].name, Actions.label("rotate"))
+        elseif self.mode and self.mode.kind == "strike" then
+            return "Chọn công trình cấp 1 của đối thủ (đỏ) để Pháo Đài phá hủy (Esc để hủy)"
         elseif self.mode and self.mode.kind == "derivedsite" then
             return "Chọn ô sáng để đặt " .. Buildings.byId[self.mode.id].name .. " (Esc để hủy)"
         elseif self.mode and self.mode.kind == "suppress" then
@@ -723,6 +776,22 @@ function Scene:drawActions(x, y, w)
             { font = Theme.font(12, true), color = sum == C.SEVEN and Theme.color.bad or Theme.color.text })
     end
     local canRoll = state.phase == "roll" and not self.rollAnim and not self.popup
+    if state.phase == "roll" and actor and not self.rollAnim then
+        local peek = Specials.peekDice(state, actor)
+        if peek then   -- S-01 Tháp Thiên Văn: xem trước viên xúc xắc kế tiếp
+            local faces = {}
+            for i, v in ipairs(peek) do faces[i] = Fmt.face(v) end
+            ui:label("Tháp xem trước: " .. table.concat(faces, " + "), x + Theme.px(8), y + diceH - Theme.px(46),
+                { font = Theme.font(9, true), color = Theme.color.accent, width = w - Theme.px(90) })
+        end
+        if Specials.checkBroadcast(state, actor) then   -- S-04 +2 "Phát Sóng"
+            ui:button("broadcast", x + w - Theme.px(78), y + diceH - Theme.px(54), Theme.px(70), Theme.px(18), "Phát Sóng", {
+                focused = self.broadcast, font = Theme.font(9, true),
+                tip = "Cả hai viên thành mặt cao hơn của viên bạn đổ (1 lần mỗi 3 vòng).",
+                onClick = function() self.broadcast = not self.broadcast end,
+            })
+        end
+    end
     ui:button("roll", x + Theme.px(8), y + diceH - Theme.px(32), w - Theme.px(16), Theme.px(26),
         "Đổ xúc xắc (" .. Actions.label("roll") .. ")", {
             enabled = canRoll, color = canRoll and { 0.25, 0.45, 0.30 } or nil,
@@ -817,7 +886,7 @@ function Scene:drawActions(x, y, w)
         end,
     })
     local tradeSpawns = {}
-    if p then
+    if p and p.hq then
         tradeSpawns[1] = state.map:get(p.hq.q, p.hq.r)
         for _, m in ipairs(Trade.markets(state, actor)) do tradeSpawns[#tradeSpawns + 1] = Structures.tilesOf(state, m)[1] end
     end
@@ -871,7 +940,15 @@ function Scene:drawActions(x, y, w)
             self.popup, self.propose = "propose", { to = others[1], give = {}, get = {} }
         end,
     })
-    y = y + bh + gap    ui:button("end", x, y, w, Theme.px(28), "Kết thúc lượt (" .. Actions.label("endTurn") .. ")", {
+    y = y + bh + gap    local hqOk = p and (p.hqLevel or 1) >= Specials.MIN_HQ_LEVEL
+    ui:button("special", x, y, w, bh, "Công trình Đặc Biệt", {
+        enabled = inAction and hqOk and true or false, focused = self.popup == "special", font = Theme.font(11, true),
+        tip = hqOk and "Xây Tháp Thiên Văn, Pháo Đài, Bảo Tàng, Đài Phát Thanh Long Mạch hoặc Thiên Đình: aura mạnh nhưng cần vật liệu phái sinh và công trình tiên quyết."
+            or "Cần nâng Nhà Chính lên cấp 3 (cần Khu Chợ nối đường và Hợp Kim).",
+        onClick = function() self.popup = "special" end,
+    })
+    y = y + bh + gap
+    ui:button("end", x, y, w, Theme.px(28), "Kết thúc lượt (" .. Actions.label("endTurn") .. ")", {
         enabled = inAction, color = inAction and { 0.42, 0.30, 0.18 } or nil, font = Theme.font(12, true),
         onClick = function() self.mode = nil; self:cmd({ type = "endTurn" }) end,
     })
@@ -953,11 +1030,15 @@ function Scene:drawBuildingPanel(x, y, w)
         if dd.host[1] == b.id and b.level >= dd.host[2] and not b.demolishing then dDefs[#dDefs + 1] = dd end
     end
     local isBank = b.id == "D-05"
+    local isSpecial = Aura.isSpecial(b)
+    local sdef = isSpecial and SpecialsData.byId[b.id] or nil
+    local hasStrike = isSpecial and b.id == "S-02" and Aura.levelDef(b).strike
     local extraH = #dInfo * Theme.px(13) + #dDefs * (bh + gap) + (isBank and 2 * (bh + gap) or 0)
+        + (isSpecial and (Theme.px(44) + (bh + gap) * (hasStrike and 2 or 1) - (bh + gap)) or 0)   -- Đặc Biệt không có nút nâng cấp hình
     local h = Theme.px(70) + 2 * (bh + gap) + (b.demolishing and Theme.px(14) or 0) + (lv.passive and Theme.px(26) or 0) + extraH
     ui:panel(x, y, w, h, { borderColor = Theme.player[b.owner] })
-    ui:label(string.format("%s  C%d", def.name, b.level), x + pad, y + Theme.px(5),
-        { font = Theme.font(12, true), color = Theme.color.accent })
+    ui:label(isSpecial and (b.level == 1 and def.name or string.format("%s  +%d", def.name, b.level - 1)) or string.format("%s  C%d", def.name, b.level),
+        x + pad, y + Theme.px(5), { font = Theme.font(12, true), color = Theme.color.accent })
     local prod = {}
     for _, p in ipairs(lv.produces) do
         prod[#prod + 1] = string.format("+%d %s khi ra %s", p[3], Fmt.res(p[2]), Fmt.face(p[1]))
@@ -1018,7 +1099,38 @@ function Scene:drawBuildingPanel(x, y, w)
         by = by + bh + gap
     end
 
-    local nextDef = def.levels[b.level + 1]
+    if isSpecial then   -- ghi chú hiệu ứng + nâng cấp +1/+2 + "Pháo" (D-019)
+        ui:label(sdef.note, x + pad, by, { font = fs, color = Theme.color.good, width = w - 2 * pad })
+        by = by + Theme.px(44)
+        local can, tip = false, "Đã ở cấp tối đa"
+        local cost = Specials.upgradeCost(b)
+        if cost then
+            local ok, why = Specials.checkUpgrade(state, actor, b)
+            tip = string.format("Nâng cấp +%d: %s. Aura bán kính %d.", b.level, costText(cost), sdef.levels[b.level + 1].aura)
+            if not mine then why = "Không phải công trình của bạn" end
+            if not ok and mine then tip = tip .. "\n" .. tostring(why)
+            elseif mine and not canAfford(state.players[actor].res, cost) then tip = tip .. "\n(Không đủ tài nguyên)"
+            elseif mine then can = true end
+        end
+        ui:button("bp_sup", x + Theme.px(6), by, w - Theme.px(12), bh,
+            cost and string.format("Nâng cấp +%d (%s)", b.level, (costText(cost):gsub(" %+ ", "+"))) or "Cấp tối đa", {
+            enabled = inAction and can, font = Theme.font(10, true), tip = tip,
+            onClick = function() self:cmd({ type = "upgradeSpecial", uid = b.uid }) end,
+        })
+        by = by + bh + gap
+        if hasStrike then
+            local p = state.players[actor] or state.players[b.owner]
+            local cd = p.strikeRound and math.max(0, SpecialsData.STRIKE_COOLDOWN - (state.round - p.strikeRound)) or 0
+            ui:button("bp_strike", x + Theme.px(6), by, w - Theme.px(12), bh, cd > 0 and ("Pháo (hồi " .. cd .. " vòng)") or "Pháo", {
+                enabled = inAction and cd == 0 and #Specials.strikeTargets(state, b.owner, b) > 0, font = Theme.font(10, true),
+                tip = "Phá hủy một công trình cấp 1 của đối thủ trong bán kính 3 (1 lần mỗi 5 vòng). TN trên ô đó mất vĩnh viễn.",
+                onClick = function() self.mode = { kind = "strike", uid = b.uid } end,
+            })
+            by = by + bh + gap
+        end
+    end
+
+    local nextDef = (not isSpecial and b.id:sub(1, 2) ~= "D-") and def.levels[b.level + 1] or nil
     local canUp, upTip = false, "Đã ở cấp tối đa"
     if nextDef then
         local cost = Game.upgradeCost(state, b)
@@ -1032,11 +1144,13 @@ function Scene:drawBuildingPanel(x, y, w)
     end
     local upLabel = nextDef and string.format("Nâng lên C%d (%s)", b.level + 1,
         (costText(Game.upgradeCost(state, b)):gsub(" %+ ", "+"))) or "Cấp tối đa"
-    ui:button("bp_up", x + Theme.px(6), by, w - Theme.px(12), bh, upLabel, {
-        enabled = inAction and canUp, font = Theme.font(10, true), tip = upTip,
-        onClick = function() self.mode = { kind = "upgrade", uid = b.uid, variant = 0 } end,
-    })
-    by = by + bh + gap
+    if not isSpecial then
+        ui:button("bp_up", x + Theme.px(6), by, w - Theme.px(12), bh, upLabel, {
+            enabled = inAction and canUp, font = Theme.font(10, true), tip = upTip,
+            onClick = function() self.mode = { kind = "upgrade", uid = b.uid, variant = 0 } end,
+        })
+        by = by + bh + gap
+    end
     local lost = Construction.lostOnDemolish(state, b)
     local demTip = "Dỡ bỏ: không hoàn tài nguyên, xong đầu lượt kế tiếp của bạn."
     if #lost > 0 then demTip = demTip .. "\nSẼ MẤT VĨNH VIỄN tài nguyên chiến lược trên ô." end
@@ -1381,6 +1495,118 @@ function Scene:drawTradeReply(W, H)
     })
 end
 
+-- Popup chọn công trình Đặc Biệt để xây: mỗi dòng có chi phí, trạng thái và nút "Xây" (vào chế độ chọn chỗ đặt).
+function Scene:drawSpecialPopup(W, H)
+    local ui, state = self.ui, self.state
+    local actor = Game.actor(state)
+    local p = state.players[actor]
+    ui:blockBelow()
+    dim(W, H)
+    local rowH = Theme.px(54)
+    local w, h = Theme.px(620), Theme.px(70) + #SpecialsData.list * rowH
+    local x, y = (W - w) / 2, (H - h) / 2
+    ui:panel(x, y, w, h)
+    ui:label("Công trình Đặc Biệt", x, y + Theme.px(8),
+        { font = Theme.font(14, true), width = w, align = "center", color = Theme.color.accent })
+    for i, d in ipairs(SpecialsData.list) do
+        local ry = y + Theme.px(36) + (i - 1) * rowH
+        local ok, why = Specials.status(state, actor, d.id)
+        local afford = canAfford(p.res, d.levels[1].cost)
+        ui:label(d.name, x + Theme.px(14), ry, { font = Theme.font(12, true), color = Theme.color.text })
+        ui:label(costText(d.levels[1].cost), x + Theme.px(14), ry + Theme.px(16),
+            { font = Theme.font(10), color = afford and Theme.color.good or Theme.color.bad })
+        ui:label(ok and (afford and d.note or "Thiếu tài nguyên") or why, x + Theme.px(14), ry + Theme.px(29),
+            { font = Theme.font(9), color = ok and Theme.color.dim or Theme.color.bad, width = w - Theme.px(130) })
+        ui:button("sp_" .. d.id, x + w - Theme.px(104), ry + Theme.px(6), Theme.px(90), Theme.px(28), "Xây", {
+            enabled = ok and afford, font = Theme.font(12, true), tip = d.note,
+            onClick = function() self.popup, self.mode = nil, { kind = "special", id = d.id, variant = 0 } end,
+        })
+    end
+    ui:button("sp_close", x + w / 2 - Theme.px(50), y + h - Theme.px(32), Theme.px(100), Theme.px(24), "Đóng", {
+        font = Theme.font(11, true), onClick = function() self.popup = nil end,
+    })
+end
+
+-- Màn che "chuyền máy" dùng chung cho lời nhắc của người khác. Trả true nếu đang che (chưa vẽ nội dung).
+function Scene:promptCover(W, H, line)
+    local ui, pr = self.ui, self.state.prompt
+    if self.replyShown == pr then return false end
+    love.graphics.setColor(0.04, 0.05, 0.08, 1)
+    love.graphics.rectangle("fill", 0, 0, W, H)
+    ui:label(string.format("Chuyền máy cho P%d", pr.pid), 0, H * 0.38,
+        { font = Theme.font(20, true), width = W, align = "center", color = Theme.player[pr.pid] })
+    ui:label(line, 0, H * 0.38 + Theme.px(34), { font = Theme.font(12), width = W, align = "center", color = Theme.color.dim })
+    ui:button("rp_show", W / 2 - Theme.px(90), H * 0.38 + Theme.px(66), Theme.px(180), Theme.px(32), "Tôi là P" .. pr.pid, {
+        font = Theme.font(13, true), onClick = function() self.replyShown = pr end,
+    })
+    return true
+end
+
+-- Thiên Đình S-05: hỏi chủ có hủy tổng 7 không.
+function Scene:drawCancel7(W, H)
+    local ui, state = self.ui, self.state
+    local pr = state.prompt
+    ui:blockBelow()
+    if self:promptCover(W, H, "P" .. pr.roller .. " vừa đổ ra tổng 7. Chỉ P" .. pr.pid .. " nhìn màn hình.") then return end
+    dim(W, H)
+    local w, h = Theme.px(440), Theme.px(180)
+    local x, y = (W - w) / 2, (H - h) / 2
+    ui:panel(x, y, w, h, { borderColor = Theme.player[pr.pid] })
+    ui:label(string.format("P%d đổ ra tổng 7", pr.roller), x, y + Theme.px(8),
+        { font = Theme.font(14, true), width = w, align = "center", color = Theme.color.bad })
+    ui:label(string.format("Thiên Đình của bạn (P%d) có thể hủy tổng 7: Phiến Quân không di chuyển và P%d nhận 1 TN. Còn %d lần hủy.",
+        pr.pid, pr.roller, Specials.cancel7Left(state, pr.pid)), x + Theme.px(16), y + Theme.px(38),
+        { font = Theme.font(11), width = w - Theme.px(32), align = "center" })
+    local bw = Theme.px(170)
+    ui:button("c7_yes", x + w / 2 - bw - Theme.px(6), y + h - Theme.px(42), bw, Theme.px(30), "Hủy tổng 7", {
+        font = Theme.font(12, true), color = { 0.25, 0.45, 0.30 },
+        onClick = function() self:cmd({ type = "respond", choice = "cancel" }); self.replyShown = nil end,
+    })
+    ui:button("c7_no", x + w / 2 + Theme.px(6), y + h - Theme.px(42), bw, Theme.px(30), "Để Phiến Quân đi", {
+        font = Theme.font(12, true), onClick = function() self:cmd({ type = "respond", choice = "allow" }); self.replyShown = nil end,
+    })
+end
+
+-- Thiên Đình S-05: Phiến Quân dừng trong aura, hỏi chủ có trả TN đẩy ra không.
+function Scene:drawPushRebel(W, H)
+    local ui, state = self.ui, self.state
+    local pr = state.prompt
+    ui:blockBelow()
+    if self:promptCover(W, H, "Phiến Quân dừng trong aura Thiên Đình của P" .. pr.pid .. ".") then return end
+    dim(W, H)
+    local choose = pr.options[2] ~= "decline" and pr.options[1] == "decline"
+    local n = #pr.options - 1
+    local w = Theme.px(460)
+    local rows = choose and math.ceil(n / 4) or 0
+    local h = Theme.px(150) + rows * Theme.px(30)
+    local x, y = (W - w) / 2, (H - h) / 2
+    ui:panel(x, y, w, h, { borderColor = Theme.player[pr.pid] })
+    ui:label("Phiến Quân dừng trong aura Thiên Đình", x, y + Theme.px(8),
+        { font = Theme.font(14, true), width = w, align = "center", color = Theme.color.accent })
+    ui:label(string.format("Phiến Quân đang ở (%d,%d). Trả %d TN để đẩy nó ra ngoài aura%s?", state.rebel.q, state.rebel.r, pr.cost,
+        choose and " (chọn ô)" or " (ô ngẫu nhiên)"), x + Theme.px(16), y + Theme.px(36),
+        { font = Theme.font(11), width = w - Theme.px(32), align = "center" })
+    local by = y + Theme.px(66)
+    if choose then
+        for i = 2, #pr.options do
+            local k = pr.options[i]
+            local col, row = (i - 2) % 4, math.floor((i - 2) / 4)
+            ui:button("pu_" .. k, x + Theme.px(16) + col * Theme.px(108), by + row * Theme.px(30), Theme.px(100), Theme.px(24), "(" .. k .. ")", {
+                font = Theme.font(10, true), enabled = state.players[pr.pid].res.faith >= pr.cost,
+                onClick = function() self:cmd({ type = "respond", choice = k }); self.replyShown = nil end,
+            })
+        end
+    else
+        ui:button("pu_push", x + w / 2 - Theme.px(140), by, Theme.px(130), Theme.px(28), "Đẩy (" .. pr.cost .. " TN)", {
+            font = Theme.font(12, true), color = { 0.25, 0.45, 0.30 }, enabled = state.players[pr.pid].res.faith >= pr.cost,
+            onClick = function() self:cmd({ type = "respond", choice = "push" }); self.replyShown = nil end,
+        })
+    end
+    ui:button("pu_no", x + w / 2 + Theme.px(10), y + h - Theme.px(40), Theme.px(130), Theme.px(28), "Không đẩy", {
+        font = Theme.font(12, true), onClick = function() self:cmd({ type = "respond", choice = "decline" }); self.replyShown = nil end,
+    })
+end
+
 function Scene:drawLossPopup(W, H)
     local ui, state = self.ui, self.state
     ui:blockBelow()
@@ -1472,6 +1698,12 @@ function Scene:draw()
         self:drawLossPopup(W, H)
     elseif state.phase == "prompt" and state.prompt.kind == "trade" then
         self:drawTradeReply(W, H)
+    elseif state.phase == "prompt" and state.prompt.kind == "cancel7" then
+        self:drawCancel7(W, H)
+    elseif state.phase == "prompt" and state.prompt.kind == "pushrebel" then
+        self:drawPushRebel(W, H)
+    elseif self.popup == "special" then
+        self:drawSpecialPopup(W, H)
     elseif self.popup == "propose" then
         self:drawProposePopup(W, H)
     elseif self.confirm then
@@ -1504,7 +1736,7 @@ function Scene:keypressed(key)
     end
     if self.popup or self.confirm then return end
 
-    if Actions.matches("rotate", key) and self.mode and self.mode.kind == "upgrade" then
+    if Actions.matches("rotate", key) and self.mode and (self.mode.kind == "upgrade" or self.mode.kind == "special") then
         self.mode.variant = (self.mode.variant or 0) + 1
     elseif Actions.matches("roll", key) and state.phase == "roll" then
         self:startRoll()
@@ -1552,6 +1784,16 @@ function Scene:mousepressed(x, y, button)
             if self:cmd({ type = "buyUnit", unit = "expedition", q = tile.q, r = tile.r }) then self.mode = nil end
         elseif self.mode.kind == "buytrade" then
             if self:cmd({ type = "buyUnit", unit = "trade", q = tile.q, r = tile.r }) then self.mode = nil end
+        elseif self.mode.kind == "special" then
+            local c = self:specialCandidate()
+            if c and self:cmd({ type = "buildSpecial", id = self.mode.id, q = c.q, r = c.r, rot = c.rot }) then
+                self.mode = nil
+            elseif not c then
+                self:say("Không có chỗ đặt hợp lệ ở đây")
+            end
+        elseif self.mode.kind == "strike" then
+            local tb = Structures.at(state, tile)
+            if tb and self:cmd({ type = "fortressStrike", uid = self.mode.uid, target = tb.uid }) then self.mode = nil end
         elseif self.mode.kind == "derivedsite" then
             local m = self.mode
             if self:cmd({ type = "buildDerived", id = m.id, a = m.a, b = m.b, q = tile.q, r = tile.r }) then self.mode = nil end

@@ -20,6 +20,7 @@ local COLUMNS = {
     { key = "buildings", title = "CT C2+" },
     { key = "leftover", title = "TN dư" },
     { key = "resources", title = "Điểm TN" },
+    { key = "museum", title = "Bảo Tàng" },
     { key = "total", title = "TỔNG" },
 }
 

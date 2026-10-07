@@ -204,6 +204,27 @@ function L.drawBuildings(state, opts)
     love.graphics.setColor(1, 1, 1)
 end
 
+-- Vòng aura của công trình Đặc Biệt `b`: tô nhạt + viền các ô trong bán kính (khi đang chọn công trình).
+function L.drawAura(state, b, zoom)
+    local Aura = require("src.core.aura")
+    local centre = Aura.centre(state, b)
+    local r = Aura.radius(b)
+    local pc = PLAYER[b.owner]
+    for _, h in ipairs(Hex.range(centre, r)) do
+        local t = state.map:get(h.q, h.r)
+        if t then
+            local cx, cy = tileCenter(t)
+            love.graphics.setColor(pc[1], pc[2], pc[3], 0.10)
+            love.graphics.polygon("fill", hexPolygon(cx, cy))
+            love.graphics.setColor(pc[1], pc[2], pc[3], 0.55)
+            love.graphics.setLineWidth(1 / zoom)
+            love.graphics.polygon("line", hexPolygon(cx, cy))
+            love.graphics.setLineWidth(1)
+        end
+    end
+    love.graphics.setColor(1, 1, 1)
+end
+
 -- Đường: nét nối tâm các ô có đường kề nhau (nâu = Đường Đất, xám sáng đậm hơn = Lát Đá) và chấm ở mỗi ô.
 function L.drawRoads(state, opts)
     local zoom = opts.zoom or 1

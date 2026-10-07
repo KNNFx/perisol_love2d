@@ -256,26 +256,24 @@ Each phase ends with `test.bat` green, `lovec . --sim 100` clean, a UI check (sc
   - [x] "Active" status recomputed at production time (a broken road pauses it). Periodic passives. D-05 bonds (max 5, 0.5 V interest each).
   - [x] UI: building panel shows each Derived's status (active / paused + reason) and "Lập <name>" buttons (D-03 and D-05 pick a tile in a new `derivedsite` mode), "Đổi Tín Phiếu" on the bank, materials line in the player card (cards are 10px taller). Dev: `--demo derived`.
   - [x] `derived_spec` (data, D-01..D-05 rules and production, gaps with/without road, blockade, cleanup, periodic passives, bonds and redeem, save/load incl. old saves, resource-rich sim). Sim: build/redeem weights, derived invariants, bond cap.
-- [ ] **H. Step 7 — Special S-01..S-05**
-  - [ ] `src/data/specials.lua`: footprints, terrains (Data building sheet), radius prerequisites, material costs, +1/+2 upgrades. TN-01/02/07/11 modifiers.
-  - [ ] `buildSpecial`, `upgradeSpecial`. Auras are modifiers that read `state`.
-  - [ ] Abilities that work now:
-    - **S-01:** KH aura, peek die 1, +2 reroll one die.
+- [x] **H. Step 7 — Special S-01..S-05** — done 2026-10-07 (rules in D-019; leftovers listed below)
+  - [x] `src/data/specials.lua`: footprints (new `hex7`, `fort4` shapes), terrains (Data building sheet), radius prerequisites, material costs, +1/+2 upgrades. HQ C3 gate.
+  - [x] `buildSpecial`, `upgradeSpecial`. Auras live in `src/core/aura.lua` and are read by production (modifier stage `aura`), Rebel, Units and Territory.
+  - [x] Abilities that work now:
+    - **S-01:** KH aura, peek the next die (1 die, 2 at +2). *Not done:* the +2 "hold one die, reroll the other".
     - **S-02:**
       - Rebel no-stop aura; enemy Expeditions −2 steps (+1: stopped).
       - +1 KT per round; own Expeditions spawned there get +2 steps.
       - +2 `fortressStrike`.
     - **S-03:** vote ×1.5 on Settlement/Landmark tiles, +2 VH, +1 score per Settlement in radius 3.
     - **S-04:**
-      - Roller's same-type buildings in radius 3 get +1; +1 KH and +1 KT.
-      - 3-tile blockade near it.
-      - +2 Broadcast declared before the roll.
-    - **S-05:** prompt to push the Rebel for 2 TN, +2 TN, cancel a 7 via prompt, guaranteed suppress for 1 TN within radius 3.
-  - [ ] Stubbed until M2/M3 and logged as "not in this build":
-    - Tech discount, Edict surcharge/immunity, Exhibition, Niết Bàn, character-skill discount.
-    - The "Long Mạch radius" of S-04 / TN-12.
-  - [ ] UI: Special section (only with HQ C3), footprint ghost, aura rings, S-05 prompt popups.
-  - [ ] `specials_spec`.
+      - Roller's buildings in radius 3 (any owner) get +1 per die; +1 KH and +1 KT.
+      - +2 Broadcast declared before the roll (`roll{broadcast=true}`).
+      - *Not done:* the 3-tile blockade near it (which 3 tiles is undefined).
+    - **S-05:** prompt to push the Rebel for 2 TN (random at build level, owner picks at +1), +2 TN, cancel a 7 via prompt (roller gets +1 TN). *Not done:* "guaranteed suppress costs 1 TN within radius 3" (a Suppress rule tied to Expedition, left for the character/Edict pass).
+  - [x] Stubbed until M2/M3 (listed in D-019, not yet logged in game): Tech discount, Edict surcharge/immunity, Exhibition, Niết Bàn, character-skill discount, the "Long Mạch radius" of S-04 / TN-12.
+  - [x] UI: "Công trình Đặc Biệt" popup (status + cost + Build), placement ghost with Q to cycle, aura ring when a Special is selected, building panel with +1/+2 upgrade and Pháo, peek label + Broadcast toggle on the dice panel, cancel-7 and push-Rebel popups behind a pass-the-screen cover, "Bảo Tàng" column in the results screen. Dev: `--demo special` / `--demo specialpopup`.
+  - [x] `specials_spec` (data, build rules, upgrades, each aura/ability, prompts, save/load, resource-rich sim) + `tests/strip.lua` shared helper. Sim: build/upgrade/strike weights, stats for Specials and cancelled 7s.
 - [ ] **I. Wrap-up**
   - [ ] `--scenario NAME` (`src/dev/scenarios.lua`) builds test positions for each system. It uses a dev-only `Dev.give` that is not recorded in `history`.
   - [ ] Sim biased toward C3 / Derived / Special, plus new stats in `--sim`.

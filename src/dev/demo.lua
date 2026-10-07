@@ -150,6 +150,38 @@ function Demo.derived(state)
     return { focus = best, selected = kt.uid }
 end
 
+-- Tháp Thiên Văn đã xây và đang chọn (vòng aura + bảng công trình); `--demo specialpopup` mở popup chọn Đặc Biệt.
+local function specialArena(state)
+    local best, pid, built = upgradeArena(state)
+    for _, b in ipairs(built) do Structures.remove(state, b.uid) end
+    local p = state.players[pid]
+    p.hqLevel = 3
+    for _, m in ipairs({ "alloy", "paper", "steel", "silk" }) do p.res[m] = 20 end
+    p.res.silk = 20
+    local function claim(t) state.owner[State.key(t)] = pid; state.votes[State.key(t)] = { [pid] = 9 } end
+    local function tiles(list)
+        local out = {}
+        for i, o in ipairs(list) do out[i] = state.map:get(best.q + o[1], best.r + o[2]); claim(out[i]) end
+        return out
+    end
+    Structures.place(state, { id = "B-02", level = 3, owner = pid },
+        tiles({ { -2, 0 }, { -1, 0 }, { -2, 1 }, { -1, 1 }, { -2, 2 }, { -1, 2 } }))
+    state.rebel = { q = -99, r = -99 }
+    return best, pid, tiles
+end
+
+function Demo.special(state)
+    local best, pid, tiles = specialArena(state)
+    local tower = Structures.place(state, { id = "S-01", level = 1, owner = pid },
+        tiles({ { 1, -1 }, { 2, -1 }, { 2, -2 }, { 1, -2 }, { 0, -1 }, { 0, 0 }, { 1, 0 } }))
+    return { focus = best, selected = tower.uid }
+end
+
+function Demo.specialpopup(state)
+    local best = specialArena(state)
+    return { focus = best, popup = "special" }
+end
+
 -- Khu Trực Thuộc C2 đang chọn (bảng nâng cấp) và một Hiệp Sĩ bên cạnh.
 function Demo.sub(state)
     local best, pid, built = upgradeArena(state)

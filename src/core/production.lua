@@ -8,6 +8,8 @@ local C         = require("src.config.constants")
 local Dice      = require("src.core.dice")
 local Hex       = require("src.core.hex")
 local Derived   = require("src.core.derived")
+local Aura      = require("src.core.aura")
+local Specials  = require("src.core.specials")
 local State     = require("src.core.state")
 local Modifiers = require("src.core.modifiers")
 local Rebel     = require("src.core.rebel")
@@ -55,9 +57,22 @@ end)
 -- Stage "aura": HQ C5 cho +1 sản lượng mỗi viên cho công trình "nội đô" của chủ, tức ô neo trong bán kính
 -- HQ_C5_AURA_RADIUS quanh Nhà Chính (Data §9.1, D-016).
 P.modifiers:register("aura", function(value, ctx)
-    local p = ctx.state.players[ctx.owner]
+    local state = ctx.state
+    local p = state.players[ctx.owner]
     if p and p.hq and (p.hqLevel or 1) >= 5 and Hex.distance(p.hq, ctx.tile) <= C.HQ_C5_AURA_RADIUS then
-        return value + 1
+        value = value + 1
+    end
+    -- S-01 Tháp Thiên Văn: công trình của chủ trong aura +1 mỗi viên KH (D-019)
+    if ctx.face == 1 and ctx.res == "science" then
+        for _, b in ipairs(Aura.each(state, "S-01", ctx.owner)) do
+            if Specials.isActive(state, b) and Aura.covers(state, b, ctx.tile) then value = value + 1 break end
+        end
+    end
+    -- S-04 Đài Phát Thanh: khi chủ đài đổ, công trình (của bất kỳ ai) trong bán kính 3 sản xuất +1 mỗi viên
+    if ctx.activePid then
+        for _, b in ipairs(Aura.each(state, "S-04", ctx.activePid)) do
+            if Specials.isActive(state, b) and Aura.covers(state, b, ctx.tile) then value = value + 1 break end
+        end
     end
     return value
 end)
