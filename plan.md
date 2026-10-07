@@ -209,20 +209,20 @@ Each phase ends with `test.bat` green, `lovec . --sim 100` clean, a UI check (sc
     - TN-09: +1 VH.
     - Halves accumulate in `player.carry`.
   - [x] `passives_spec` (passives, TN on footprint, Ley/Harbor/Fertile/Hills) + a carry invariant in the sim. Passives live in `src/core/passives.lua`, registered as an Upkeep step after demolish completion.
-- [ ] **D. Step 4 — Expedition units**
-  - [ ] `src/core/units.lua`: `state.units`, Dijkstra reachable/path using `Movement.stepCost`.
-  - [ ] Commands:
+- [x] **D. Step 4 — Expedition units** — done 2026-10-07 (rules in D-015)
+  - [x] `src/core/units.lua`: `state.units`, Dijkstra reachable/path using `Movement.stepCost`.
+  - [x] Commands:
     - `buyUnit`, `moveUnit`.
-    - `foundSubAt` (A-02), which **replaces** the direct `foundSub` of D-013.
+    - `foundSub{uid}` (A-02), which **replaces** the direct `foundSub{q,r}` of D-013 (was planned as `foundSubAt`).
     - `suppress{uid,dir,pay}` (A-03).
     - `garrison` (A-04), `disband` (A-06).
-  - [ ] Rebel:
+  - [x] Rebel:
     - Cannot *stop* next to a garrisoned unit; fall back to allowing it if every step is forbidden.
     - A stop destroys units on the tile.
     - Suppress pushes it 2 tiles and cancels the blockade for the round.
-  - [ ] Upkeep from the 2nd Expedition. TN-04 / TN-11 movement bonuses.
-  - [ ] UI: unit layer, reachable flood-fill, path + cost preview, unit context panel, two-step confirm for A-02.
-  - [ ] `units_spec`.
+  - [x] Upkeep from the 2nd Expedition. TN-04 / TN-11 movement bonuses.
+  - [x] UI: unit layer, reachable flood-fill, path + cost preview, unit context panel (Found Sub with 2-step confirm, Suppress by dice or by paying TN with a push-direction pick, Garrison, Disband), "Mua Viễn Chinh" button replaces "Lập Khu Trực Thuộc". Dev: `--demo unit` / `--demo suppress`; `--drive` moves units.
+  - [x] `units_spec` (buy/quota/spawn, movement costs, TN-04/TN-11, upkeep, found Sub, suppress win/lose/pay/threshold, garrison + Rebel stop filter, Rebel destroys units, save/load) + a resource-rich sim test. Sim: unit stats and invariants (quota, mp, positions).
 - [ ] **E. Step 5 — Roads and trade**
   - [ ] `src/core/roads.lua`: `state.roads` (no owner), `connected`, `routeLength`.
   - [ ] U-02 Trade unit: costs 5 V, quota 2, builds Dirt Road at 1 V/tile on Plains/Forest/Coast/Hills (free with TN-10).

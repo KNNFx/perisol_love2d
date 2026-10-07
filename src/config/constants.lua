@@ -106,7 +106,16 @@ C.SCORE_LANDMARK     = 3
 C.SCORE_BUILDING_C2  = 2
 C.SCORE_RES_PER_POINT = 5
 
-C.SAVE_VERSION       = 3                 -- version file save (D-011, v3 = D-014)
+-- Đơn vị M1.5 (D-015)
+C.EXPEDITION_COST        = { faith = 3, gold = 3, engineering = 3 }   -- U-01
+C.SUPPRESS_PUSH_TILES    = 2        -- Trấn Áp thành công đẩy Phiến Quân tối đa 2 ô
+C.SUPPRESS_REWARD_FAITH  = 1
+C.TN04_BONUS_MOVE        = 2        -- TN-04 Ngựa: +2 bước nếu đơn vị đầu lượt đứng trên ô Ngựa và có HQ/Sub trong bán kính
+C.TN04_HOME_RADIUS       = 2
+C.TN11_STEP_REFUND       = 1        -- TN-11 Gió Mạnh: vào ô này tốn ít hơn 1 điểm (tối thiểu 0)
+C.UNIT_DISBAND_REFUND    = { expedition = 1, knight = 1, trade = 2 }  -- Vàng hoàn khi Giải Thể (A-06)
+
+C.SAVE_VERSION       = 3                -- version file save (D-011, v3 = D-014)
 
 -- ─── Render ────────────────────────────────────────────────────────────────
 -- Sprite hex pointy-top 32×32; lát gạch bước ngang 32, bước dọc 24.

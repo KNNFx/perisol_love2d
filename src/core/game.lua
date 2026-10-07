@@ -23,9 +23,11 @@ local Serialize   = require("src.core.serialize")
 local State       = require("src.core.state")
 local Structures  = require("src.core.structures")
 local Construction = require("src.core.construction")
+local Units        = require("src.core.units")      -- bước upkeep đơn vị đăng ký ở đây
 local Passives    = require("src.core.passives")   -- đăng ký bước upkeep thu nhập thụ động (sau bước dỡ)
 local Upkeep      = require("src.core.upkeep")
 local Territory   = require("src.core.territory")
+local Hex         = require("src.core.hex")
 local Buildings   = require("src.data.buildings")
 local Terrains    = require("src.data.terrains")
 local Resources   = require("src.data.resources")
@@ -283,11 +285,11 @@ H.upgradeHQ = {
     end,
 }
 
+-- Lập Khu Trực Thuộc bằng đơn vị đứng trên ô thực hữu hợp lệ; đơn vị bị tiêu thụ (A-02, D-014).
 H.foundSub = {
     phase = "action",
     check = function(state, cmd, pid)
-        local tile = state.map:get(cmd.q, cmd.r)
-        local ok, why = Territory.canFoundSub(state, pid, tile)
+        local ok, why = Units.checkFoundSub(state, pid, state.units[cmd.uid])
         if not ok then return false, why end
         if not canAfford(state.players[pid].res, C.SUB_COST) then
             return false, "Không đủ tài nguyên lập Khu Trực Thuộc"
@@ -295,10 +297,71 @@ H.foundSub = {
         return true
     end,
     apply = function(state, cmd, pid, events)
-        local tile = state.map:get(cmd.q, cmd.r)
+        local u = state.units[cmd.uid]
+        local tile = Units.tileOf(state, u)
         pay(state.players[pid].res, C.SUB_COST)
+        Units.remove(state, u.uid)
         Territory.addSub(state, pid, tile)
-        events[#events + 1] = { kind = "found_sub", pid = pid, q = tile.q, r = tile.r }
+        events[#events + 1] = { kind = "found_sub", pid = pid, q = tile.q, r = tile.r, uid = u.uid }
+    end,
+}
+
+H.buyUnit = {
+    phase = "action",
+    check = function(state, cmd, pid)
+        local ok, why = Units.checkBuy(state, pid, cmd.unit, state.map:get(cmd.q or 0, cmd.r or 0))
+        if not ok then return false, why end
+        if not canAfford(state.players[pid].res, C.EXPEDITION_COST) then return false, "Không đủ tài nguyên mua Viễn Chinh" end
+        return true
+    end,
+    apply = function(state, cmd, pid, events)
+        pay(state.players[pid].res, C.EXPEDITION_COST)
+        local u = Units.spawn(state, pid, cmd.unit, state.map:get(cmd.q, cmd.r))
+        events[#events + 1] = { kind = "unit_buy", pid = pid, uid = u.uid, unit = u.type, q = u.q, r = u.r }
+    end,
+}
+
+H.moveUnit = {
+    phase = "action",
+    check = function(state, cmd, pid) return Units.checkMove(state, pid, state.units[cmd.uid], cmd.q, cmd.r) end,
+    apply = function(state, cmd, pid, events)
+        local u = state.units[cmd.uid]
+        local from = { q = u.q, r = u.r }
+        local cost = Units.move(state, u, cmd.q, cmd.r)
+        events[#events + 1] = { kind = "unit_move", pid = pid, uid = u.uid, unit = u.type, from = from,
+                                q = u.q, r = u.r, cost = cost, left = u.mp }
+    end,
+}
+
+H.suppress = {
+    phase = "action",
+    check = function(state, cmd, pid)
+        return Units.checkSuppress(state, pid, state.units[cmd.uid], cmd.dir, cmd.pay)
+    end,
+    apply = function(state, cmd, pid, events)
+        for _, e in ipairs(Units.suppress(state, state.units[cmd.uid], cmd.dir, cmd.pay)) do events[#events + 1] = e end
+    end,
+}
+
+H.garrison = {
+    phase = "action",
+    check = function(state, cmd, pid) return Units.checkGarrison(state, pid, state.units[cmd.uid]) end,
+    apply = function(state, cmd, pid, events)
+        local u = state.units[cmd.uid]
+        Units.garrison(state, u)
+        events[#events + 1] = { kind = "unit_garrison", pid = pid, uid = u.uid, q = u.q, r = u.r }
+    end,
+}
+
+H.disband = {
+    phase = "action",
+    check = function(state, cmd, pid) return Units.checkDisband(state, pid, state.units[cmd.uid]) end,
+    apply = function(state, cmd, pid, events)
+        local u = state.units[cmd.uid]
+        local refund = C.UNIT_DISBAND_REFUND[u.type] or 0
+        state.players[pid].res.gold = state.players[pid].res.gold + refund
+        Units.remove(state, u.uid)
+        events[#events + 1] = { kind = "unit_disband", pid = pid, uid = u.uid, unit = u.type, q = u.q, r = u.r, refund = refund }
     end,
 }
 
@@ -498,10 +561,37 @@ function Game.legal(state)
         if Territory.canUpgradeHQ(state, actor) and canAfford(p.res, C.HQ_UPGRADE_COST[p.hqLevel + 1]) then
             out[#out + 1] = { type = "upgradeHQ", pid = actor }
         end
-        if canAfford(p.res, C.SUB_COST) then
-            for _, t in ipairs(Territory.ownedTiles(state, actor)) do
-                if Territory.canFoundSub(state, actor, t) then
-                    out[#out + 1] = { type = "foundSub", pid = actor, q = t.q, r = t.r }
+        for _, u in ipairs(Units.ownedBy(state, actor)) do
+            if canAfford(p.res, C.SUB_COST) and Units.checkFoundSub(state, actor, u) then
+                out[#out + 1] = { type = "foundSub", pid = actor, uid = u.uid }
+            end
+            if u.mp > 0 and not u.acted then
+                local dests = {}
+                for _, node in pairs(Units.reachable(state, u)) do
+                    if node.prev then dests[#dests + 1] = node.tile end   -- bỏ ô đang đứng
+                end
+                table.sort(dests, function(a, b) if a.r ~= b.r then return a.r < b.r end return a.q < b.q end)
+                for _, t in ipairs(dests) do
+                    out[#out + 1] = { type = "moveUnit", pid = actor, uid = u.uid, q = t.q, r = t.r }
+                end
+            end
+            if state.rebel and Hex.distance(u, state.rebel) == 1 and not u.acted then
+                for dir = 1, 6 do
+                    if Units.checkSuppress(state, actor, u, dir, false) then
+                        out[#out + 1] = { type = "suppress", pid = actor, uid = u.uid, dir = dir, pay = false }
+                        if Units.checkSuppress(state, actor, u, dir, true) then
+                            out[#out + 1] = { type = "suppress", pid = actor, uid = u.uid, dir = dir, pay = true }
+                        end
+                    end
+                end
+            end
+            if Units.checkGarrison(state, actor, u) then out[#out + 1] = { type = "garrison", pid = actor, uid = u.uid } end
+            out[#out + 1] = { type = "disband", pid = actor, uid = u.uid }
+        end
+        if canAfford(p.res, C.EXPEDITION_COST) then
+            for _, a in ipairs(Territory.anchors(state, actor)) do
+                if Units.checkBuy(state, actor, "expedition", state.map:get(a.q, a.r)) then
+                    out[#out + 1] = { type = "buyUnit", pid = actor, unit = "expedition", q = a.q, r = a.r }
                 end
             end
         end

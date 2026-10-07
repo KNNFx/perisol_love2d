@@ -5,6 +5,7 @@ local Scoring  = require("src.core.scoring")
 local Serialize = require("src.core.serialize")
 local State    = require("src.core.state")
 local Structures = require("src.core.structures")
+local Units    = require("src.core.units")
 local Rebel    = require("src.core.rebel")
 local Territory = require("src.core.territory")
 local Save     = require("src.save")
@@ -234,7 +235,12 @@ describe("game: hành động", function()
         expect.truthy(target, "không có ô nào hợp lệ để lập Sub")
         local sub
         for _, cmd in ipairs(Game.legal(s)) do
-            if cmd.type == "foundSub" and cmd.q == target.q and cmd.r == target.r then sub = cmd end
+            if cmd.type == "foundSub" then sub = cmd end
+        end
+        expect.falsy(sub, "chưa có đơn vị thì không lập được Sub (A-02, D-014)")
+        local unit = Units.spawn(s, pid, "expedition", target)   -- đứng sẵn trên ô hợp lệ
+        for _, cmd in ipairs(Game.legal(s)) do
+            if cmd.type == "foundSub" and cmd.uid == unit.uid then sub = cmd end
         end
         expect.truthy(sub, "foundSub phải có trong legal()")
         local before = p.res.faith
@@ -242,6 +248,7 @@ describe("game: hành động", function()
         expect.eq(ev[1].kind, "found_sub")
         expect.eq(p.res.faith, before - C.SUB_COST.faith)
         expect.eq(#p.subs, 1)
+        expect.eq(s.units[unit.uid], nil, "đơn vị bị tiêu thụ")
         expect.truthy(Territory.isAnchorTile(s, target))
         expect.falsy(Game.check(s, sub))
     end)

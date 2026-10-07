@@ -23,7 +23,7 @@ local Rebel = {}
 function Rebel.blockade(state)
     local out = {}
     local rb = state.rebel
-    if not rb then return out end
+    if not rb or Rebel.isSuppressed(state) then return out end
     for _, h in ipairs(Hex.range(rb, 1)) do
         local t = state.map:get(h.q, h.r)
         if t then out[#out + 1] = t end
@@ -31,10 +31,33 @@ function Rebel.blockade(state)
     return out
 end
 
+-- Trấn Áp thành công hủy phong tỏa trong cả vòng đó (Data §5).
+function Rebel.isSuppressed(state)
+    local rb = state.rebel
+    return rb ~= nil and rb.suppressedRound == state.round
+end
+
 -- true nếu ô `tile` đang bị Phiến Quân phong tỏa.
 function Rebel.isBlockaded(state, tile)
     local rb = state.rebel
-    return rb ~= nil and Hex.distance(rb, tile) <= 1
+    return rb ~= nil and not Rebel.isSuppressed(state) and Hex.distance(rb, tile) <= 1
+end
+
+-- ─── Cấm dừng cạnh đơn vị Trú Đóng (A-04) ───────────────────────────────────
+
+-- Phiến Quân không được dừng trên ô đơn vị Trú Đóng đứng hoặc ô kề nó.
+function Rebel.forbiddenStop(state, tile)
+    for _, u in pairs(state.units) do
+        if u.garrison and Hex.distance(u, tile) <= 1 then return true end
+    end
+    return false
+end
+
+local function anyGarrison(state)
+    for _, u in pairs(state.units) do
+        if u.garrison then return true end
+    end
+    return false
 end
 
 -- ─── Xuất hiện ──────────────────────────────────────────────────────────────
@@ -81,16 +104,73 @@ function Rebel.stage(state)
     return rb and rb.pending and rb.pending.stage or nil
 end
 
+-- Các bước thô từ `here` với `points` điểm, bỏ ô đã qua (`visited`). Trả list { tile, cost }.
+local function rawSteps(state, here, points, visited)
+    local out = {}
+    for _, n in ipairs(state.map:neighbors(here)) do
+        local cost = Movement.stepCost("rebel", n.terrain, state.round)
+        if not visited[State.key(n)] and cost <= points then out[#out + 1] = { tile = n, cost = cost } end
+    end
+    return out
+end
+
+-- Từ `here` với `points` điểm còn lại có đường đi nào kết thúc ở ô không bị cấm dừng không?
+-- Phiến Quân bắt buộc đi tiếp khi còn bước, nên chỉ xét các điểm dừng bắt buộc.
+local function canEndAllowed(state, here, points, visited)
+    local steps = rawSteps(state, here, points, visited)
+    if #steps == 0 then return not Rebel.forbiddenStop(state, here) end
+    for _, s in ipairs(steps) do
+        local k = State.key(s.tile)
+        visited[k] = true
+        local left = points - s.cost
+        local ok
+        if left <= 0 then ok = not Rebel.forbiddenStop(state, s.tile)
+        else ok = canEndAllowed(state, s.tile, left, visited) end
+        visited[k] = nil
+        if ok then return true end
+    end
+    return false
+end
+
 -- Các ô kề Phiến Quân có thể bước vào với số điểm còn lại (không đi lại ô đã qua trong lần này).
+-- Nếu có đơn vị Trú Đóng: loại các bước mà mọi đường đi tiếp đều buộc dừng ở ô bị cấm; nếu loại hết thì
+-- vẫn cho đi để Phiến Quân không kẹt (D-015).
 function Rebel.legalSteps(state)
     local out = {}
     local rb = state.rebel
     if not rb or Rebel.stage(state) ~= "move" then return out end
     local here = state.map:get(rb.q, rb.r)
     local points = rb.pending.points
-    for _, n in ipairs(state.map:neighbors(here)) do
-        local seen = rb.pending.visited and rb.pending.visited[State.key(n)]   -- GDD §6.2: không đi lại ô cũ
-        if not seen and Movement.stepCost("rebel", n.terrain, state.round) <= points then out[#out + 1] = n end
+    local visited = {}
+    for k in pairs(rb.pending.visited or {}) do visited[k] = true end   -- GDD §6.2: không đi lại ô cũ
+    local steps = rawSteps(state, here, points, visited)
+    for _, s in ipairs(steps) do out[#out + 1] = s.tile end
+    if #out == 0 or not anyGarrison(state) then return out end
+
+    local filtered = {}
+    for _, s in ipairs(steps) do
+        local k = State.key(s.tile)
+        visited[k] = true
+        local left = points - s.cost
+        local ok
+        if left <= 0 then ok = not Rebel.forbiddenStop(state, s.tile)
+        else ok = canEndAllowed(state, s.tile, left, visited) end
+        visited[k] = nil
+        if ok then filtered[#filtered + 1] = s.tile end
+    end
+    return #filtered > 0 and filtered or out
+end
+
+-- Đẩy Phiến Quân `dir` (1..6) tối đa `steps` ô, dừng trước ô ra ngoài bản đồ hoặc đang cấm đi (Núi trong
+-- thời gian khóa). Trả danh sách ô đã đi qua (có thể rỗng); chưa đổi state.
+function Rebel.pushPath(state, dir, steps)
+    local out, pos = {}, state.rebel
+    for _ = 1, steps do
+        local d = Hex.DIRECTIONS[dir]
+        local n = state.map:get(pos.q + d.q, pos.r + d.r)
+        if not n or Movement.stepCost("rebel", n.terrain, state.round) == math.huge then break end
+        out[#out + 1] = n
+        pos = n
     end
     return out
 end
@@ -164,6 +244,19 @@ function Rebel.stop(state)
     local tile = state.map:get(rb.q, rb.r)
     rb.pending = nil
     local events = { { kind = "rebel_stop", q = rb.q, r = rb.r, roller = roller } }
+
+    -- đơn vị đứng trên ô bị tiêu hủy ngay, không kiểm tra (Data §5 "PQ đè lên đơn vị")
+    local doomed = {}
+    for uid, u in pairs(state.units) do
+        if u.q == rb.q and u.r == rb.r then doomed[#doomed + 1] = uid end
+    end
+    table.sort(doomed)
+    for _, uid in ipairs(doomed) do
+        local u = state.units[uid]
+        events[#events + 1] = { kind = "unit_destroyed", uid = uid, unit = u.type, pid = u.owner,
+                                q = u.q, r = u.r, reason = "rebel" }
+        state.units[uid] = nil
+    end
 
     local owner = ownerAt(state, tile)
     if not owner or owner == roller then return events end

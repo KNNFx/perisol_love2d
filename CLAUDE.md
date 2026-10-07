@@ -8,14 +8,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Commands (LÖVE 11.5 at `C:\Program Files\LOVE\`, not on PATH)
 - Run: `run.bat` (= `love.exe .`) opens the menu. Dev flags: `--sandbox` (M0 map viewer), `--newgame` (straight into a game; with `--seed N --players 1-4`), `--results` (results screen of a simulated game), `--shot name.png` (screenshot into `%APPDATA%/LOVE/perisol`, then quit).
-- Dev helpers for screenshots/UI checks: `--play N` (auto-play N random commands first), `--until PHASE` (auto-play until that phase), `--demo loss` (canned Rebel-loss popup, `src/dev/demo.lua`), `--drive N` (clicks the real UI for N turns via `src/dev/drive.lua`; real-time, so a full game takes minutes).
+- Dev helpers for screenshots/UI checks: `--play N` (auto-play N random commands first), `--until PHASE` (auto-play until that phase), `--demo loss|upgrade|demolish|unit|suppress` (canned positions and UI states, `src/dev/demo.lua`), `--drive N` (clicks the real UI for N turns via `src/dev/drive.lua`; real-time, so a full game takes minutes).
 - Test: `test.bat` (= `lovec.exe . --test`; headless, exit code 1 on failure). The mini-runner is `tests/runner.lua` (`describe`/`it`/`expect.*`); specs are `tests/*_spec.lua`. There is no standalone Lua/busted on this machine.
 - Simulate: `lovec.exe . --sim N` plays N random 2–4 player games headless (invariants checked after every turn) and prints stats; takes seconds.
 - Game keys: Space roll · E end turn · Esc cancel/pause · F5/F9 quicksave/quickload · F1 debug · Z zones · wheel zoom · RMB-drag/WASD pan. Sandbox keys: R new seed · 1–4 players · Z zones · F1 debug.
 
 ### Code conventions
 - `src/core/` is pure Lua and must **never call `love.*`** (keeps it testable headless and reusable for AI/multiplayer). `src/render/`, `src/scenes/`, `src/ui/`, `src/input/`, `src/save.lua` and `src/dev/` hold all LÖVE-specific code.
-- **Every state change goes through `Game.check` / `Game.apply`** (`src/core/game.lua`; commands `placeHQ, roll, rebelStep, chooseLoss, trade, placeVote, buyTile, upgradeHQ, foundSub, build, endTurn`). UI, the simulator, future AI and multiplayer all use this one API, and `Game.legal` lists valid commands. Scenes only read `state` and send commands.
+- **Every state change goes through `Game.check` / `Game.apply`** (`src/core/game.lua`; commands `placeHQ, roll, rebelStep, chooseLoss, trade, placeVote, buyTile, upgradeHQ, build, upgrade, demolish, buyUnit, moveUnit, foundSub, suppress, garrison, disband, respond, endTurn`). UI, the simulator, future AI and multiplayer all use this one API, and `Game.legal` lists valid commands. Scenes only read `state` and send commands.
 - Game state (`src/core/state.lua`) is plain data. The map is **not** saved: it is regenerated from `(seed, players)`. Save files carry a `version` (`C.SAVE_VERSION`); replay = seed + `state.history`.
 - Randomness goes through `src/core/rng.lua` (deterministic, seeded) — not `math.random` / `love.math`. (Cosmetic UI randomness, such as the dice-roll animation, may use `love.math`.)
 - Production modifiers register into `Production.modifiers` (`src/core/modifiers.lua`; stages Base → Character → Tech → Aura → Strategic → Road, floor at the end).

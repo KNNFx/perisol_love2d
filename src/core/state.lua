@@ -39,7 +39,7 @@ function State.new(map, playerCount, seed)
         rng = Rng.new(tostring(seed) .. ":game"),
         players = players,
         owner = {}, votes = {}, buildings = {}, occupied = {}, nextUid = 1, lostStrategic = {},
-        units = {}, roads = {},
+        units = {}, nextUnitUid = 1, roads = {},
         rebel = nil, dice = nil, log = {},
     }
 end

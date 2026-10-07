@@ -6,6 +6,7 @@ local Game      = require("src.core.game")
 local Rng       = require("src.core.rng")
 local State     = require("src.core.state")
 local Territory = require("src.core.territory")
+local Units     = require("src.core.units")
 local Buildings = require("src.data.buildings")
 local Resources = require("src.data.resources")
 
@@ -16,9 +17,9 @@ local MAX_TOTAL_COMMANDS    = 100000
 
 -- Trọng số chọn loại lệnh trong pha action (kiểu lệnh nào có thì mới được chọn).
 local TYPE_WEIGHT = { build = 6, buyTile = 4, placeVote = 3, foundSub = 2, upgradeHQ = 2, trade = 1,
-                         upgrade = 12 }
+                         upgrade = 12, buyUnit = 3, moveUnit = 4, suppress = 3, garrison = 1 }
 local P_END_TURN  = 0.12
-local P_DEMOLISH  = 0.01   -- xác suất mỗi lệnh action chọn dỡ một công trình
+local P_DEMOLISH  = 0.01   -- xác suất mỗi lệnh action chọn dỡ công trình hoặc giải thể đơn vị
 
 -- Kiểm tra bất biến của state. Trả true hoặc false, mô tả lỗi.
 function Sim.invariants(state)
@@ -71,6 +72,19 @@ function Sim.invariants(state)
     for _ in pairs(state.occupied) do occ = occ + 1 end
     if occ ~= seen then return false, "occupied có ô thừa" end
 
+    local perQuota = {}
+    for uid, u in pairs(state.units) do
+        if u.uid ~= uid then return false, "uid đơn vị lệch " .. tostring(uid) end
+        if not state.players[u.owner] then return false, "đơn vị " .. uid .. " có chủ không hợp lệ" end
+        if not state.map:get(u.q, u.r) then return false, "đơn vị " .. uid .. " ngoài bản đồ" end
+        if type(u.mp) ~= "number" or u.mp < 0 then return false, "đơn vị " .. uid .. " có mp " .. tostring(u.mp) end
+        local def = Units.TYPES[u.type]
+        if not def then return false, "loại đơn vị lạ " .. tostring(u.type) end
+        local k = u.owner .. ":" .. def.quota
+        perQuota[k] = (perQuota[k] or 0) + 1
+        if perQuota[k] > Units.quotaMax(def.quota) then return false, "vượt quota đơn vị của P" .. u.owner end
+    end
+
     -- ô không phải HQ/Sub chỉ có chủ khi chủ đủ phiếu theo ngưỡng
     for k, pid in pairs(state.owner) do
         local q, r = k:match("^(-?%d+),(-?%d+)$")
@@ -95,7 +109,7 @@ local function chooseCommand(prng, state, legal, perTurn)
 
     local byType, types, demolish = {}, {}, {}
     for _, cmd in ipairs(legal) do
-        if cmd.type == "demolish" then
+        if cmd.type == "demolish" or cmd.type == "disband" then
             demolish[#demolish + 1] = cmd           -- hiếm: không để thành lựa chọn duy nhất của lượt
         elseif cmd.type ~= "endTurn" then
             if not byType[cmd.type] then byType[cmd.type] = {}; types[#types + 1] = cmd.type end
@@ -116,7 +130,8 @@ function Sim.play(seed, players)
     local state = Game.new({ seed = seed, players = players })
     local prng = Rng.new("sim:" .. tostring(seed) .. ":" .. players)
     local stats = { sevens = 0, builds = 0, claims = 0, commands = 0, rebelStops = 0, losses = 0,
-                    upgrades = 0, demolishes = 0, tnLost = 0 }
+                    upgrades = 0, demolishes = 0, tnLost = 0, unitsBought = 0, unitMoves = 0, suppressWins = 0,
+                    suppressLosses = 0, unitsLost = 0, subsFounded = 0 }
     local perTurn = 0
 
     while state.phase ~= "over" do
@@ -139,7 +154,13 @@ function Sim.play(seed, players)
             elseif e.kind == "rebel_loss" then stats.losses = stats.losses + 1
             elseif e.kind == "upgrade" then stats.upgrades = stats.upgrades + 1
             elseif e.kind == "demolished" then stats.demolishes = stats.demolishes + 1
-            elseif e.kind == "strategic_lost" then stats.tnLost = stats.tnLost + 1 end
+            elseif e.kind == "strategic_lost" then stats.tnLost = stats.tnLost + 1
+            elseif e.kind == "unit_buy" then stats.unitsBought = stats.unitsBought + 1
+            elseif e.kind == "unit_move" then stats.unitMoves = stats.unitMoves + 1
+            elseif e.kind == "suppress" then
+                if e.ok then stats.suppressWins = stats.suppressWins + 1 else stats.suppressLosses = stats.suppressLosses + 1 end
+            elseif e.kind == "unit_destroyed" then stats.unitsLost = stats.unitsLost + 1
+            elseif e.kind == "found_sub" then stats.subsFounded = stats.subsFounded + 1 end
         end
 
         if cmd.type == "endTurn" then
@@ -172,7 +193,8 @@ end
 -- Chạy `count` ván, số người xoay vòng 2..4. Trả bảng thống kê gộp.
 function Sim.batch(count, firstSeed, onGame)
     local sum = { games = 0, sevens = 0, builds = 0, claims = 0, commands = 0, rebelStops = 0, losses = 0,
-                  upgrades = 0, demolishes = 0, tnLost = 0, score = 0, tiles = 0, winnerTiles = 0 }
+                  upgrades = 0, demolishes = 0, tnLost = 0, unitsBought = 0, unitMoves = 0, suppressWins = 0,
+                  suppressLosses = 0, unitsLost = 0, subsFounded = 0, score = 0, tiles = 0, winnerTiles = 0 }
     for i = 0, count - 1 do
         local seed = (firstSeed or 1) + i
         local players = 2 + (i % 3)

@@ -17,6 +17,8 @@ local Terrains    = require("src.data.terrains")
 local Strategic   = require("src.data.strategic")
 local Structures  = require("src.core.structures")
 local Construction = require("src.core.construction")
+local Units       = require("src.core.units")
+local Hex         = require("src.core.hex")
 local Camera      = require("src.render.camera")
 local Tileset     = require("src.render.tileset")
 local MapRenderer = require("src.render.map_renderer")
@@ -93,7 +95,8 @@ function Scene:enter(opts)
     self.ui = UI.new()
     self.tween = Tween.new()
     self.mode, self.popup = nil, nil
-    self.selected, self.confirm = nil, nil      -- uid công trình đang chọn; { uid } popup xác nhận dỡ
+    self.selected, self.confirm = nil, nil      -- uid công trình đang chọn; { kind, uid } popup xác nhận (dỡ / lập Sub)
+    self.selectedUnit = nil                     -- uid đơn vị đang chọn
     self.trade = {}
     self.rollAnim = nil
     self.dieScale = { 1, 1 }
@@ -104,6 +107,7 @@ function Scene:enter(opts)
     self.hover = nil
     if demoHints then   -- dev: --demo upgrade / demolish dựng sẵn lựa chọn để chụp màn hình
         self.selected, self.mode, self.confirm, self.demoHover = demoHints.selected, demoHints.mode, demoHints.confirm, demoHints.hover
+        self.selectedUnit = demoHints.selectedUnit
     end
 
     Theme.update(love.graphics.getDimensions())
@@ -190,6 +194,19 @@ function Scene:onEvents(events)
         elseif k == "claim" or k == "build" or k == "place_hq" or k == "found_sub" or k == "upgrade_hq"
             or k == "upgrade" or k == "demolished" then
             self:pulseAt(e.q, e.r)
+        elseif k == "unit_buy" or k == "unit_move" or k == "unit_garrison" then
+            self:pulseAt(e.q, e.r)
+        elseif k == "suppress" then
+            self:addTrauma(e.ok and 0.3 or 0.5)
+            self:pulseAt(e.q, e.r)
+            self:say(e.ok and "Trấn Áp thành công: Phiến Quân bị đẩy lùi" or "Trấn Áp thất bại: mất đơn vị")
+            if not e.ok then self.selectedUnit = nil end
+        elseif k == "unit_destroyed" then
+            self:addTrauma(0.3)
+            self:pulseAt(e.q, e.r)
+            if self.selectedUnit == e.uid then self.selectedUnit = nil end
+        elseif k == "found_sub" then
+            self:pulseAt(e.q, e.r)
         elseif k == "strategic_lost" then
             self:addTrauma(0.25)
             self:say("Mất tài nguyên chiến lược do dỡ công trình")
@@ -212,7 +229,7 @@ function Scene:cmd(c)
     local ok, why = Game.check(self.state, c)
     if not ok then self:say(why or "Không thực hiện được") return false end
     self:onEvents(Game.apply(self.state, c))
-    if c.type == "endTurn" then self.selected = nil end
+    if c.type == "endTurn" then self.selected, self.selectedUnit = nil, nil end
     return true
 end
 
@@ -319,13 +336,46 @@ function Scene:computeTargets()
             items[#items + 1] = { tile = t, color = { 1, 0.85, 0.3 }, alpha = 0.25 }
         end
         ghostCheck = function(t) return Game.check(state, { type = "buyTile", q = t.q, r = t.r }) end
-    elseif state.phase == "action" and self.mode and self.mode.kind == "sub" then
-        for _, t in ipairs(Territory.ownedTiles(state, actor)) do
-            if Territory.canFoundSub(state, actor, t) then
+    elseif state.phase == "action" and self.mode and self.mode.kind == "buyunit" then
+        for _, a in ipairs(Territory.anchors(state, actor)) do
+            local t = state.map:get(a.q, a.r)
+            if Game.check(state, { type = "buyUnit", unit = "expedition", q = t.q, r = t.r }) then
                 items[#items + 1] = { tile = t, color = { 0.9, 0.5, 1 }, alpha = 0.3 }
             end
         end
-        ghostCheck = function(t) return Game.check(state, { type = "foundSub", q = t.q, r = t.r }) end
+        ghostCheck = function(t) return Game.check(state, { type = "buyUnit", unit = "expedition", q = t.q, r = t.r }) end
+    elseif state.phase == "action" and self.mode and self.mode.kind == "suppress" then
+        local u = state.units[self.mode.uid]
+        local rb = state.rebel
+        for dir = 1, 6 do
+            local d = Hex.DIRECTIONS[dir]
+            local t = rb and state.map:get(rb.q + d.q, rb.r + d.r)
+            if t and Units.checkSuppress(state, actor, u, dir, self.mode.pay) then
+                items[#items + 1] = { tile = t, color = { 1, 0.55, 0.3 }, alpha = 0.3 }
+            end
+        end
+        if self.hover then   -- xem trước đường Phiến Quân bị đẩy
+            local dir = self:suppressDirOf(self.hover)
+            if dir and Units.checkSuppress(state, actor, u, dir, self.mode.pay) then
+                for _, t in ipairs(Rebel.pushPath(state, dir, C.SUPPRESS_PUSH_TILES)) do
+                    items[#items + 1] = { tile = t, color = { 1, 0.3, 0.25 }, alpha = 0.45 }
+                end
+            end
+        end
+        ghostCheck = function(t)
+            local dir = self:suppressDirOf(t)
+            if not dir then return false, "Chọn một ô kề Phiến Quân để định hướng đẩy" end
+            return Units.checkSuppress(state, actor, u, dir, self.mode.pay)
+        end
+    elseif state.phase == "action" and self.selectedUnit and state.units[self.selectedUnit] and not self.mode then
+        local u = state.units[self.selectedUnit]
+        for _, node in pairs(Units.reachable(state, u)) do
+            if node.prev then items[#items + 1] = { tile = node.tile, color = { 0.4, 0.7, 1 }, alpha = 0.22 } end
+        end
+        ghostCheck = function(t)
+            if t.q == u.q and t.r == u.r then return true end
+            return Game.check(state, { type = "moveUnit", uid = u.uid, q = t.q, r = t.r })
+        end
     elseif state.phase == "action" and self.mode and self.mode.kind == "upgrade" then
         local uid = self.mode.uid
         local seen = {}
@@ -372,6 +422,17 @@ function Scene:upgradeCandidate()
     return list[(mode.variant or 0) % #list + 1]
 end
 
+-- Hướng (1..6) từ Phiến Quân tới ô kề `tile`, hoặc nil.
+function Scene:suppressDirOf(tile)
+    local rb = self.state.rebel
+    if not rb then return nil end
+    for dir = 1, 6 do
+        local d = Hex.DIRECTIONS[dir]
+        if rb.q + d.q == tile.q and rb.r + d.r == tile.r then return dir end
+    end
+    return nil
+end
+
 -- Công trình của người đang lượt tại ô `tile` (nil nếu không có).
 function Scene:ownBuildingAt(tile)
     local actor = Game.actor(self.state)
@@ -398,6 +459,7 @@ function Scene:drawMap()
     })
     MapRenderer.drawMarkers(state.map, { zoom = zoom, showZones = self.showZones, lostStrategic = state.lostStrategic })
     Layers.drawBuildings(state, { zoom = zoom })
+    Layers.drawUnits(state, { zoom = zoom, selected = self.selectedUnit })
     Layers.drawRebel(state, { zoom = zoom, time = self.time })
 
     if state.phase == "setup_hq" then
@@ -413,6 +475,11 @@ function Scene:drawMap()
             Layers.drawHighlights(selItems, zoom)
         end
         Layers.drawHighlights(items, zoom)
+        local su = self.selectedUnit and state.units[self.selectedUnit]
+        if su and not self.mode and self.hover and state.phase == "action" then
+            local path, cost = Units.pathTo(state, su, self.hover.q, self.hover.r)
+            if path then Layers.drawPath(Units.tileOf(state, su), path, cost, zoom) end
+        end
         if self.hover and ghostCheck then
             local ok, why = ghostCheck(self.hover)
             MapRenderer.drawHover(self.hover, zoom, ok and { 0.35, 1, 0.5 } or { 1, 0.35, 0.3 })
@@ -461,8 +528,16 @@ function Scene:hintText()
                 state.players[actor].votes)
         elseif self.mode and self.mode.kind == "buy" then
             return "Chọn ô sáng trong vùng ảnh hưởng để mua (di chuột để xem giá, Esc để hủy)"
-        elseif self.mode and self.mode.kind == "sub" then
-            return "Chọn ô thực hữu của bạn để lập Khu Trực Thuộc (Esc để hủy)"
+        elseif self.mode and self.mode.kind == "buyunit" then
+            return "Chọn Nhà Chính hoặc Khu Trực Thuộc để sinh Viễn Chinh (Esc để hủy)"
+        elseif self.mode and self.mode.kind == "suppress" then
+            return string.format("Chọn ô kề Phiến Quân để định hướng đẩy (%s) — Esc để hủy",
+                self.mode.pay and "trả TN, chắc thắng" or "đổ xúc xắc")
+        elseif self.selectedUnit and state.units[self.selectedUnit] then
+            local u = state.units[self.selectedUnit]
+            if u.owner == actor and u.mp > 0 and not u.acted then
+                return string.format("Viễn Chinh còn %d điểm: bấm ô sáng để di chuyển (Esc bỏ chọn)", u.mp)
+            end
         end
         return who .. ": chọn hành động hoặc Kết thúc lượt (" .. Actions.label("endTurn") .. ")"
     end
@@ -647,11 +722,26 @@ function Scene:drawActions(x, y, w)
         onClick = function() self:cmd({ type = "upgradeHQ" }) end,
     })
     y = y + bh + gap
-    local subCost = costText(C.SUB_COST)
-    ui:button("foundsub", x, y, w, bh, "Lập Khu Trực Thuộc", {
-        enabled = inAction and p and canAfford(p.res, C.SUB_COST), focused = isMode("sub"), font = Theme.font(11, true),
-        tip = "Đặt Khu Trực Thuộc (" .. subCost .. ") lên ô thực hữu của bạn cách Nhà Chính ít nhất 2 ô và cách đối thủ ít nhất 3 ô. Mở thêm vùng ảnh hưởng quanh nó.",
-        onClick = function() toggle("sub") end,
+    local unitCost = costText(C.EXPEDITION_COST)
+    local nUnits = p and Units.quotaCount(state, actor, "expedition") or 0
+    local canBuyUnit = false
+    if inAction and p then
+        for _, a in ipairs(Territory.anchors(state, actor)) do
+            if Game.check(state, { type = "buyUnit", unit = "expedition", q = a.q, r = a.r }) then canBuyUnit = true end
+        end
+    end
+    ui:button("buyunit", x, y, w, bh, string.format("Mua Viễn Chinh (%d/%d)", nUnits, Units.quotaMax("expedition")), {
+        enabled = canBuyUnit, focused = isMode("buyunit"), font = Theme.font(11, true),
+        tip = "Viễn Chinh (" .. unitCost .. ") sinh ở Nhà Chính hoặc Khu Trực Thuộc, đi " .. C.EXPEDITION_BASE_MOVE
+            .. " bước mỗi lượt từ lượt sau. Bấm vào đơn vị trên bản đồ để Lập Khu Trực Thuộc, Trấn Áp Phiến Quân, Trú Đóng.",
+        onClick = function()
+            local anchors = Territory.anchors(state, actor)
+            if #anchors == 1 then
+                self:cmd({ type = "buyUnit", unit = "expedition", q = anchors[1].q, r = anchors[1].r })
+            else
+                toggle("buyunit")
+            end
+        end,
     })
     y = y + bh + gap
     ui:button("trade", x, y, w, bh, string.format("Đổi tài nguyên (%d:1)", C.BANK_TRADE_RATE), {
@@ -774,8 +864,91 @@ function Scene:drawBuildingPanel(x, y, w)
     if #lost > 0 then demTip = demTip .. "\nSẼ MẤT VĨNH VIỄN tài nguyên chiến lược trên ô." end
     ui:button("bp_dem", x + Theme.px(6), by, w - Theme.px(12), bh, "Dỡ bỏ", {
         enabled = inAction and not b.demolishing, font = Theme.font(10, true), tip = demTip,
-        onClick = function() self.confirm = { uid = b.uid } end,
+        onClick = function() self.confirm = { kind = "demolish", uid = b.uid } end,
     })
+end
+
+-- Popup xác nhận lập Khu Trực Thuộc: nhắc đơn vị sẽ bị tiêu thụ (A-02).
+function Scene:drawFoundSubPopup(W, H)
+    local ui, state = self.ui, self.state
+    local u = state.units[self.confirm.uid]
+    if not u then self.confirm = nil return end
+    ui:blockBelow()
+    love.graphics.setColor(0, 0, 0, 0.55)
+    love.graphics.rectangle("fill", 0, 0, W, H)
+    local w, h = Theme.px(400), Theme.px(150)
+    local x, y = (W - w) / 2, (H - h) / 2
+    ui:panel(x, y, w, h, { borderColor = Theme.color.accent })
+    ui:label(string.format("Lập Khu Trực Thuộc tại (%d,%d)?", u.q, u.r), x, y + Theme.px(8),
+        { font = Theme.font(14, true), width = w, align = "center", color = Theme.color.accent })
+    ui:label("Chi phí " .. costText(C.SUB_COST) .. ". Đơn vị Viễn Chinh sẽ bị tiêu thụ (mất vĩnh viễn).",
+        x + Theme.px(16), y + Theme.px(40), { font = Theme.font(11), width = w - Theme.px(32), align = "center" })
+    local bw, by = Theme.px(120), y + h - Theme.px(40)
+    ui:button("fs_ok", x + w / 2 - bw - Theme.px(6), by, bw, Theme.px(28), "Lập Sub", {
+        font = Theme.font(12, true), color = { 0.25, 0.45, 0.30 },
+        onClick = function() self:cmd({ type = "foundSub", uid = u.uid }); self.confirm, self.selectedUnit = nil, nil end,
+    })
+    ui:button("fs_cancel", x + w / 2 + Theme.px(6), by, bw, Theme.px(28), "Hủy", {
+        font = Theme.font(12, true), onClick = function() self.confirm = nil end,
+    })
+end
+
+-- Bảng ngữ cảnh của đơn vị đang chọn: Lập Sub, Trấn Áp, Trú Đóng, Giải Thể.
+function Scene:drawUnitPanel(x, y, w)
+    local ui, state = self.ui, self.state
+    local u = self.selectedUnit and state.units[self.selectedUnit]
+    if not u then self.selectedUnit = nil return end
+    local actor = Game.actor(state)
+    local mine = u.owner == actor
+    local inAction = state.phase == "action" and mine and not self.popup and not self.confirm
+    local bh, gap, pad = Theme.px(24), Theme.px(4), Theme.px(8)
+    local fs = Theme.font(10)
+    local def = Units.TYPES[u.type]
+    local h = Theme.px(54) + 5 * (bh + gap)
+    ui:panel(x, y, w, h, { borderColor = Theme.player[u.owner] })
+    ui:label(def.name, x + pad, y + Theme.px(5), { font = Theme.font(12, true), color = Theme.color.accent })
+    ui:label(string.format("Chủ: P%d · di chuyển %d/%d%s", u.owner, u.mp, C[def.base], u.acted and " · đã hành động" or ""),
+        x + pad, y + Theme.px(22), { font = fs, color = Theme.color.dim, width = w - 2 * pad })
+    ui:label(u.garrison and "Đang Trú Đóng" or (u.recentGarrison and "Vừa Trú Đóng (Trấn Áp dễ hơn)" or ""),
+        x + pad, y + Theme.px(35), { font = fs, color = Theme.color.good, width = w - 2 * pad })
+
+    local by = y + Theme.px(50)
+    local function btn(id, text, enabled, tip, onClick)
+        ui:button(id, x + Theme.px(6), by, w - Theme.px(12), bh, text, {
+            enabled = inAction and enabled, font = Theme.font(10, true), tip = tip, onClick = onClick,
+        })
+        by = by + bh + gap
+    end
+
+    local okSub, whySub = false, "Không phải lượt của bạn"
+    if mine then
+        okSub, whySub = Units.checkFoundSub(state, u.owner, u)
+        if okSub and not canAfford(state.players[u.owner].res, C.SUB_COST) then okSub, whySub = false, "Không đủ tài nguyên" end
+    end
+    btn("up_sub", "Lập Khu Trực Thuộc", okSub,
+        "Lập Sub tại ô đang đứng (" .. costText(C.SUB_COST) .. "). Đơn vị bị tiêu thụ.\n"
+            .. (okSub and "" or ("Chưa được: " .. tostring(whySub))),
+        function() self.confirm = { kind = "sub", uid = u.uid } end)
+
+    local rb = state.rebel
+    local near = mine and rb and Hex.distance(u, rb) == 1 and not u.acted
+    local chance = near and math.floor(Units.suppressChance(state, u) * 100 + 0.5) or 0
+    local function suppressTip(extra)
+        if not near then return "Đơn vị phải đứng kề Phiến Quân và chưa hành động." end
+        return string.format("Đổ 1d6 đạt từ %d trở lên (%d%%). Thắng: đẩy PQ tối đa %d ô, +%d TN, hủy phong tỏa cả vòng. Thua: mất đơn vị.%s",
+            Units.suppressThreshold(state, u), chance, C.SUPPRESS_PUSH_TILES, C.SUPPRESS_REWARD_FAITH, extra or "")
+    end
+    btn("up_sup", near and string.format("Trấn Áp (đổ xúc xắc, %d%%)", chance) or "Trấn Áp (đổ xúc xắc)", near,
+        suppressTip(), function() self.mode = { kind = "suppress", uid = u.uid, pay = false } end)
+    btn("up_sup2", string.format("Trấn Áp chắc thắng (%d TN)", C.SUPPRESS_GUARANTEE_FAITH),
+        near and state.players[u.owner].res.faith >= C.SUPPRESS_GUARANTEE_FAITH,
+        suppressTip("\nTrả TN: thắng chắc, không đổ."), function() self.mode = { kind = "suppress", uid = u.uid, pay = true } end)
+    local okG, whyG = false, "Không phải lượt của bạn"
+    if mine then okG, whyG = Units.checkGarrison(state, u.owner, u) end
+    btn("up_gar", "Trú Đóng", okG, "PQ không dừng được ở ô này và ô kề; lượt sau Trấn Áp dễ hơn (−1 ngưỡng).\n"
+        .. (okG and "" or tostring(whyG)), function() self:cmd({ type = "garrison", uid = u.uid }) end)
+    btn("up_dis", "Giải thể", mine, string.format("Hoàn %d V, đơn vị biến mất.", C.UNIT_DISBAND_REFUND[u.type] or 0),
+        function() self:cmd({ type = "disband", uid = u.uid }); self.selectedUnit = nil end)
 end
 
 -- Popup xác nhận dỡ: nêu rõ TN sẽ mất vĩnh viễn.
@@ -926,9 +1099,11 @@ function Scene:draw()
     local logH = Theme.px(150)
     self:drawPlayers(pad, barH + pad, cardsW)
     self:drawActions(W - panelW - pad, barH + pad, panelW)
+    local bpW, bpY = Theme.px(210), barH + pad + Theme.px(88)   -- dưới khung gợi ý
     if self.selected then
-        local bpW = Theme.px(210)
-        self:drawBuildingPanel(W - panelW - bpW - 2 * pad, barH + pad + Theme.px(88), bpW)   -- dưới khung gợi ý
+        self:drawBuildingPanel(W - panelW - bpW - 2 * pad, bpY, bpW)
+    elseif self.selectedUnit then
+        self:drawUnitPanel(W - panelW - bpW - 2 * pad, bpY, bpW)
     end
     local logW = Theme.px(310)
     self:drawLog(pad, H - logH - pad, logW, logH)
@@ -970,7 +1145,7 @@ function Scene:draw()
     if state.phase == "rebel_loss" then
         self:drawLossPopup(W, H)
     elseif self.confirm then
-        self:drawDemolishPopup(W, H)
+        if self.confirm.kind == "sub" then self:drawFoundSubPopup(W, H) else self:drawDemolishPopup(W, H) end
     elseif self.popup == "pause" then
         self:drawPausePopup(W, H)
     elseif self.popup == "trade" then
@@ -992,7 +1167,7 @@ function Scene:keypressed(key)
         if self.confirm then self.confirm = nil
         elseif self.popup then self.popup = nil
         elseif self.mode then self.mode = nil
-        elseif self.selected then self.selected = nil
+        elseif self.selected or self.selectedUnit then self.selected, self.selectedUnit = nil, nil
         else self.popup = "pause" end
         return
     end
@@ -1042,8 +1217,15 @@ function Scene:mousepressed(x, y, button)
             if state.players[actor].votes < 1 then self.mode = nil end
         elseif self.mode.kind == "buy" then
             self:cmd({ type = "buyTile", q = tile.q, r = tile.r })
-        elseif self.mode.kind == "sub" then
-            if self:cmd({ type = "foundSub", q = tile.q, r = tile.r }) then self.mode = nil end
+        elseif self.mode.kind == "buyunit" then
+            if self:cmd({ type = "buyUnit", unit = "expedition", q = tile.q, r = tile.r }) then self.mode = nil end
+        elseif self.mode.kind == "suppress" then
+            local dir = self:suppressDirOf(tile)
+            if not dir then
+                self:say("Chọn một ô kề Phiến Quân để định hướng đẩy")
+            elseif self:cmd({ type = "suppress", uid = self.mode.uid, dir = dir, pay = self.mode.pay }) then
+                self.mode = nil
+            end
         elseif self.mode.kind == "upgrade" then
             local c = self:upgradeCandidate()
             if c and self:cmd({ type = "upgrade", uid = self.mode.uid, q = c.q, r = c.r, rot = c.rot }) then
@@ -1053,8 +1235,24 @@ function Scene:mousepressed(x, y, button)
             end
         end
     elseif state.phase == "action" then
-        local b = Structures.at(state, tile)
-        self.selected = b and b.uid or nil
+        -- đơn vị đang chọn: bấm ô tới được thì di chuyển
+        local sel = self.selectedUnit and state.units[self.selectedUnit]
+        if sel and sel.owner == actor and not (tile.q == sel.q and tile.r == sel.r)
+            and Game.check(state, { type = "moveUnit", uid = sel.uid, q = tile.q, r = tile.r }) then
+            self:cmd({ type = "moveUnit", uid = sel.uid, q = tile.q, r = tile.r })
+            return
+        end
+        -- chọn đơn vị (bấm lại để đổi sang đơn vị khác cùng ô), nếu không thì chọn công trình
+        local here = Units.at(state, tile)
+        if #here > 0 then
+            local nextIdx = 1
+            for i, u in ipairs(here) do if u.uid == self.selectedUnit then nextIdx = i % #here + 1 end end
+            self.selectedUnit, self.selected = here[nextIdx].uid, nil
+        else
+            local b = Structures.at(state, tile)
+            self.selected = b and b.uid or nil
+            self.selectedUnit = nil
+        end
     end
 end
 

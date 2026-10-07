@@ -73,10 +73,33 @@ end
 function Demo.demolish(state)
     local best, _, bs = upgradeArena(state)
     best.strategic = "TN-05"
-    return { focus = best, selected = bs[1].uid, confirm = { uid = bs[1].uid } }
+    return { focus = best, selected = bs[1].uid, confirm = { kind = "demolish", uid = bs[1].uid } }
 end
 
--- Trả bảng gợi ý cho scene (selected / mode / confirm / hover / focus) hoặc nil.
+-- Viễn Chinh đã chọn, vùng đi được, đường xem trước và bảng đơn vị (Phiến Quân ở kề để thấy nút Trấn Áp).
+function Demo.unit(state)
+    local best, pid = upgradeArena(state)
+    local Units = require("src.core.units")
+    local u = Units.spawn(state, pid, "expedition", best)
+    u.mp = 4
+    local rb = state.map:get(best.q + 1, best.r + 1)
+    state.rebel = { q = rb.q, r = rb.r }
+    return { focus = best, selectedUnit = u.uid, hover = state.map:get(best.q - 2, best.r) }
+end
+
+-- Chế độ chọn hướng Trấn Áp: ô kề Phiến Quân sáng, xem trước đường bị đẩy.
+function Demo.suppress(state)
+    local best, pid = upgradeArena(state)
+    local Units = require("src.core.units")
+    local u = Units.spawn(state, pid, "expedition", best)
+    u.mp = 4
+    local rb = state.map:get(best.q + 1, best.r)
+    state.rebel = { q = rb.q, r = rb.r }
+    return { focus = best, selectedUnit = u.uid, mode = { kind = "suppress", uid = u.uid, pay = false },
+             hover = state.map:get(best.q + 2, best.r) }
+end
+
+-- Trả bảng gợi ý cho scene (selected / selectedUnit / mode / confirm / hover / focus) hoặc nil.
 function Demo.apply(state, name)
     local fn = Demo[name]
     assert(fn and name ~= "apply", "demo không tồn tại: " .. tostring(name))

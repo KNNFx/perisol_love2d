@@ -5,6 +5,7 @@
 local Rebel     = require("src.core.rebel")
 local Territory = require("src.core.territory")
 local Game      = require("src.core.game")
+local Units     = require("src.core.units")
 local Buildings = require("src.data.buildings")
 local MapRenderer = require("src.render.map_renderer")
 
@@ -76,6 +77,20 @@ function Drive.update(scene, drv, dt)
             drv.turns = drv.turns + 1
             scene:keypressed("e")
         else
+            -- đơn vị còn điểm: chọn rồi đi tới ô xa nhất
+            for _, u in ipairs(Units.ownedBy(st, actor)) do
+                if u.mp > 0 and not u.acted then
+                    local far
+                    for _, node in pairs(Units.reachable(st, u)) do
+                        if node.prev and (not far or node.cost > far.cost) then far = node end
+                    end
+                    if far then
+                        if scene.selectedUnit ~= u.uid then clickTile(scene, Units.tileOf(st, u)) return end
+                        clickTile(scene, far.tile)
+                        return
+                    end
+                end
+            end
             for _, b in ipairs(Buildings.list) do
                 for _, t in ipairs(Territory.ownedTiles(st, actor)) do
                     if Game.buildCheck(st, actor, b.id, t) then
@@ -94,8 +109,9 @@ function Drive.update(scene, drv, dt)
                 scene.ui:activate("vote")
             elseif buyable then
                 scene.ui:activate("buytile")
-            elseif canAfford(p.res, require("src.config.constants").SUB_COST) and drv.actions % 3 == 0 then
-                scene.ui:activate("foundsub")
+            elseif drv.actions % 3 == 0 and Game.check(st, { type = "buyUnit", unit = "expedition",
+                    q = p.hq.q, r = p.hq.r }) then
+                scene.ui:activate("buyunit")
             else
                 drv.turns = drv.turns + 1
                 scene:keypressed("e")

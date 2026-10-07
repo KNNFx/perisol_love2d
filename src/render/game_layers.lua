@@ -204,6 +204,74 @@ function L.drawBuildings(state, opts)
     love.graphics.setColor(1, 1, 1)
 end
 
+local UNIT_LETTER = { expedition = "VC", knight = "HS", trade = "GT" }
+
+-- Đơn vị: huy hiệu tròn màu phe, chữ viết tắt, điểm di chuyển còn lại; vòng vàng = đang chọn,
+-- khiên nhỏ = Trú Đóng, mờ = đã hành động. Nhiều đơn vị cùng ô thì xếp lệch nhau. opts = { zoom, selected = uid }
+function L.drawUnits(state, opts)
+    local zoom = opts.zoom or 1
+    local count = {}
+    local units = {}
+    for _, u in pairs(state.units) do units[#units + 1] = u end
+    table.sort(units, function(a, b) return a.uid < b.uid end)
+    for _, u in ipairs(units) do
+        local tile = state.map:get(u.q, u.r)
+        local cx, cy = tileCenter(tile)
+        local k = u.q .. "," .. u.r
+        local idx = count[k] or 0
+        count[k] = idx + 1
+        cx, cy = cx - 7 + idx * 5, cy + 7 - idx * 2
+        local pc = PLAYER[u.owner]
+        love.graphics.setColor(0, 0, 0, 0.5)
+        love.graphics.circle("fill", cx, cy + 1, 5.6)
+        local a = u.acted and 0.55 or 1
+        love.graphics.setColor(pc[1], pc[2], pc[3], a)
+        love.graphics.circle("fill", cx, cy, 4.8)
+        love.graphics.setColor(1, 1, 1, a)
+        love.graphics.setLineWidth(1 / zoom)
+        love.graphics.circle("line", cx, cy, 4.8)
+        love.graphics.setLineWidth(1)
+        love.graphics.setColor(0.05, 0.06, 0.1, a)
+        worldText(UNIT_LETTER[u.type] or "?", cx, cy, 0.33)
+        if u.mp > 0 then
+            love.graphics.setColor(1, 1, 1, 0.95)
+            worldText(tostring(u.mp), cx + 5, cy - 5, 0.4)
+        end
+        if u.garrison then
+            love.graphics.setColor(0.9, 0.9, 0.35)
+            love.graphics.setLineWidth(1.5 / zoom)
+            love.graphics.arc("line", "open", cx, cy, 6.8, math.pi * 0.15, math.pi * 0.85)
+            love.graphics.setLineWidth(1)
+        end
+        if opts.selected == u.uid then
+            love.graphics.setColor(1, 0.9, 0.3)
+            love.graphics.setLineWidth(2 / zoom)
+            love.graphics.circle("line", cx, cy, 7.4)
+            love.graphics.setLineWidth(1)
+        end
+    end
+    love.graphics.setColor(1, 1, 1)
+end
+
+-- Đường đi xem trước: nối tâm các ô, chữ chi phí ở ô cuối. path = list tile (không gồm ô xuất phát).
+function L.drawPath(from, path, cost, zoom)
+    if #path == 0 then return end
+    love.graphics.setColor(1, 0.9, 0.3, 0.95)
+    love.graphics.setLineWidth(2 / zoom)
+    local px, py = tileCenter(from)
+    for _, t in ipairs(path) do
+        local cx, cy = tileCenter(t)
+        love.graphics.line(px, py, cx, cy)
+        px, py = cx, cy
+    end
+    love.graphics.setLineWidth(1)
+    love.graphics.circle("fill", px, py, 2.5)
+    love.graphics.setColor(0, 0, 0, 0.75)
+    love.graphics.rectangle("fill", px + 3, py - 12, 14, 9, 2, 2)
+    love.graphics.setColor(1, 1, 1)
+    worldText(tostring(cost), px + 10, py - 7.5, 0.5)
+end
+
 -- Phiến Quân + vùng phong tỏa. opts = { zoom, time }
 function L.drawRebel(state, opts)
     local rb = state.rebel
@@ -211,9 +279,8 @@ function L.drawRebel(state, opts)
     local zoom, time = opts.zoom or 1, opts.time or 0
     local pulse = 0.5 + 0.5 * math.sin(time * 4)
 
-    for _, h in ipairs(Hex.range(rb, 1)) do
-        local t = state.map:get(h.q, h.r)
-        if t then
+    for _, t in ipairs(require("src.core.rebel").blockade(state)) do   -- rỗng khi Trấn Áp đã hủy phong tỏa
+        do
             local cx, cy = tileCenter(t)
             love.graphics.setColor(0.45, 0.02, 0.05, 0.22 + 0.12 * pulse)
             love.graphics.polygon("fill", hexPolygon(cx, cy))

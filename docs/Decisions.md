@@ -264,6 +264,32 @@ Kế hoạch triển khai chia theo phase A–I ở `plan.md` mục P3.
 - **Tunable mới (thêm khi làm từng phase):** `HQ_UPGRADE_COST[3..5]`, `SUB_UPGRADE_COST[2..3]`, `HQ_MAX_LEVEL`, `TN06_MARKET_RATE`, `BOND_MAX`, cùng các hằng số Data §8.1 đã có (`MAX_*`, `*_BASE_MOVE`, `SUPPRESS_*`, `EXPEDITION_UPKEEP_GOLD`, `ROAD_COST_PER_TILE`, `TRADE_FEE_PER_TILE`).
 - **Save:** `SAVE_VERSION = 3`. Save v2 được nâng khi nạp: công trình chuyển sang lưu theo uid, thêm `occupied`, vật liệu, `units`, `roads`, `lostStrategic`.
 
+## D-015 — Đơn vị Viễn Chinh (M1.5 phase D) — 2026-10-07
+Cụ thể hóa luật đơn vị khi Data (sheet "Các đơn vị cờ") chưa nói rõ. Mọi mục là đề xuất của dự án, chỉnh trong `constants.lua` hoặc đổi luật khi chủ dự án muốn.
+- **Mua và sinh:** 3 TN + 3 V + 3 KT, chỉ ở ô Nhà Chính hoặc Khu Trực Thuộc của mình, ô không bị phong tỏa, quota `MAX_EXPEDITION_PER_PLAYER` (3). Đơn vị **không có điểm di chuyển ngay khi sinh** (Data §2: "Hành động ngay khi spawn: Không"); điểm di chuyển được cấp ở đầu lượt kế tiếp của chủ.
+- **Di chuyển (A-01):**
+  - Bước cơ bản 4 (`EXPEDITION_BASE_MOVE`), Dijkstra theo chi phí vào ô ở `src/data/movement.lua`. Có thể gọi `moveUnit` nhiều lần trong lượt tới hết điểm.
+  - Đơn vị đi xuyên nhau, không chiếm ô, không chặn xây dựng.
+  - TN-11 Gió Mạnh: vào ô có TN giảm `TN11_STEP_REFUND` (1) điểm, tối thiểu 0.
+  - TN-04 Ngựa: +2 điểm đầu lượt nếu đơn vị đứng trên ô Ngựa và có HQ/Sub của chủ trong bán kính 2. Data viết "HQ trong bán kính 2" mà không nói tâm là ô nào; đây là cách hiểu.
+- **Hành động dùng cả lượt (A-02, A-03, A-04):** đặt `acted = true` và `mp = 0`, nhưng được làm **sau khi đã đi** (Data §4 ghi "Toàn bộ lượt", GDD §7.2 ghi "chọn Di Chuyển hoặc Lập Sub"; cho đi trước rồi hành động để lập Sub ở đúng ô).
+- **Lập Khu Trực Thuộc (A-02):** lệnh `foundSub{uid}`, thay lệnh lập thẳng của D-013 (xem D-014). Điều kiện ô giữ như D-013 (`Territory.canFoundSub`), trả `SUB_COST`, đơn vị bị tiêu thụ, UI xác nhận 2 bước.
+- **Trấn Áp (A-03):**
+  - Đơn vị phải kề Phiến Quân và chưa hành động. Chọn **hướng đẩy trước khi đổ** (một trong 6 ô kề Phiến Quân).
+  - Ngưỡng: 4 (Hiệp Sĩ 3), −1 nếu đơn vị đứng Đồi Cỏ/Núi, −1 nếu lượt trước đã Trú Đóng, +1 nếu Phiến Quân đứng trên Núi/Núi Tuyết, sàn 2, trần 6. Các điều chỉnh khác của Data (aura Pháo Đài, Chốt Phòng Thủ, Tướng Quân) làm cùng hệ thống tương ứng.
+  - Trả `SUPPRESS_GUARANTEE_FAITH` (2 TN) thì thắng chắc, không đổ.
+  - **Thắng:** Phiến Quân bị đẩy tối đa 2 ô theo hướng đã chọn, dừng trước ô ngoài bản đồ hoặc Núi đang khóa (cần đẩy được ít nhất 1 ô thì mới chọn được hướng đó); người chơi +1 TN; phong tỏa bị hủy trong cả vòng hiện tại (`rebel.suppressedRound`). Đơn vị không di chuyển theo, và việc đẩy **không** kích hoạt hiệu ứng dừng của Phiến Quân.
+  - **Thua:** mất đơn vị, Phiến Quân đứng yên. (Ngoại lệ Hiệp Sĩ rút về HQ làm ở phase F.)
+- **Trú Đóng (A-04):** không làm được khi Phiến Quân ở kề. Từ lúc ra lệnh đến đầu lượt kế tiếp của chủ, Phiến Quân không được **dừng** trên ô đơn vị đứng hoặc ô kề nó; sang lượt sau ngưỡng Trấn Áp −1. Data nhắc HP/DEF nhưng không có số, nên chưa làm HP/DEF.
+- **Cấm dừng cạnh đơn vị Trú Đóng:**
+  - Người điều khiển Phiến Quân chỉ chọn được những bước còn dẫn tới một điểm dừng không bị cấm. Phiến Quân buộc phải đi tiếp khi còn bước, nên xét các điểm dừng bắt buộc.
+  - Nếu mọi bước đều dẫn tới điểm dừng bị cấm thì vẫn cho đi hết, để Phiến Quân không kẹt.
+- **Phiến Quân đè lên đơn vị:** dừng trên ô có đơn vị (của bất kỳ ai, kể cả người đổ) thì đơn vị bị tiêu hủy ngay, không kiểm tra. Hộ Tống (A-05) hoãn.
+- **Upkeep:** từ đơn vị thứ 2 trở đi, mỗi đơn vị 1 V mỗi lượt của chủ (`EXPEDITION_UPKEEP_GOLD`), trả ở đầu lượt. Thiếu Vàng thì hủy đơn vị mới nhất (uid lớn nhất) cho tới khi trả nổi.
+- **Giải Thể (A-06):** hoàn 1 V (Viễn Chinh, Hiệp Sĩ) hoặc 2 V (Giao Thương), không tốn hành động.
+- **Tunable mới:** `EXPEDITION_COST`, `SUPPRESS_PUSH_TILES`, `SUPPRESS_REWARD_FAITH`, `TN04_BONUS_MOVE`, `TN04_HOME_RADIUS`, `TN11_STEP_REFUND`, `UNIT_DISBAND_REFUND`.
+- **Chưa làm / còn mở:** FSM đầy đủ của Data §9 (chỉ dùng cờ `acted`, `garrison`); Hộ Tống; đơn vị không tính điểm cuối ván (Data Hỏi đáp #12); upkeep cho Giao Thương chưa định nghĩa.
+
 ## Xung đột tài liệu đã phát hiện (chọn theo Data)
 | Chủ đề | GDD §3.1 / §8 | Data | Chọn |
 |---|---|---|---|

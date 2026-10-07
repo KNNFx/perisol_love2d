@@ -18,6 +18,9 @@ if simCount then
         print(string.format("\n%d ván, không lỗi. Trung bình/ván: %.1f lần ra 7, %.1f công trình, %.1f lần chiếm ô, %.0f lệnh",
             g, sum.sevens / g, sum.builds / g, sum.claims / g, sum.commands / g))
         print(string.format("Nâng cấp %.1f · dỡ %.1f · TN mất %.1f (mỗi ván)", sum.upgrades / g, sum.demolishes / g, sum.tnLost / g))
+        print(string.format("Đơn vị mỗi ván: mua %.1f · di chuyển %.1f · Trấn Áp thắng %.2f / thua %.2f · mất %.1f · lập Sub %.1f",
+            sum.unitsBought / g, sum.unitMoves / g, sum.suppressWins / g, sum.suppressLosses / g, sum.unitsLost / g,
+            sum.subsFounded / g))
         print(string.format("Điểm trung bình/người: %.1f · ô thực hữu trung bình/người: %.1f · ô của người thắng: %.1f",
             sum.score / sum.players, sum.tiles / sum.players, sum.winnerTiles / g))
         io.stdout:flush()

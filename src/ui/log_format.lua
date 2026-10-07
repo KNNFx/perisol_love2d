@@ -26,6 +26,10 @@ local function buildingName(id)
     return b and b.name or tostring(id)
 end
 
+local UNIT_NAME = { expedition = "Viễn Chinh", knight = "Hiệp Sĩ", trade = "Giao Thương" }
+
+local function unitName(t) return UNIT_NAME[t] or tostring(t) end
+
 -- Trả { text, pid, tier } hoặc nil nếu sự kiện không cần hiện. tier: "small" | "medium" | "large".
 function Fmt.line(e)
     local k = e.kind
@@ -83,6 +87,30 @@ function Fmt.line(e)
     elseif k == "build" then
         return { text = string.format("%s xây %s C%d tại %s", P(e.pid), buildingName(e.id), e.level, at(e)),
                  pid = e.pid, tier = "medium" }
+    elseif k == "unit_buy" then
+        return { text = string.format("%s mua %s tại %s", P(e.pid), unitName(e.unit), at(e)), pid = e.pid, tier = "medium" }
+    elseif k == "unit_move" then
+        return { text = string.format("%s đưa %s tới %s (tốn %d, còn %d)", P(e.pid), unitName(e.unit), at(e), e.cost, e.left),
+                 pid = e.pid, tier = "small" }
+    elseif k == "unit_garrison" then
+        return { text = string.format("%s cho đơn vị trú đóng tại %s", P(e.pid), at(e)), pid = e.pid, tier = "small" }
+    elseif k == "unit_disband" then
+        return { text = string.format("%s giải thể %s, hoàn %d V", P(e.pid), unitName(e.unit), e.refund),
+                 pid = e.pid, tier = "small" }
+    elseif k == "unit_upkeep" then
+        return { text = string.format("%s trả %d V duy trì %d đơn vị", P(e.pid), e.gold, e.count), pid = e.pid, tier = "small" }
+    elseif k == "unit_destroyed" then
+        local why = ({ rebel = "bị Phiến Quân đè", suppress = "thua khi Trấn Áp", upkeep = "do thiếu Vàng duy trì" })[e.reason]
+        return { text = string.format("%s của %s %s tại %s", unitName(e.unit), P(e.pid), why or "bị hủy", at(e)),
+                 pid = e.pid, tier = "large" }
+    elseif k == "suppress" then
+        if e.ok then
+            local how = e.paid and "trả TN chắc thắng" or string.format("đổ %d / cần %d", e.roll, e.threshold)
+            return { text = string.format("%s Trấn Áp thành công (%s): Phiến Quân bị đẩy tới %s, +1 TN", P(e.pid), how, at(e)),
+                     pid = e.pid, tier = "large" }
+        end
+        return { text = string.format("%s Trấn Áp thất bại (đổ %d / cần %d)", P(e.pid), e.roll, e.threshold),
+                 pid = e.pid, tier = "large" }
     elseif k == "passive" then
         local from = Buildings.byId[e.src] and Buildings.byId[e.src].name
             or (Strategic.byId[e.src] and Strategic.byId[e.src].name) or tostring(e.src)
