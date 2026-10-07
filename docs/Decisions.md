@@ -129,7 +129,7 @@ Mỗi quyết định ghi: bối cảnh, lựa chọn, lý do. Khi tài liệu t
   - Có tùy chọn giảm rung màn hình.
 
 ## D-012 — Đối chiếu GDD v1.2 bản đầy đủ (PDF) với M1 — 2026-10-05
-*(Trạng thái 2026-10-06: các điểm #1–#7 và #9 đã xử lý ở D-013; #8, #10, #11 giữ nguyên có chủ đích.)*
+*(Trạng thái 2026-10-06: các điểm #1–#7 và #9 đã xử lý ở D-013; #8, #10, #11 giữ nguyên có chủ đích. Cập nhật 2026-10-07: #8 đã chốt ở D-014 (không cho không, giữ ngân hàng 4:1); hiệu ứng Đồi Cỏ/Rừng của #9 làm ở M1.5.)*
 `docs/Perisol_GDD_v1.2_Full.md` đã được chép lại khớp 100% với `Perisol_GDD_v1.2.pdf`. Bản cũ là bản rút gọn và thiếu nhiều luật. Đối chiếu bản đầy đủ với các quyết định D-006..D-011 và code M1 cho kết quả dưới đây.
 
 **PDF xác nhận (không cần đổi):**
@@ -179,6 +179,91 @@ Chủ dự án chọn các điểm dưới đây từ D-012. Điểm không nêu
 - **Tunable:** `INFLUENCE_RADIUS_HQ/SUB`, `HQ_UPGRADE_COST`, `SUB_COST`, `SUB_MIN_DIST_*`, `RETAKE_MULTIPLIER`, `CLUSTER_*`, `BUY_TILE_BASE/GROWTH`, `STARTING_RESOURCES`, `START_BONUS_*`.
 - **Hệ quả cần theo dõi khi playtest:** mô phỏng ngẫu nhiên cho khoảng 6–7 ô thực hữu mỗi người sau 20 vòng (trước đó khoảng 9). Cụm Khu Dân Cư/Danh Thắng chỉ với tới được sau khi có Sub, nên điểm Danh Thắng hiếm.
 
+## D-014 — Phạm vi và luật M1.5 (Công Trình & Hạ Tầng) — 2026-10-07
+Kế hoạch triển khai chia theo phase A–I ở `plan.md` mục P3.
+
+**Chủ dự án chốt:**
+- **Phạm vi:**
+  - M1.5 làm bước 1–7 của P3.
+  - **Hoãn tầng công nghiệp** (Mỏ Than, Giếng Dầu, Đường Ray + U-02T, Đường Ống + U-04, độ bền/sửa chữa) đến sau M2/M3. Đường Ray vốn cần thẻ Công Nghệ "Mạng Lưới Giao Thông" của M2.
+  - Ngoại lệ vẫn làm ở M1.5: Phiến Quân đi qua Đường Đất thì đường mất (độ bền 1); dừng trên Lát Đá thì đường tụt về Đường Đất.
+- **Nâng cấp công trình Cơ Bản:**
+  - Lệnh xây chỉ đặt **C1**. C2/C3 chỉ có được bằng cách **nâng tại chỗ**.
+  - Nâng cấp trả **đủ chi phí của cấp mới** theo Data (không phải phần chênh lệch).
+  - Hình của cấp mới phải chứa mọi ô của hình cũ.
+- **Dỡ công trình (GDD §5.4 + Data sheet TN):**
+  - Không hoàn tài nguyên. Công trình ngừng sản xuất ngay và được gỡ vào đầu lượt kế tiếp của chủ (tốn 1 vòng).
+  - **TN trên mọi ô của công trình bị mất vĩnh viễn**, theo ghi chú sheet "Tài nguyên Chiến lược" của Data: "Phá dỡ công trình đã xây lên tài nguyên chiến lược sẽ làm mất tài nguyên". Luật này thay cho câu "trả về tài nguyên gốc cho tile" của GDD §5.4.
+  - UI phải cảnh báo, ghi rõ TN nào sẽ mất, trước khi xác nhận.
+  - Vì map không được lưu (D-011), TN đã mất được ghi trong state (`state.lostStrategic`). Mọi logic đọc TN phải đi qua hàm kiểm tra danh sách này.
+  - Dỡ ngay và được hoàn tài nguyên bằng Sắc Lệnh để sang M2.
+- **Trao đổi giữa người chơi (giải D-012 #8):**
+  - **Không cho không:** mỗi bên đưa ít nhất 1 tài nguyên, và không loại nào nằm ở cả hai phía.
+  - Chỉ người đang lượt đề xuất. Cần đường nối Khu Chợ của hai bên.
+  - Người đề xuất trả phí `TRADE_FEE_PER_TILE` cho mỗi ô tuyến đường.
+  - **Giữ đổi ngân hàng 4:1** (D-007), để người chơi không bị kẹt khi chưa có đường.
+- **Khu Trực Thuộc:** từ M1.5, lập Sub bằng Viễn Chinh (A-02, đơn vị bị tiêu thụ), thay cho lệnh lập thẳng trên ô thực hữu của D-013. Đây là phương án tạm mà D-013 đã ghi "đơn vị để M1.5". Điều kiện đặt giữ như D-013.
+
+**Đề xuất của dự án (dùng khi triển khai; chủ dự án chốt lại ở phase I nếu muốn đổi):**
+- **Hình dạng** (offset axial, neo `(0,0)`, xoay 60°):
+
+  | Hình | Số ô | Offset | Ghi chú |
+  |---|---|---|---|
+  | `pair` | 2 | (0,0)(1,0) | |
+  | `triangle` | 3 | (0,0)(1,0)(0,1) | |
+  | `line3` | 3 | (0,0)(1,0)(2,0) | |
+  | `L` | 3 | (0,0)(1,0)(1,1) | |
+  | `rect` | 4 | (0,0)(1,0)(0,1)(1,1) | hình bình hành |
+  | `trapezoid` | 6 | (0,0)(1,0)(2,0)(3,0)(0,1)(1,1) | hàng 4 trên hàng 2 |
+  | `cluster` | 6 | (0,0) + 5 ô kề | |
+
+  Lưu ý: hex không có hình thang 6 ô đối xứng, nên `trapezoid` là đề xuất.
+- **Luật theo footprint:**
+  - Mọi ô của công trình phải là ô thực hữu của chủ, trống, đúng địa hình theo ma trận "Đặt công trình" của cấp đó, và không bị phong tỏa.
+  - Công trình không sản xuất nếu **bất kỳ** ô nào của nó bị phong tỏa.
+  - Phiến Quân dừng trên bất kỳ ô nào của công trình là trúng chủ của nó.
+  - Mọi ô của công trình đều khóa phiếu của đối thủ.
+  - Điểm C2+ tính 1 lần cho mỗi công trình.
+- **Bonus TN và hiệu ứng địa hình:**
+  - Bonus TN lấy từ mỗi ô có TN trong footprint.
+  - Hiệu ứng địa hình (Lãnh Nguyên, Sa Mạc, Đồi Cỏ, Rừng) xét theo **ô neo** (ô C1 gốc), để không bị cộng nhiều lần.
+  - TN-12: công trình tính như cả 2 viên khớp khi có ít nhất 1 viên khớp.
+  - TN-10: Khu Chợ C1 sản xuất như C3.
+  - TN-08: công trình C1 giảm 1 KT chi phí.
+- **"Mỗi vòng" và phần lẻ:**
+  - Thu nhập thụ động, upkeep đơn vị và việc hoàn tất dỡ đều chạy ở đầu lượt của chính người chơi (Khâu Sản Xuất, trước khi đổ).
+  - Phần lẻ (0.5 VH của Nhà VH C3, 0.5 V của Khu Chợ C2, lãi Tín Phiếu) dồn vào `player.carry`; khi đủ 1 mới cộng vào tài nguyên.
+- **Vật liệu và điểm:** vật liệu phái sinh (Hợp Kim, Giấy, Thép, Lụa, Tín Phiếu) nằm trong `player.res` nhưng **không** tính vào điểm "1 điểm / 5 tài nguyên dư". Điểm này chỉ cộng 5 loại cốt lõi như D-010.
+- **Đơn vị:**
+  - Không có HP/DEF (Data không định nghĩa). Trú Đóng (A-04) chỉ có hai tác dụng: PQ không được dừng ở ô kề, và ngưỡng Trấn Áp lượt sau −1.
+  - Nếu mọi bước còn lại của PQ đều là ô cấm dừng thì vẫn cho đi, để PQ không kẹt.
+  - Hướng đẩy khi Trấn Áp chọn trước khi đổ.
+  - Upkeep tính từ Viễn Chinh thứ 2. Thiếu Vàng thì hủy đơn vị mới nhất.
+- **Đường:**
+  - Đường không có chủ (Data Hỏi đáp #11).
+  - Vào ô có đường tốn `max(1, chi phí địa hình − 1)`. Đơn vị đứng trên Lát Đá đầu lượt được +1 bước.
+  - Nâng Lát Đá được ở ô trong vùng ảnh hưởng hoặc lãnh thổ của mình.
+  - Điều kiện "Khu Chợ cần đường nếu không liền HQ" chỉ kiểm lúc xây/nâng; mất đường sau đó không tắt chợ.
+  - Khu Chợ C3 "giao thương bán kính 2 không cần đơn vị" được hiểu là: hai Khu Chợ trong bán kính 2 được coi như đã nối, không cần đường.
+- **Phái Sinh:** theo Data, vật liệu được **cộng thêm** khi ra mặt khớp. Không theo GDD §8.2, nơi vật liệu "thay cho" tài nguyên gốc và phải chọn 1 trong 2 viên. Trạng thái "hoạt động" tính lại mỗi lần sản xuất, nên đường bị cắt thì Phái Sinh tạm ngừng.
+- **Đặc Biệt:**
+  - Địa hình lấy theo sheet "Công trình" của Data (xem bảng xung đột bên dưới).
+  - Hiệu ứng cần thẻ hoặc nhân vật được stub và ghi log "chưa có ở bản này" cho tới M2/M3:
+    - Giảm giá Công Nghệ của S-01.
+    - Phụ phí, miễn nhiễm Sắc Lệnh và "Triển Lãm" của S-03.
+    - "Niết Bàn" và giảm chi phí kỹ năng nhân vật của S-05.
+
+**Còn mở (cần chủ dự án chốt, không chặn tiến độ):**
+- "Bán kính Long Mạch" (S-04 +2/+3 ô, TN-12 +1 ô): GDD không định nghĩa khái niệm này. Hiện mọi công trình đều hưởng Long Mạch. Đề xuất bỏ qua.
+- Sub C2 "giảm ngưỡng Chi Phối ô xa": không có số. Đề xuất không thêm, vì ngưỡng đã tính theo mốc gần nhất.
+- S-04 "PQ trong bán kính 1 chỉ phong tỏa 3 ô thay vì 7": không nói là 3 ô nào.
+- Ô ⭐ ưu tiên (D-010) và Đầm Lầy "TN & VH cao" vẫn chưa có số.
+- Hảo Cảm, Sứ Giả U-05 và trao đổi với Khu Dân Cư có Cảng/Chợ (P0 #11): hoãn ra khỏi M1.5. A-05 Hộ Tống cũng hoãn.
+- TN-04 "Chuồng Ngựa": công trình này không có trong Data, nên bonus công trình của TN-04 chưa làm.
+
+- **Tunable mới (thêm khi làm từng phase):** `HQ_UPGRADE_COST[3..5]`, `SUB_UPGRADE_COST[2..3]`, `HQ_MAX_LEVEL`, `TN06_MARKET_RATE`, `BOND_MAX`, cùng các hằng số Data §8.1 đã có (`MAX_*`, `*_BASE_MOVE`, `SUPPRESS_*`, `EXPEDITION_UPKEEP_GOLD`, `ROAD_COST_PER_TILE`, `TRADE_FEE_PER_TILE`).
+- **Save:** `SAVE_VERSION = 3`. Save v2 được nâng khi nạp: công trình chuyển sang lưu theo uid, thêm `occupied`, vật liệu, `units`, `roads`, `lostStrategic`.
+
 ## Xung đột tài liệu đã phát hiện (chọn theo Data)
 | Chủ đề | GDD §3.1 / §8 | Data | Chọn |
 |---|---|---|---|
@@ -192,3 +277,8 @@ Chủ dự án chọn các điểm dưới đây từ D-012. Điểm không nêu
 | Chi phí Phiến Quân vào Núi (sau khóa) | −1 bước (= 2) (§6.2) | 3 (U-03) | Đang dùng Data. Chờ chốt (D-012 #5) |
 | Phiến Quân vào Đầm Lầy | Không nhắc (= 1) (§6.2) | 2 (U-03) | Đang dùng Data |
 | Đầm Lầy đặt HQ/Sub | ❌ cả hai (§3.1 bản PDF) | Sub ✅ | Data (như trên). GDD bản PDF xác nhận lại ❌ |
+| Dỡ công trình trên ô có TN | "Trả về tài nguyên gốc cho tile" (§5.4) | "Phá dỡ ... sẽ làm mất tài nguyên" (sheet TN, ghi chú) | Data: TN mất vĩnh viễn, có cảnh báo (D-014, chủ dự án chốt) |
+| Trao đổi "cho không" | §5.4 vừa cấm vừa cho phép | — | Không cho không, giữ ngân hàng 4:1 (D-014, chủ dự án chốt) |
+| Sản lượng Phái Sinh | Vật liệu **thay** tài nguyên gốc, chọn 1 trong 2 viên (§8.2) | Vật liệu cộng thêm khi ra mặt khớp | Data (D-014) |
+| Đặc Biệt: Đồng Bằng | §8.3 cho S-01/S-02/S-03/S-04 | Sheet Địa hình ❌ CT ĐB, sheet Công trình ✅ | Sheet Công trình (D-014) |
+| Trại Khai Thác C2/C3 trên Rừng/Bờ Biển | §9.4: ✅ | Ma trận ✅, sheet Công trình ❌ | Ma trận cho mọi cấp (D-014, giữ theo D-010) |

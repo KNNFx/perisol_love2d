@@ -3,8 +3,10 @@
 
 ## Context
 
-**Current status (updated 2026-10-05):**
-- **M0 complete (2026-10-04):** git repo, `conf.lua`/`main.lua`, hex math, seeded mapgen, camera/render sandbox, 29 headless tests (see the P1 checklist). Next: M1 (P2 checklist).
+**Current status (updated 2026-10-07):**
+- **M0 complete (2026-10-04):** git repo, `conf.lua`/`main.lua`, hex math, seeded mapgen, camera/render sandbox, 29 headless tests (see the P1 checklist).
+- **M1 implemented (2026-10-06):** see the P2 checklist. Playtest #1 is still pending.
+- **M1.5 planned (2026-10-07):** owner decisions are in D-014, and the phased checklist A–I is in P3. Next: P3 phase A.
 - *(Original scan 2026-10-04: no code, no tests and no git repo existed.)*
 - Design docs are rich and mostly complete: GDD v1.2, Data tables, Buildings v1.0, and 80 cards in Cards v1.2.
 - Art: one test sheet, `Image/HexaTiles_Test_V001.png`. It holds pixel-art hex tiles (forest, plains, desert, river/water, mountain, snow, settlements, roads) and is not yet sliced into individual sprites.
@@ -32,18 +34,18 @@ These are gaps or contradictions found in the docs. Each needs a decision, and t
 | 3 | **Map size is inconsistent.** "Radius 3 = 19 tiles" is wrong (radius 2 = 19, radius 3 = 37). The 16:8 vs 32:16 grid sizing is also unclear. Hex orientation (pointy vs flat) needs choosing; the art looks pointy-top. | GDD §3.1 | M0 | ✅ Decided → D-001, D-002 |
 | 4 | **Hex face (6):** what exactly does the active player get (claim a tile? draw a card?), and what happens with double Hex? | GDD §3.4 | M1 | ✅ Decided → D-006 |
 | 5 | **Sum of 7:** faces are 1–6, so 7 can be 1+6, 2+5 or 3+4. Is 7 checked on the face numbers? (Assume yes.) Do the matching faces still produce on 7? (GDD says no.) | GDD §5.2 | M1 | ✅ Decided → D-008 |
-| 6 | **Building terrain conflicts** among GDD §8.1, Data "Công trình" and the Data "Đặt công trình" matrix. Examples: B-01 C1 on Forest/Coast (matrix ✅, building sheet ❌), Nhà Văn Hóa on Settlement. Decide which source wins; the recommendation is the matrix. | Data | M1.5 | 🟡 Partly → D-010 (C1 uses the matrix; C2/C3 at M1.5) |
+| 6 | **Building terrain conflicts** among GDD §8.1, Data "Công trình" and the Data "Đặt công trình" matrix. Examples: B-01 C1 on Forest/Coast (matrix ✅, building sheet ❌), Nhà Văn Hóa on Settlement. Decide which source wins; the recommendation is the matrix. | Data | M1.5 | 🟡 Partly → D-010 (C1 uses the matrix), D-014 (C2/C3 use the matrix for every footprint tile) |
 | 7 | **Production per building level.** GDD has `level × base × matching dice`, but the Data sheet gives explicit per-level outputs (e.g. B-01.3: 3 KT on KT, 2 KT on KH). Recommendation: use the explicit Data table and drop the formula. | GDD §5.2 vs Data | M1 | ✅ Decided → D-008 |
 | 8 | **Contested/claim flow:** what action places a Chi Phối token, and what does it cost? | GDD §5.4, §7 | M1 | ✅ Decided → D-006 |
 | 9 | **Rebel effects:** "half of the most-held resource" — a tie-break rule is needed. The "Ô có tài nguyên ngoài chủ" row is ambiguous. | GDD §6.2 | M1 | ✅ Decided → D-009 |
 | 10 | **Win condition timing:** does a character win end the game immediately or give bonus points? (GDD: "Thắng ngay / điểm thưởng lớn".) | GDD §11.2 | M3 | Open |
-| 11 | Leftover references to "Godot 4 / C#" (Data §9 and the GDD PDF cover) and to U-06 (`ENVOY_LIFETIME_ROUNDS`). U-05 Sứ Giả has a proposed cost. Hảo Cảm (favor) appears in the units sheet and in GDD §5.4 ("Nâng Hảo Cảm với Khu Dân Cư") without numbers. | Data §8–9, GDD §5.4 | M1.5 | Open |
+| 11 | Leftover references to "Godot 4 / C#" (Data §9 and the GDD PDF cover) and to U-06 (`ENVOY_LIFETIME_ROUNDS`). U-05 Sứ Giả has a proposed cost. Hảo Cảm (favor) appears in the units sheet and in GDD §5.4 ("Nâng Hảo Cảm với Khu Dân Cư") without numbers. | Data §8–9, GDD §5.4 | after M1.5 | Open → deferred out of M1.5 (D-014) |
 | 12 | **Influence zone ≠ owned (full GDD PDF).** The 6 tiles around HQ are an influence zone (vote, collect, **no building**); votes go only inside the influence zone; reaching farther needs HQ C2 or a Sub. M1 instead gifts the 7 home tiles and allows votes on tiles adjacent to owned land. | GDD §5.4, §7.1–7.2, App. A | M1 rework or M1.5 | ✅ Decided → D-013 |
 | 13 | **Retaking a tile** costs double the requirement (GDD); M1 uses "strictly more votes and meets threshold". **Buying land:** GDD buys a tile with Gold + Culture, doubling per distance, base price not given; M1 buys a vote for 1 VH + 1 V. | GDD §7.2 | M1 rework | ✅ Decided → D-013 |
 | 14 | **Settlement / Landmark control:** 1 vote per tile, the majority of tiles in the cluster controls the whole cluster, ties contested at +1 cost. M1 uses normal thresholds and scores a landmark only when all its tiles are owned. | GDD §7.2 | M1 rework | ✅ Decided → D-013 |
 | 15 | **Rebel movement:** no revisiting tiles in one move (GDD only); Mountain cost after the lock is 2 (GDD) vs 3 (Data); Swamp cost 1 (GDD) vs 2 (Data). **Rebel spawn:** central tile before HQs (GDD) vs random Plains/Tundra/Desert after HQs (Data). | GDD §6.2, §11.1 | M1 rework | 🟡 Partly → D-013 (no-revisit added; Data costs/spawn kept) |
 | 16 | **Starting resources "from the 6 tiles around HQ"** has no terrain → resource table. M1 gives fixed 2/2/2/2/5. | GDD §11.1 step 8 | M1 rework | ✅ Decided → D-013 |
-| 17 | **Trading** is player ↔ player over roads (1 Gold/tile), and the GDD contradicts itself on gifts; M1 uses a 4:1 bank instead. **Terrain effects** (Tundra −1 Gold output and −1 KT build cost, Desert no Faith, Hills Mining Camp C2 +1 KT, Forest Research C1 +1 KH passive, Swamp "high Faith & Culture") are not implemented. | GDD §5.4, §3.1 | M1.5 | 🟡 Partly → D-013 (C1 terrain effects done; bank trade kept; rest M1.5) |
+| 17 | **Trading** is player ↔ player over roads (1 Gold/tile), and the GDD contradicts itself on gifts; M1 uses a 4:1 bank instead. **Terrain effects** (Tundra −1 Gold output and −1 KT build cost, Desert no Faith, Hills Mining Camp C2 +1 KT, Forest Research C1 +1 KH passive, Swamp "high Faith & Culture") are not implemented. | GDD §5.4, §3.1 | M1.5 | ✅ Decided → D-013 (C1 terrain effects), D-014 (no gifts, bank 4:1 kept; Hills/Forest effects in P3 phase C) |
 
 **Recommendation:** start M0 in parallel with P0. M0 needs only decision #3. *(Update 2026-10-05: everything M1 needs is decided; #10 and #11 remain open for M1.5/M3.)* *(Update 2026-10-05, later: the full GDD PDF was transcribed into `docs/Perisol_GDD_v1.2_Full.md`. It confirms #1, #4, #5 and is compatible with #7, but it adds rules that differ from the M1 implementation: #12–#17, detailed in `docs/Decisions.md` D-012.)*
 
@@ -149,6 +151,143 @@ Do this in order:
 7. **Special buildings S-01..S-05:** large footprints, material costs and **auras** (radius-based modifier registration). Implement each S-ability (dice preview, rebel block, vote ×1.5, Long Mạch radius, cancel 7). Each special building has **2 upgrade levels** (+1, +2) with their own costs and effects (GDD §8.3).
 8. **Industrial layer (lowest in M1.5):** Coal Mine, Oil Well, Railway (+ U-02T train transform), Pipeline (U-04 auto transport), and per-tile **durability** with route = MIN(tile), damage sources, and repair (manual / auto from HQ). Consider deferring this to after M3 if time is short; it is the most complex and least core part.
 
+### Scope and owner decisions (2026-10-07, details in `docs/Decisions.md` D-014)
+- **Steps 1–7 are in M1.5. Step 8 (industrial layer) is deferred** until after M2/M3. The Railway needs the Tech card "Mạng Lưới Giao Thông" (M2) anyway.
+  - Exception: the simple road wear stays in M1.5. A Rebel passing over a Dirt Road removes it, and a Rebel stop downgrades Stone to Dirt.
+- **C2/C3 come only from upgrading in place.** `build` places C1 only. An upgrade pays the full Data cost of the new level, and the new footprint must contain the old tiles.
+- **Demolish:**
+  - No refund.
+  - The building is removed at the start of the owner's next turn (1 round).
+  - **The strategic resources (TN) on every footprint tile are lost for good**, following the Data TN-sheet note rather than GDD §5.4's "returns the tile's original resource". The UI warns before confirming.
+- **Player ↔ player trade:**
+  - **No gifts**: both sides give at least 1, and no type may appear on both sides.
+  - The fee is 1 Gold per road tile between the two Markets.
+  - **The 4:1 bank trade stays.**
+- **Order change vs the list above:** HQ/Sub levels (step 3) move after Units and Roads. HQ C3 needs a road-connected Market, and HQ C4 turns Expeditions into Knights.
+- **Rotation key:** placement rotation uses **Q**, because E is already End turn.
+
+### Progress checklist (P3 / M1.5) — added 2026-10-07
+Each phase ends with `test.bat` green, `lovec . --sim 100` clean, a UI check (screenshot or `--drive`), and its own commit.
+
+- [ ] **A. Foundation (refactor, no rule change)**
+  - [ ] Buildings keyed by uid (`state.buildings[uid]` + `state.occupied["q,r"]`) and a new `src/core/structures.lua`. Replace every `state.buildings[key(tile)]` read in game, territory, production, rebel, scoring, sim, render, scene, drive and log_format.
+  - [ ] Materials (alloy, paper, steel, silk, bond) in `player.res`, checked by the sim invariants. Score still counts only the 5 core resources.
+  - [ ] `Hex.rotate` + test.
+  - [ ] `state.lostStrategic` + `Structures.strategicAt`. Replace logic reads of `tile.strategic` in production, territory (TN-06), and the renderer/tooltips.
+  - [ ] Turn-start step `src/core/upkeep.lua` (`startTurn`, run in `roll` before the dice). It is empty for now and will hold demolish completion, passives, unit upkeep and movement reset.
+  - [ ] Generic `prompt` phase + `respond` command, for trade replies and S-05 reactions (and M2 reaction Edicts later).
+  - [ ] Save v3 + `MIGRATIONS[2]` (v2 → v3) + a load test for an old save.
+- [ ] **B. Step 1 — Basic C2/C3 multi-hex + demolish**
+  - [ ] `src/data/shapes.lua`: pair, triangle, line3, L, rect, trapezoid, cluster as axial offsets with distinct rotations.
+  - [ ] `upgrade{uid,q,r,rot}` + `Structures.upgradeOptions`.
+  - [ ] `demolish{uid}`: production stops at once; at the owner's next turn start the building is removed, TN goes into `lostStrategic`, and a `strategic_lost` event is logged.
+  - [ ] Footprint rules:
+    - No production if any footprint tile is blockaded.
+    - A Rebel stop on any footprint tile hits the owner.
+    - All footprint tiles are vote-locked for opponents.
+    - C2+ scores once per building.
+  - [ ] UI:
+    - Context panel when a building is clicked (Upgrade / Demolish).
+    - Footprint ghost with Q rotation and reason tooltips.
+    - Demolish confirm popup that lists the TN to be lost.
+    - Footprint outline in `game_layers`.
+  - [ ] `structures_spec` + updated production/game specs. Add sim weights and footprint invariants.
+- [ ] **C. Step 2 — TN bonuses, terrain effects, passives**
+  - [ ] Modifier `ctx.tiles`, with TN bonuses taken from every TN tile in the footprint.
+  - [ ] New bonuses:
+    - TN-12: both dice count when at least one matches.
+    - TN-10: Market C1 produces as C3.
+    - TN-08: C1 costs −1 KT.
+  - [ ] Terrain effects, read from the anchor tile:
+    - Hills: Mining Camp C2+ gets +1 KT per die.
+    - Forest: Research C1 gets +1 KH passive.
+  - [ ] Per-round passives in `Upkeep.startTurn`:
+    - B-01.3 / B-02.3: +1.
+    - B-03.3: +0.5 VH per adjacent territory tile.
+    - B-04.3: +1 TN while the Rebel is on the map.
+    - TN-02: +1 TN and +1 KH.
+    - TN-09: +1 VH.
+    - Halves accumulate in `player.carry`.
+  - [ ] `upkeep_spec` + production spec cases.
+- [ ] **D. Step 4 — Expedition units**
+  - [ ] `src/core/units.lua`: `state.units`, Dijkstra reachable/path using `Movement.stepCost`.
+  - [ ] Commands:
+    - `buyUnit`, `moveUnit`.
+    - `foundSubAt` (A-02), which **replaces** the direct `foundSub` of D-013.
+    - `suppress{uid,dir,pay}` (A-03).
+    - `garrison` (A-04), `disband` (A-06).
+  - [ ] Rebel:
+    - Cannot *stop* next to a garrisoned unit; fall back to allowing it if every step is forbidden.
+    - A stop destroys units on the tile.
+    - Suppress pushes it 2 tiles and cancels the blockade for the round.
+  - [ ] Upkeep from the 2nd Expedition. TN-04 / TN-11 movement bonuses.
+  - [ ] UI: unit layer, reachable flood-fill, path + cost preview, unit context panel, two-step confirm for A-02.
+  - [ ] `units_spec`.
+- [ ] **E. Step 5 — Roads and trade**
+  - [ ] `src/core/roads.lua`: `state.roads` (no owner), `connected`, `routeLength`.
+  - [ ] U-02 Trade unit: costs 5 V, quota 2, builds Dirt Road at 1 V/tile on Plains/Forest/Coast/Hills (free with TN-10).
+  - [ ] Road movement: cost −1 (minimum 1). A unit starting its turn on Stone gets +1 step.
+  - [ ] `upgradeRoad` (Stone: 1 KT + 1 V) inside your own influence zone or territory.
+  - [ ] Rebel wear on roads.
+  - [ ] Market C1/C2 needs to be adjacent to HQ, road-connected to HQ, or on TN-03. Checked at build time only.
+  - [ ] B-05.2 passive: +0.5 V per Dirt Road route, max 3.
+  - [ ] Trade commands:
+    - `proposeTrade` → `prompt` → `respond`.
+    - No gifts. Fee per road tile, −50% if the whole route is Stone, free through TN-10.
+    - Market C3 within radius 2 needs no road.
+    - TN-06 + own Market C2+ makes the bank rate 1:1.
+  - [ ] UI: road layer, trade proposal popup, reply popup behind a "pass the screen" cover.
+  - [ ] `roads_spec` + trade cases in `game_spec`.
+- [ ] **F. Step 3 — HQ C3–C5, Sub C2–C3**
+  - [ ] Costs in `constants.lua` (`HQ_UPGRADE_COST[3..5]`, `SUB_UPGRADE_COST[2..3]`, `HQ_MAX_LEVEL = 5`) + `upgradeSub`.
+  - [ ] Gates: HQ C3 needs a road-connected Market, HQ C4 round 11+, HQ C5 a Market C3, Sub C3 round 16+.
+  - [ ] Effects:
+    - HQ C3 unlocks Special buildings.
+    - HQ C4 turns Expeditions into Knights.
+    - HQ C5 adds a +1 production aura in the HQ influence zone.
+    - Sub C2 gets radius 2.
+    - Sub C3 makes its centre tile blockade-immune.
+  - [ ] Territory and units spec cases.
+- [ ] **G. Step 6 — Derived D-01..D-05**
+  - [ ] `src/data/derived.lua` following Data: materials are **added**, not "instead of" as in the GDD.
+  - [ ] `buildDerived`:
+    - D-01, D-02 and D-04 attach to a host building. D-03 and D-05 take 1 tile.
+    - Gap 0 / 1–2 tiles with a road / 3+ impossible, plus each type's own maximum.
+  - [ ] "Active" status recomputed at production time (a broken road pauses it). Periodic passives. D-05 bonds (max 5, 0.5 V interest each).
+  - [ ] UI: "Lập Phái Sinh" context action, partner highlight, materials row in the player panel.
+  - [ ] `derived_spec`.
+- [ ] **H. Step 7 — Special S-01..S-05**
+  - [ ] `src/data/specials.lua`: footprints, terrains (Data building sheet), radius prerequisites, material costs, +1/+2 upgrades. TN-01/02/07/11 modifiers.
+  - [ ] `buildSpecial`, `upgradeSpecial`. Auras are modifiers that read `state`.
+  - [ ] Abilities that work now:
+    - **S-01:** KH aura, peek die 1, +2 reroll one die.
+    - **S-02:**
+      - Rebel no-stop aura; enemy Expeditions −2 steps (+1: stopped).
+      - +1 KT per round; own Expeditions spawned there get +2 steps.
+      - +2 `fortressStrike`.
+    - **S-03:** vote ×1.5 on Settlement/Landmark tiles, +2 VH, +1 score per Settlement in radius 3.
+    - **S-04:**
+      - Roller's same-type buildings in radius 3 get +1; +1 KH and +1 KT.
+      - 3-tile blockade near it.
+      - +2 Broadcast declared before the roll.
+    - **S-05:** prompt to push the Rebel for 2 TN, +2 TN, cancel a 7 via prompt, guaranteed suppress for 1 TN within radius 3.
+  - [ ] Stubbed until M2/M3 and logged as "not in this build":
+    - Tech discount, Edict surcharge/immunity, Exhibition, Niết Bàn, character-skill discount.
+    - The "Long Mạch radius" of S-04 / TN-12.
+  - [ ] UI: Special section (only with HQ C3), footprint ghost, aura rings, S-05 prompt popups.
+  - [ ] `specials_spec`.
+- [ ] **I. Wrap-up**
+  - [ ] `--scenario NAME` (`src/dev/scenarios.lua`) builds test positions for each system. It uses a dev-only `Dev.give` that is not recorded in `history`.
+  - [ ] Sim biased toward C3 / Derived / Special, plus new stats in `--sim`.
+  - [ ] Replay determinism test. Save/load mid-game with units, roads and Derived buildings.
+  - [ ] Settle the open D-014 proposals with the owner and record them. Update CLAUDE.md.
+  - [ ] A manual 2-player hot-seat game through the real UI.
+
+**Deferred on purpose:**
+- Step 8 (industrial layer).
+- A-05 Hộ Tống and HP/DEF (Data never defines HP).
+- U-05 Sứ Giả, Hảo Cảm and trade with Settlements that have a Port/Market (P0 #11 is still open).
+
 ---
 
 ## P4 — M2 Cards (≈3 weeks)
@@ -201,8 +340,8 @@ Do this in order:
 - **M1.5–M3:** each new system has unit tests plus a debug scenario (cheat console) to exercise it, and a full game is replayed after each.
 - **Playtest gate** after M1 and after M3: collect feedback and tune `constants.lua`.
 
-## Immediate next steps (updated 2026-10-05)
+## Immediate next steps (updated 2026-10-07)
 
-1. P2 step 1: `src/data/buildings.lua`, `src/data/movement.lua`, the M1 block in `constants.lua`, and `data_spec`.
-2. P2 step 2: `dice.lua`, `modifiers.lua`, `serialize.lua` and their specs.
-3. P2 step 3: `territory.lua` and its spec (rules in D-006).
+1. P3 phase A: buildings keyed by uid + `structures.lua`, materials in `res`, `Hex.rotate`, `lostStrategic`, `upkeep.lua`, the `prompt` phase, save v3 + migration. No rule change, so the existing tests and `--sim 100` must stay green.
+2. P3 phase B: C2/C3 upgrade in place with footprints and Q rotation; demolish (TN lost, D-014).
+3. Playtest #1 for M1 (P2 checklist) can run in parallel. Its tuning only touches `constants.lua`.
