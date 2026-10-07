@@ -24,6 +24,8 @@ local State       = require("src.core.state")
 local Structures  = require("src.core.structures")
 local Construction = require("src.core.construction")
 local Units        = require("src.core.units")      -- bước upkeep đơn vị đăng ký ở đây
+local Roads        = require("src.core.roads")
+local Trade        = require("src.core.trade")
 local Passives    = require("src.core.passives")   -- đăng ký bước upkeep thu nhập thụ động (sau bước dỡ)
 local Upkeep      = require("src.core.upkeep")
 local Territory   = require("src.core.territory")
@@ -136,6 +138,10 @@ local function buildCheck(state, pid, id, tile)
     if Structures.at(state, tile) or Territory.isAnchorTile(state, tile) then return false, "Ô đã có công trình" end
     if Rebel.isBlockaded(state, tile) then return false, "Ô đang bị Phiến Quân phong tỏa" end
     if not Buildings.allowedOn(id, 1, tile.terrain) then return false, "Địa hình này không xây được công trình này" end
+    if id == "B-05" then
+        local okM, whyM = Construction.marketReach(state, pid, { tile })
+        if not okM then return false, whyM end
+    end
     if not canAfford(state.players[pid].res, buildCost(state, pid, id, tile)) then return false, "Không đủ tài nguyên" end
     return true
 end
@@ -233,16 +239,18 @@ H.trade = {
     check = function(state, cmd, pid)
         if not CORE[cmd.give] or not CORE[cmd.get] then return false, "Tài nguyên không hợp lệ" end
         if cmd.give == cmd.get then return false, "Phải đổi sang loại khác" end
-        if state.players[pid].res[cmd.give] < C.BANK_TRADE_RATE then
-            return false, "Cần " .. C.BANK_TRADE_RATE .. " tài nguyên cùng loại để đổi"
+        local rate = Trade.bankRate(state, pid)
+        if state.players[pid].res[cmd.give] < rate then
+            return false, "Cần " .. rate .. " tài nguyên cùng loại để đổi"
         end
         return true
     end,
     apply = function(state, cmd, pid, events)
         local res = state.players[pid].res
-        res[cmd.give] = res[cmd.give] - C.BANK_TRADE_RATE
+        local rate = Trade.bankRate(state, pid)
+        res[cmd.give] = res[cmd.give] - rate
         res[cmd.get] = res[cmd.get] + 1
-        events[#events + 1] = { kind = "trade", pid = pid, give = cmd.give, get = cmd.get, rate = C.BANK_TRADE_RATE }
+        events[#events + 1] = { kind = "trade", pid = pid, give = cmd.give, get = cmd.get, rate = rate }
     end,
 }
 
@@ -311,11 +319,13 @@ H.buyUnit = {
     check = function(state, cmd, pid)
         local ok, why = Units.checkBuy(state, pid, cmd.unit, state.map:get(cmd.q or 0, cmd.r or 0))
         if not ok then return false, why end
-        if not canAfford(state.players[pid].res, C.EXPEDITION_COST) then return false, "Không đủ tài nguyên mua Viễn Chinh" end
+        if not canAfford(state.players[pid].res, C.UNIT_COST[cmd.unit]) then
+            return false, "Không đủ tài nguyên mua " .. Units.TYPES[cmd.unit].name
+        end
         return true
     end,
     apply = function(state, cmd, pid, events)
-        pay(state.players[pid].res, C.EXPEDITION_COST)
+        pay(state.players[pid].res, C.UNIT_COST[cmd.unit])
         local u = Units.spawn(state, pid, cmd.unit, state.map:get(cmd.q, cmd.r))
         events[#events + 1] = { kind = "unit_buy", pid = pid, uid = u.uid, unit = u.type, q = u.q, r = u.r }
     end,
@@ -327,9 +337,68 @@ H.moveUnit = {
     apply = function(state, cmd, pid, events)
         local u = state.units[cmd.uid]
         local from = { q = u.q, r = u.r }
-        local cost = Units.move(state, u, cmd.q, cmd.r)
+        local cost, built, gold = Units.move(state, u, cmd.q, cmd.r)
         events[#events + 1] = { kind = "unit_move", pid = pid, uid = u.uid, unit = u.type, from = from,
-                                q = u.q, r = u.r, cost = cost, left = u.mp }
+                                q = u.q, r = u.r, cost = cost, left = u.mp, roads = #built, gold = gold }
+    end,
+}
+
+-- Nâng Đường Đất lên Lát Đá: ô nằm trong lãnh thổ hoặc vùng ảnh hưởng của mình (D-016).
+local function roadUpgradeCheck(state, pid, tile)
+    if not tile then return false, "Không có ô này" end
+    local road = Roads.get(state, tile)
+    if not road then return false, "Ô này chưa có đường" end
+    if road.level >= 2 then return false, "Đường đã là Lát Đá" end
+    if state.owner[key(tile)] ~= pid and not Territory.inInfluence(state, pid, tile) then
+        return false, "Chỉ nâng đường trong lãnh thổ hoặc vùng ảnh hưởng của bạn"
+    end
+    if not canAfford(state.players[pid].res, C.ROAD_UPGRADE_COST) then return false, "Không đủ tài nguyên nâng đường" end
+    return true
+end
+
+Game.roadUpgradeCheck = roadUpgradeCheck
+
+H.upgradeRoad = {
+    phase = "action",
+    check = function(state, cmd, pid) return roadUpgradeCheck(state, pid, state.map:get(cmd.q or 0, cmd.r or 0)) end,
+    apply = function(state, cmd, pid, events)
+        pay(state.players[pid].res, C.ROAD_UPGRADE_COST)
+        state.roads[cmd.q .. "," .. cmd.r].level = 2
+        events[#events + 1] = { kind = "road_upgrade", pid = pid, q = cmd.q, r = cmd.r }
+    end,
+}
+
+-- Đề xuất trao đổi với người chơi khác (GDD §5.4): mở lời nhắc cho người nhận, người đề xuất chờ.
+H.proposeTrade = {
+    phase = "action",
+    check = function(state, cmd, pid)
+        local ok, why = Trade.check(state, pid, cmd.to, cmd.give, cmd.get)
+        return ok, why
+    end,
+    apply = function(state, cmd, pid, events)
+        local _, _, route = Trade.check(state, pid, cmd.to, cmd.give, cmd.get)
+        events[#events + 1] = { kind = "trade_proposed", pid = pid, to = cmd.to, give = cmd.give, get = cmd.get, fee = route.fee }
+        Game.openPrompt(state, { kind = "trade", pid = cmd.to, from = pid, give = cmd.give, get = cmd.get,
+                                 fee = route.fee, options = { "accept", "decline" }, resume = "action" })
+    end,
+}
+
+Game.prompts = Game.prompts or {}
+Game.prompts.trade = {
+    check = function(state, p, choice)
+        if choice == "accept" then
+            local ok, why = Trade.check(state, p.from, p.pid, p.give, p.get)
+            if not ok then return false, why end
+        end
+        return true
+    end,
+    apply = function(state, p, choice, events)
+        if choice == "accept" then
+            local route = Trade.execute(state, p.from, p.pid, p.give, p.get)
+            events[#events + 1] = { kind = "trade_accepted", pid = p.from, to = p.pid, give = p.give, get = p.get, fee = route.fee }
+        else
+            events[#events + 1] = { kind = "trade_declined", pid = p.from, to = p.pid }
+        end
     end,
 }
 
@@ -439,7 +508,7 @@ H.demolish = {
 -- state.prompt = { kind, pid, options = { choice... }, resume = "action", ... dữ liệu riêng của kind }
 -- Mỗi kind đăng ký vào Game.prompts: { check(state, prompt, choice) -> ok, lý do,
 --                                      apply(state, prompt, choice, events) }.
-Game.prompts = {}
+Game.prompts = Game.prompts or {}
 
 -- Mở lời nhắc: phase chuyển sang "prompt" cho người trả lời. `resume` là phase quay về sau khi trả lời.
 function Game.openPrompt(state, prompt)
@@ -544,8 +613,9 @@ function Game.legal(state)
         end
     elseif ph == "action" then
         local p = state.players[actor]
+        local bankRate = Trade.bankRate(state, actor)
         for _, give in ipairs(Resources.core) do
-            if p.res[give.key] >= C.BANK_TRADE_RATE then
+            if p.res[give.key] >= bankRate then
                 for _, get in ipairs(Resources.core) do
                     if get.key ~= give.key then
                         out[#out + 1] = { type = "trade", pid = actor, give = give.key, get = get.key }
@@ -566,13 +636,15 @@ function Game.legal(state)
                 out[#out + 1] = { type = "foundSub", pid = actor, uid = u.uid }
             end
             if u.mp > 0 and not u.acted then
-                local dests = {}
-                for _, node in pairs(Units.reachable(state, u)) do
+                local reach, dests = Units.reachable(state, u), {}
+                for _, node in pairs(reach) do
                     if node.prev then dests[#dests + 1] = node.tile end   -- bỏ ô đang đứng
                 end
                 table.sort(dests, function(a, b) if a.r ~= b.r then return a.r < b.r end return a.q < b.q end)
                 for _, t in ipairs(dests) do
-                    out[#out + 1] = { type = "moveUnit", pid = actor, uid = u.uid, q = t.q, r = t.r }
+                    if Units.checkMove(state, actor, u, t.q, t.r, reach) then   -- Giao Thương cần đủ Vàng xây đường
+                        out[#out + 1] = { type = "moveUnit", pid = actor, uid = u.uid, q = t.q, r = t.r }
+                    end
                 end
             end
             if state.rebel and Hex.distance(u, state.rebel) == 1 and not u.acted then
@@ -592,6 +664,35 @@ function Game.legal(state)
             for _, a in ipairs(Territory.anchors(state, actor)) do
                 if Units.checkBuy(state, actor, "expedition", state.map:get(a.q, a.r)) then
                     out[#out + 1] = { type = "buyUnit", pid = actor, unit = "expedition", q = a.q, r = a.r }
+                end
+            end
+        end
+        if canAfford(p.res, C.UNIT_COST.trade) then
+            local spawns = { state.map:get(p.hq.q, p.hq.r) }
+            for _, m in ipairs(Trade.markets(state, actor)) do spawns[#spawns + 1] = Structures.tilesOf(state, m)[1] end
+            for _, t in ipairs(spawns) do
+                if Units.checkBuy(state, actor, "trade", t) then
+                    out[#out + 1] = { type = "buyUnit", pid = actor, unit = "trade", q = t.q, r = t.r }
+                end
+            end
+        end
+        if canAfford(p.res, C.ROAD_UPGRADE_COST) then
+            for _, t in ipairs(Roads.list(state)) do
+                if roadUpgradeCheck(state, actor, t) then out[#out + 1] = { type = "upgradeRoad", pid = actor, q = t.q, r = t.r } end
+            end
+        end
+        -- đề xuất trao đổi: chỉ liệt kê mẫu 1 đổi 1 (Game.check chấp nhận mọi số lượng hợp lệ)
+        if #Trade.markets(state, actor) > 0 then
+            for other = 1, state.playerCount do
+                if other ~= actor and Trade.route(state, actor, other) then
+                    for _, g in ipairs(Resources.core) do
+                        for _, r in ipairs(Resources.core) do
+                            if g.key ~= r.key and p.res[g.key] >= 1 and state.players[other].res[r.key] >= 1 then
+                                local cmd = { type = "proposeTrade", pid = actor, to = other, give = { [g.key] = 1 }, get = { [r.key] = 1 } }
+                                if Trade.check(state, actor, other, cmd.give, cmd.get) then out[#out + 1] = cmd end
+                            end
+                        end
+                    end
                 end
             end
         end

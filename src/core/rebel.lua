@@ -12,6 +12,7 @@ local Hex       = require("src.core.hex")
 local Dice      = require("src.core.dice")
 local State     = require("src.core.state")
 local Structures = require("src.core.structures")
+local Roads     = require("src.core.roads")
 local Movement  = require("src.data.movement")
 local Resources = require("src.data.resources")
 
@@ -208,6 +209,8 @@ function Rebel.step(state, q, r)
                        left = rb.pending.points } }
     if rb.pending.points <= 0 or #Rebel.legalSteps(state) == 0 then
         for _, e in ipairs(Rebel.stop(state)) do events[#events + 1] = e end
+    elseif Roads.damagePass(state, target) then   -- đi qua (không dừng): Đường Đất bị xóa, Lát Đá miễn nhiễm
+        events[#events + 1] = { kind = "road_damaged", q = target.q, r = target.r, lost = true }
     end
     return events
 end
@@ -244,6 +247,12 @@ function Rebel.stop(state)
     local tile = state.map:get(rb.q, rb.r)
     rb.pending = nil
     local events = { { kind = "rebel_stop", q = rb.q, r = rb.r, roller = roller } }
+
+    -- dừng trên đường: Đất mất, Lát Đá tụt về Đất (Data §6.2)
+    local hadStone = Roads.isStone(state, tile)
+    if Roads.damageStop(state, tile) then
+        events[#events + 1] = { kind = "road_damaged", q = rb.q, r = rb.r, lost = not hadStone }
+    end
 
     -- đơn vị đứng trên ô bị tiêu hủy ngay, không kiểm tra (Data §5 "PQ đè lên đơn vị")
     local doomed = {}

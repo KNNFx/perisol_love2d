@@ -223,21 +223,21 @@ Each phase ends with `test.bat` green, `lovec . --sim 100` clean, a UI check (sc
   - [x] Upkeep from the 2nd Expedition. TN-04 / TN-11 movement bonuses.
   - [x] UI: unit layer, reachable flood-fill, path + cost preview, unit context panel (Found Sub with 2-step confirm, Suppress by dice or by paying TN with a push-direction pick, Garrison, Disband), "Mua Viễn Chinh" button replaces "Lập Khu Trực Thuộc". Dev: `--demo unit` / `--demo suppress`; `--drive` moves units.
   - [x] `units_spec` (buy/quota/spawn, movement costs, TN-04/TN-11, upkeep, found Sub, suppress win/lose/pay/threshold, garrison + Rebel stop filter, Rebel destroys units, save/load) + a resource-rich sim test. Sim: unit stats and invariants (quota, mp, positions).
-- [ ] **E. Step 5 — Roads and trade**
-  - [ ] `src/core/roads.lua`: `state.roads` (no owner), `connected`, `routeLength`.
-  - [ ] U-02 Trade unit: costs 5 V, quota 2, builds Dirt Road at 1 V/tile on Plains/Forest/Coast/Hills (free with TN-10).
-  - [ ] Road movement: cost −1 (minimum 1). A unit starting its turn on Stone gets +1 step.
-  - [ ] `upgradeRoad` (Stone: 1 KT + 1 V) inside your own influence zone or territory.
-  - [ ] Rebel wear on roads.
-  - [ ] Market C1/C2 needs to be adjacent to HQ, road-connected to HQ, or on TN-03. Checked at build time only.
-  - [ ] B-05.2 passive: +0.5 V per Dirt Road route, max 3.
-  - [ ] Trade commands:
+- [x] **E. Step 5 — Roads and trade** — done 2026-10-07 (rules in D-016)
+  - [x] `src/core/roads.lua`: `state.roads` (no owner), `connected`, `routeLength`.
+  - [x] U-02 Trade unit: costs 5 V, quota 2, builds Dirt Road at 1 V/tile on Plains/Forest/Coast/Hills (free with TN-10).
+  - [x] Road movement: cost −1 (minimum 1). A unit starting its turn on Stone gets +1 step.
+  - [x] `upgradeRoad` (Stone: 1 KT + 1 V) inside your own influence zone or territory.
+  - [x] Rebel wear on roads.
+  - [x] Market C1/C2 needs to be adjacent to HQ, road-connected to HQ, or on TN-03. Checked at build time only.
+  - [x] B-05.2 passive: +0.5 V per Dirt Road route, max 3.
+  - [x] Trade commands:
     - `proposeTrade` → `prompt` → `respond`.
     - No gifts. Fee per road tile, −50% if the whole route is Stone, free through TN-10.
     - Market C3 within radius 2 needs no road.
     - TN-06 + own Market C2+ makes the bank rate 1:1.
-  - [ ] UI: road layer, trade proposal popup, reply popup behind a "pass the screen" cover.
-  - [ ] `roads_spec` + trade cases in `game_spec`.
+  - [x] UI: road layer, trade proposal popup, reply popup behind a "pass the screen" cover.
+  - [x] `roads_spec` (Trade unit, road building/movement, Stone upgrade, Rebel wear, route/fee, Market road rule, B-05.2 passive, propose/respond flow, save/load mid-prompt, bank 1:1, resource-rich sim). Sim: road/trade stats and road invariants. Dev: `--demo trade` / `--demo reply`.
 - [ ] **F. Step 3 — HQ C3–C5, Sub C2–C3**
   - [ ] Costs in `constants.lua` (`HQ_UPGRADE_COST[3..5]`, `SUB_UPGRADE_COST[2..3]`, `HQ_MAX_LEVEL = 5`) + `upgradeSub`.
   - [ ] Gates: HQ C3 needs a road-connected Market, HQ C4 round 11+, HQ C5 a Market C3, Sub C3 round 16+.

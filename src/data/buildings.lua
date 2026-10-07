@@ -8,7 +8,7 @@
 --   produces = { { face, res, n }, ... }          khi xúc xắc ra `face`, nhận n × (số viên khớp) `res`
 --   passive  = mô tả hiệu ứng thụ động (chữ cho tooltip)
 --   yield    = thu nhập thụ động mỗi lượt của chủ (src/core/passives.lua): { res, n, when? }
---              when = "rebel" (chỉ khi có Phiến Quân trên bản đồ) | "adjacent" (n × số ô thực hữu kề của chủ)
+--              when = "rebel" (chỉ khi có Phiến Quân) | "adjacent" (n × số ô thực hữu kề của chủ) | "roads" (n × số tuyến đường kề, tối đa 3)
 --   terrains = { ["DH-xx"] = true | "pref" }      "pref" = ô ưu tiên (⭐, chưa có bonus ở M1, D-010)
 --
 -- Mặt xúc xắc: Khoa Học 1, Văn Hóa 2, Kỹ Thuật 3, Tín Ngưỡng 4, Vàng 5 (src/data/resources.lua).
@@ -100,6 +100,7 @@ B.list = {
             { cost = { gold = 5, engineering = 3 }, tiles = 2, shape = "pair",
               produces = { { GOLD, R_GOLD, 2 } },
               passive = "+0.5 V mỗi vòng cho mỗi tuyến đường (tối đa 3)",
+              yield = { { res = R_GOLD, n = 0.5, when = "roads" } },
               terrains = { ["DH-01"] = true, ["DH-05"] = true, ["DH-07"] = true, ["DH-10"] = "pref" } },
             { cost = { gold = 8, engineering = 5, culture = 2 }, tiles = 3, shape = "L",
               produces = { { GOLD, R_GOLD, 3 } },

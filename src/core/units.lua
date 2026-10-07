@@ -12,6 +12,7 @@ local C          = require("src.config.constants")
 local Dice       = require("src.core.dice")
 local Hex        = require("src.core.hex")
 local Rebel      = require("src.core.rebel")
+local Roads      = require("src.core.roads")
 local State      = require("src.core.state")
 local Structures = require("src.core.structures")
 local Territory  = require("src.core.territory")
@@ -82,16 +83,24 @@ function U.quotaMax(quota) return C[QUOTA_MAX[quota]] end
 function U.baseMove(state, u)
     local mp = C[U.TYPES[u.type].base]
     local tile = U.tileOf(state, u)
-    if tile and Structures.strategicAt(state, tile) == "TN-04" and u.type ~= "trade" then
-        if Territory.distanceToAnchor(state, u.owner, tile) <= C.TN04_HOME_RADIUS then mp = mp + C.TN04_BONUS_MOVE end
+    if tile then
+        local tn = Structures.strategicAt(state, tile)
+        if tn == "TN-04" and u.type ~= "trade" then
+            if Territory.distanceToAnchor(state, u.owner, tile) <= C.TN04_HOME_RADIUS then mp = mp + C.TN04_BONUS_MOVE end
+        elseif tn == Strategic.HARBOR and u.type == "trade" then
+            mp = mp + C.TN10_BONUS_MOVE
+        end
+        if Roads.isStone(state, tile) then mp = mp + C.STONE_ROAD_START_BONUS end
     end
     return mp
 end
 
--- Chi phí để đơn vị `u` đi vào `tile`. TN-11 Gió Mạnh giảm TN11_STEP_REFUND (tối thiểu 0).
+-- Chi phí để đơn vị `u` đi vào `tile`. Có đường: giảm ROAD_STEP_REDUCTION (tối thiểu 1). TN-11 Gió Mạnh giảm
+-- thêm TN11_STEP_REFUND (tối thiểu 0, không áp cho Giao Thương).
 function U.stepCost(state, u, tile)
     local c = Movement.stepCost(U.TYPES[u.type].move, tile.terrain, state.round)
     if c == INF then return INF end
+    if Roads.has(state, tile) then c = math.max(1, c - C.ROAD_STEP_REDUCTION) end
     if Structures.strategicAt(state, tile) == "TN-11" and u.type ~= "trade" then
         c = math.max(0, c - C.TN11_STEP_REFUND)
     end
@@ -127,8 +136,8 @@ function U.reachable(state, u)
 end
 
 -- Đường đi (danh sách tile, không gồm ô xuất phát) tới (q, r) và tổng chi phí, hoặc nil.
-function U.pathTo(state, u, q, r)
-    local reach = U.reachable(state, u)
+function U.pathTo(state, u, q, r, reach)
+    reach = reach or U.reachable(state, u)
     local node = reach[q .. "," .. r]
     if not node or (u.q == q and u.r == r) then return nil end
     local path, k = {}, q .. "," .. r
@@ -139,23 +148,45 @@ function U.pathTo(state, u, q, r)
     return path, node.cost
 end
 
-function U.checkMove(state, pid, u, q, r)
+-- Các ô đơn vị Giao Thương sẽ xây Đường Đất khi đi theo `path` và tổng Vàng phải trả (D-016).
+-- Mỗi ô đi vào mà chưa có đường và địa hình cho phép thì tạo đường, tốn ROAD_COST_PER_TILE (TN-10: miễn phí).
+function U.roadPlan(state, u, path)
+    local tiles, gold = {}, 0
+    if u.type ~= "trade" then return tiles, gold end
+    for _, t in ipairs(path) do
+        if not Roads.has(state, t) and Roads.canBuildOn(t) then
+            tiles[#tiles + 1] = t
+            if Structures.strategicAt(state, t) ~= Strategic.HARBOR then gold = gold + C.ROAD_COST_PER_TILE end
+        end
+    end
+    return tiles, gold
+end
+
+-- `reach` (tùy chọn) là kết quả U.reachable đã tính sẵn, để liệt kê nhiều đích mà không chạy lại Dijkstra.
+function U.checkMove(state, pid, u, q, r, reach)
     if not u then return false, "Không có đơn vị này" end
     if u.owner ~= pid then return false, "Không phải đơn vị của bạn" end
     if u.acted then return false, "Đơn vị đã dùng hành động trong lượt này" end
     if u.mp <= 0 then return false, "Hết điểm di chuyển" end
     if u.q == q and u.r == r then return false, "Đơn vị đang đứng ở ô này" end
-    local _, cost = U.pathTo(state, u, q, r)
+    local path, cost = U.pathTo(state, u, q, r, reach)
     if not cost then return false, "Không đi tới được ô này với điểm di chuyển còn lại" end
+    local _, gold = U.roadPlan(state, u, path)
+    if gold > state.players[pid].res.gold then
+        return false, string.format("Không đủ Vàng xây đường (cần %d V)", gold)
+    end
     return true
 end
 
--- Áp dụng (đã qua check). Trả cost.
+-- Áp dụng (đã qua check). Trả cost, danh sách tile đã xây đường, Vàng đã trả.
 function U.move(state, u, q, r)
-    local _, cost = U.pathTo(state, u, q, r)
+    local path, cost = U.pathTo(state, u, q, r)
+    local built, gold = U.roadPlan(state, u, path)
+    for _, t in ipairs(built) do Roads.build(state, t) end
+    state.players[u.owner].res.gold = state.players[u.owner].res.gold - gold
     u.mp = u.mp - cost
     u.q, u.r = q, r
-    return cost
+    return cost, built, gold
 end
 
 -- ─── Mua / giải thể ─────────────────────────────────────────────────────────
@@ -168,24 +199,47 @@ local function isOwnAnchor(state, pid, tile)
     return false
 end
 
+-- Số Khu Chợ (B-05, không chờ dỡ) của `pid`.
+local function hasMarket(state, pid)
+    for _, b in pairs(state.buildings) do
+        if b.owner == pid and b.id == "B-05" and not b.demolishing then return true end
+    end
+    return false
+end
+
+-- Giao Thương sinh ở ô thuộc Khu Chợ của mình; chưa có chợ nào thì sinh ở Nhà Chính (Data §2).
+local function isTradeSpawn(state, pid, tile)
+    local b = Structures.at(state, tile)
+    if b and b.owner == pid and b.id == "B-05" and not b.demolishing then return true end
+    return not hasMarket(state, pid) and isOwnAnchor(state, pid, tile) and tile.q == state.players[pid].hq.q
+        and tile.r == state.players[pid].hq.r
+end
+
 function U.checkBuy(state, pid, unitType, tile)
-    if unitType ~= "expedition" then return false, "Loại đơn vị này chưa mua được" end
+    local def = U.TYPES[unitType]
+    if unitType ~= "expedition" and unitType ~= "trade" then return false, "Loại đơn vị này chưa mua được" end
     if not tile then return false, "Không có ô này" end
-    if not isOwnAnchor(state, pid, tile) then return false, "Viễn Chinh chỉ sinh ở Nhà Chính hoặc Khu Trực Thuộc của bạn" end
+    if unitType == "expedition" then
+        if not isOwnAnchor(state, pid, tile) then
+            return false, "Viễn Chinh chỉ sinh ở Nhà Chính hoặc Khu Trực Thuộc của bạn"
+        end
+    elseif not isTradeSpawn(state, pid, tile) then
+        return false, "Giao Thương sinh ở Khu Chợ của bạn (chưa có chợ thì ở Nhà Chính)"
+    end
     if Rebel.isBlockaded(state, tile) then return false, "Ô đang bị Phiến Quân phong tỏa" end
-    local quota = U.TYPES[unitType].quota
-    if U.quotaCount(state, pid, quota) >= U.quotaMax(quota) then
-        return false, "Đã đạt giới hạn " .. U.quotaMax(quota) .. " Viễn Chinh"
+    if U.quotaCount(state, pid, def.quota) >= U.quotaMax(def.quota) then
+        return false, "Đã đạt giới hạn " .. U.quotaMax(def.quota) .. " " .. def.name
     end
     return true
 end
 
--- Sinh đơn vị mới. Viễn Chinh không hành động ngay khi sinh (Data §2): mp = 0.
+-- Sinh đơn vị mới. Viễn Chinh không hành động ngay khi sinh (Data §2): mp = 0. Giao Thương đi ngay với đủ bước.
 function U.spawn(state, pid, unitType, tile)
     local uid = state.nextUnitUid or 1
     state.nextUnitUid = uid + 1
     local u = { uid = uid, type = unitType, owner = pid, q = tile.q, r = tile.r, mp = 0, acted = false,
                 garrison = false, recentGarrison = false }
+    if unitType == "trade" then u.mp = U.baseMove(state, u) end
     state.units[uid] = u
     return u
 end
@@ -299,21 +353,25 @@ end
 -- Reset điểm di chuyển và hành động; Trú Đóng hết hiệu lực (ghi nhớ cho ngưỡng Trấn Áp); trả Vàng duy trì
 -- từ đơn vị thứ 2 trở đi, thiếu Vàng thì hủy đơn vị mới nhất (D-015).
 function U.startTurn(state, pid, events)
-    local mine = U.ownedBy(state, pid)
-    local due = math.max(0, #mine - 1) * C.EXPEDITION_UPKEEP_GOLD
+    -- upkeep chỉ tính đơn vị quân sự (quota "expedition"); Giao Thương chưa có upkeep (D-015)
+    local army = {}
+    for _, u in ipairs(U.ownedBy(state, pid)) do
+        if U.TYPES[u.type].quota == "expedition" then army[#army + 1] = u end
+    end
+    local due = math.max(0, #army - 1) * C.EXPEDITION_UPKEEP_GOLD
     local res = state.players[pid].res
-    while due > res.gold and #mine > 1 do
-        local u = table.remove(mine)
+    while due > res.gold and #army > 1 do
+        local u = table.remove(army)
         events[#events + 1] = { kind = "unit_destroyed", uid = u.uid, unit = u.type, pid = pid, q = u.q, r = u.r,
                                 reason = "upkeep" }
         state.units[u.uid] = nil
-        due = math.max(0, #mine - 1) * C.EXPEDITION_UPKEEP_GOLD
+        due = math.max(0, #army - 1) * C.EXPEDITION_UPKEEP_GOLD
     end
     if due > 0 then
         res.gold = res.gold - due
-        events[#events + 1] = { kind = "unit_upkeep", pid = pid, gold = due, count = #mine }
+        events[#events + 1] = { kind = "unit_upkeep", pid = pid, gold = due, count = #army }
     end
-    for _, u in ipairs(mine) do
+    for _, u in ipairs(U.ownedBy(state, pid)) do
         u.recentGarrison, u.garrison = u.garrison, false
         u.mp, u.acted = U.baseMove(state, u), false
     end

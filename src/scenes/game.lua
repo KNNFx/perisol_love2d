@@ -18,6 +18,8 @@ local Strategic   = require("src.data.strategic")
 local Structures  = require("src.core.structures")
 local Construction = require("src.core.construction")
 local Units       = require("src.core.units")
+local Roads       = require("src.core.roads")
+local Trade       = require("src.core.trade")
 local Hex         = require("src.core.hex")
 local Camera      = require("src.render.camera")
 local Tileset     = require("src.render.tileset")
@@ -34,7 +36,7 @@ local Scene = {}
 
 local PHASE_NAME = {
     setup_hq = "Đặt Nhà Chính", roll = "Sản xuất", rebel_move = "Phiến Quân",
-    rebel_loss = "Phiến Quân", action = "Hành động", over = "Kết thúc",
+    rebel_loss = "Phiến Quân", prompt = "Trao đổi", action = "Hành động", over = "Kết thúc",
 }
 local FACE_COLOR_HEX = { 0.45, 0.47, 0.52 }
 local LOG_MAX = 200
@@ -108,6 +110,7 @@ function Scene:enter(opts)
     if demoHints then   -- dev: --demo upgrade / demolish dựng sẵn lựa chọn để chụp màn hình
         self.selected, self.mode, self.confirm, self.demoHover = demoHints.selected, demoHints.mode, demoHints.confirm, demoHints.hover
         self.selectedUnit = demoHints.selectedUnit
+        self.popup, self.propose, self.replyShown = demoHints.popup, demoHints.propose, demoHints.replyShown
     end
 
     Theme.update(love.graphics.getDimensions())
@@ -344,6 +347,20 @@ function Scene:computeTargets()
             end
         end
         ghostCheck = function(t) return Game.check(state, { type = "buyUnit", unit = "expedition", q = t.q, r = t.r }) end
+    elseif state.phase == "action" and self.mode and self.mode.kind == "buytrade" then
+        local spawns = { state.map:get(state.players[actor].hq.q, state.players[actor].hq.r) }
+        for _, m in ipairs(Trade.markets(state, actor)) do spawns[#spawns + 1] = Structures.tilesOf(state, m)[1] end
+        for _, t in ipairs(spawns) do
+            if Game.check(state, { type = "buyUnit", unit = "trade", q = t.q, r = t.r }) then
+                items[#items + 1] = { tile = t, color = { 0.9, 0.5, 1 }, alpha = 0.3 }
+            end
+        end
+        ghostCheck = function(t) return Game.check(state, { type = "buyUnit", unit = "trade", q = t.q, r = t.r }) end
+    elseif state.phase == "action" and self.mode and self.mode.kind == "road" then
+        for _, t in ipairs(Roads.list(state)) do
+            if Game.roadUpgradeCheck(state, actor, t) then items[#items + 1] = { tile = t, color = { 0.85, 0.85, 0.95 }, alpha = 0.3 } end
+        end
+        ghostCheck = function(t) return Game.check(state, { type = "upgradeRoad", q = t.q, r = t.r }) end
     elseif state.phase == "action" and self.mode and self.mode.kind == "suppress" then
         local u = state.units[self.mode.uid]
         local rb = state.rebel
@@ -458,6 +475,7 @@ function Scene:drawMap()
         thresholdFn = function(tile, pid) return Territory.threshold(state, pid, tile) end,
     })
     MapRenderer.drawMarkers(state.map, { zoom = zoom, showZones = self.showZones, lostStrategic = state.lostStrategic })
+    Layers.drawRoads(state, { zoom = zoom })
     Layers.drawBuildings(state, { zoom = zoom })
     Layers.drawUnits(state, { zoom = zoom, selected = self.selectedUnit })
     Layers.drawRebel(state, { zoom = zoom, time = self.time })
@@ -478,7 +496,14 @@ function Scene:drawMap()
         local su = self.selectedUnit and state.units[self.selectedUnit]
         if su and not self.mode and self.hover and state.phase == "action" then
             local path, cost = Units.pathTo(state, su, self.hover.q, self.hover.r)
-            if path then Layers.drawPath(Units.tileOf(state, su), path, cost, zoom) end
+            if path then
+                local label = cost
+                if su.type == "trade" then   -- Giao Thương: kèm Vàng xây đường
+                    local _, gold = Units.roadPlan(state, su, path)
+                    label = string.format("%d / %dV", cost, gold)
+                end
+                Layers.drawPath(Units.tileOf(state, su), path, label, zoom)
+            end
         end
         if self.hover and ghostCheck then
             local ok, why = ghostCheck(self.hover)
@@ -530,13 +555,17 @@ function Scene:hintText()
             return "Chọn ô sáng trong vùng ảnh hưởng để mua (di chuột để xem giá, Esc để hủy)"
         elseif self.mode and self.mode.kind == "buyunit" then
             return "Chọn Nhà Chính hoặc Khu Trực Thuộc để sinh Viễn Chinh (Esc để hủy)"
+        elseif self.mode and self.mode.kind == "buytrade" then
+            return "Chọn Khu Chợ (hoặc Nhà Chính nếu chưa có chợ) để sinh Giao Thương (Esc để hủy)"
+        elseif self.mode and self.mode.kind == "road" then
+            return "Chọn ô Đường Đất sáng để nâng lên Lát Đá (Esc để hủy)"
         elseif self.mode and self.mode.kind == "suppress" then
             return string.format("Chọn ô kề Phiến Quân để định hướng đẩy (%s) — Esc để hủy",
                 self.mode.pay and "trả TN, chắc thắng" or "đổ xúc xắc")
         elseif self.selectedUnit and state.units[self.selectedUnit] then
             local u = state.units[self.selectedUnit]
             if u.owner == actor and u.mp > 0 and not u.acted then
-                return string.format("Viễn Chinh còn %d điểm: bấm ô sáng để di chuyển (Esc bỏ chọn)", u.mp)
+                return string.format("%s còn %d điểm: bấm ô sáng để di chuyển (Esc bỏ chọn)", Units.TYPES[u.type].name, u.mp)
             end
         end
         return who .. ": chọn hành động hoặc Kết thúc lượt (" .. Actions.label("endTurn") .. ")"
@@ -722,35 +751,86 @@ function Scene:drawActions(x, y, w)
         onClick = function() self:cmd({ type = "upgradeHQ" }) end,
     })
     y = y + bh + gap
-    local unitCost = costText(C.EXPEDITION_COST)
-    local nUnits = p and Units.quotaCount(state, actor, "expedition") or 0
-    local canBuyUnit = false
-    if inAction and p then
-        for _, a in ipairs(Territory.anchors(state, actor)) do
-            if Game.check(state, { type = "buyUnit", unit = "expedition", q = a.q, r = a.r }) then canBuyUnit = true end
+    -- mua đơn vị: hai nút nửa hàng (Viễn Chinh | Giao Thương)
+    local half = (w - Theme.px(4)) / 2
+    local function canBuy(unitType, spawnTiles)
+        if not (inAction and p) then return false end
+        for _, t in ipairs(spawnTiles) do
+            if Game.check(state, { type = "buyUnit", unit = unitType, q = t.q, r = t.r }) then return true end
         end
+        return false
     end
-    ui:button("buyunit", x, y, w, bh, string.format("Mua Viễn Chinh (%d/%d)", nUnits, Units.quotaMax("expedition")), {
-        enabled = canBuyUnit, focused = isMode("buyunit"), font = Theme.font(11, true),
-        tip = "Viễn Chinh (" .. unitCost .. ") sinh ở Nhà Chính hoặc Khu Trực Thuộc, đi " .. C.EXPEDITION_BASE_MOVE
+    local anchorTiles = {}
+    for _, a in ipairs(p and Territory.anchors(state, actor) or {}) do anchorTiles[#anchorTiles + 1] = state.map:get(a.q, a.r) end
+    ui:button("buyunit", x, y, half, bh, string.format("Viễn Chinh %d/%d", p and Units.quotaCount(state, actor, "expedition") or 0,
+            Units.quotaMax("expedition")), {
+        enabled = canBuy("expedition", anchorTiles), focused = isMode("buyunit"), font = Theme.font(10, true),
+        tip = "Viễn Chinh (" .. costText(C.EXPEDITION_COST) .. ") sinh ở Nhà Chính hoặc Khu Trực Thuộc, đi " .. C.EXPEDITION_BASE_MOVE
             .. " bước mỗi lượt từ lượt sau. Bấm vào đơn vị trên bản đồ để Lập Khu Trực Thuộc, Trấn Áp Phiến Quân, Trú Đóng.",
         onClick = function()
-            local anchors = Territory.anchors(state, actor)
-            if #anchors == 1 then
-                self:cmd({ type = "buyUnit", unit = "expedition", q = anchors[1].q, r = anchors[1].r })
+            if #anchorTiles == 1 then
+                self:cmd({ type = "buyUnit", unit = "expedition", q = anchorTiles[1].q, r = anchorTiles[1].r })
             else
                 toggle("buyunit")
             end
         end,
     })
-    y = y + bh + gap
-    ui:button("trade", x, y, w, bh, string.format("Đổi tài nguyên (%d:1)", C.BANK_TRADE_RATE), {
-        enabled = inAction, font = Theme.font(11, true),
-        tip = string.format("Đổi %d tài nguyên cùng loại lấy 1 loại bất kỳ với ngân hàng.", C.BANK_TRADE_RATE),
-        onClick = function() self.popup, self.trade = "trade", {} end,
+    local tradeSpawns = {}
+    if p then
+        tradeSpawns[1] = state.map:get(p.hq.q, p.hq.r)
+        for _, m in ipairs(Trade.markets(state, actor)) do tradeSpawns[#tradeSpawns + 1] = Structures.tilesOf(state, m)[1] end
+    end
+    ui:button("buytrade", x + half + Theme.px(4), y, half, bh, string.format("Giao Thương %d/%d",
+            p and Units.quotaCount(state, actor, "trade") or 0, Units.quotaMax("trade")), {
+        enabled = canBuy("trade", tradeSpawns), focused = isMode("buytrade"), font = Theme.font(10, true),
+        tip = "Giao Thương (" .. costText(C.UNIT_COST.trade) .. ") sinh ở Khu Chợ của bạn (chưa có chợ thì ở Nhà Chính), đi "
+            .. C.TRADE_BASE_MOVE .. " bước ngay khi mua. Mỗi ô đi qua tự xây Đường Đất (" .. C.ROAD_COST_PER_TILE .. " V/ô).",
+        onClick = function()
+            local valid = {}
+            for _, t in ipairs(tradeSpawns) do
+                if Game.check(state, { type = "buyUnit", unit = "trade", q = t.q, r = t.r }) then valid[#valid + 1] = t end
+            end
+            if #valid == 1 then self:cmd({ type = "buyUnit", unit = "trade", q = valid[1].q, r = valid[1].r })
+            else toggle("buytrade") end
+        end,
     })
     y = y + bh + gap
-    ui:button("end", x, y, w, Theme.px(28), "Kết thúc lượt (" .. Actions.label("endTurn") .. ")", {
+    local canRoad = false
+    if inAction and p and canAfford(p.res, C.ROAD_UPGRADE_COST) then
+        for _, t in ipairs(Roads.list(state)) do
+            if Game.roadUpgradeCheck(state, actor, t) then canRoad = true break end
+        end
+    end
+    ui:button("roadup", x, y, w, bh, "Nâng Đường Lát Đá (" .. (costText(C.ROAD_UPGRADE_COST):gsub(" %+ ", "+")) .. ")", {
+        enabled = canRoad, focused = isMode("road"), font = Theme.font(11, true),
+        tip = "Nâng một ô Đường Đất trong lãnh thổ/vùng ảnh hưởng của bạn thành Lát Đá: đi nhanh hơn, phí giao thương giảm một nửa nếu cả tuyến là Lát Đá, Phiến Quân đi qua không phá được.",
+        onClick = function() toggle("road") end,
+    })
+    y = y + bh + gap
+    local rate = p and Trade.bankRate(state, actor) or C.BANK_TRADE_RATE
+    ui:button("trade", x, y, half, bh, string.format("Ngân hàng %d:1", rate), {
+        enabled = inAction, font = Theme.font(10, true),
+        tip = string.format("Đổi %d tài nguyên cùng loại lấy 1 loại bất kỳ với ngân hàng.", rate),
+        onClick = function() self.popup, self.trade = "trade", {} end,
+    })
+    local canPlayerTrade = false
+    if inAction and p then
+        for other = 1, state.playerCount do
+            if other ~= actor and Trade.route(state, actor, other) then canPlayerTrade = true end
+        end
+    end
+    ui:button("ptrade", x + half + Theme.px(4), y, half, bh, "Trao đổi", {
+        enabled = canPlayerTrade, font = Theme.font(10, true),
+        tip = "Đề xuất đổi tài nguyên với người chơi khác. Cần Khu Chợ của hai bên nối đường (hoặc Khu Chợ C3 trong bán kính 2). Không cho không; bạn trả phí 1 V mỗi ô đường.",
+        onClick = function()
+            local others = {}
+            for other = 1, state.playerCount do
+                if other ~= actor and Trade.route(state, actor, other) then others[#others + 1] = other end
+            end
+            self.popup, self.propose = "propose", { to = others[1], give = {}, get = {} }
+        end,
+    })
+    y = y + bh + gap    ui:button("end", x, y, w, Theme.px(28), "Kết thúc lượt (" .. Actions.label("endTurn") .. ")", {
         enabled = inAction, color = inAction and { 0.42, 0.30, 0.18 } or nil, font = Theme.font(12, true),
         onClick = function() self.mode = nil; self:cmd({ type = "endTurn" }) end,
     })
@@ -904,12 +984,14 @@ function Scene:drawUnitPanel(x, y, w)
     local bh, gap, pad = Theme.px(24), Theme.px(4), Theme.px(8)
     local fs = Theme.font(10)
     local def = Units.TYPES[u.type]
-    local h = Theme.px(54) + 5 * (bh + gap)
+    local isArmy = u.type ~= "trade"     -- Giao Thương chỉ có Giải thể (xây đường khi đi)
+    local h = Theme.px(54) + (isArmy and 5 or 1) * (bh + gap)
     ui:panel(x, y, w, h, { borderColor = Theme.player[u.owner] })
     ui:label(def.name, x + pad, y + Theme.px(5), { font = Theme.font(12, true), color = Theme.color.accent })
-    ui:label(string.format("Chủ: P%d · di chuyển %d/%d%s", u.owner, u.mp, C[def.base], u.acted and " · đã hành động" or ""),
+    ui:label(string.format("Chủ: P%d · di chuyển %d/%d%s", u.owner, u.mp, Units.baseMove(state, u), u.acted and " · đã hành động" or ""),
         x + pad, y + Theme.px(22), { font = fs, color = Theme.color.dim, width = w - 2 * pad })
-    ui:label(u.garrison and "Đang Trú Đóng" or (u.recentGarrison and "Vừa Trú Đóng (Trấn Áp dễ hơn)" or ""),
+    ui:label(u.type == "trade" and string.format("Mỗi ô đi qua tự xây Đường Đất (%d V/ô)", C.ROAD_COST_PER_TILE)
+        or (u.garrison and "Đang Trú Đóng" or (u.recentGarrison and "Vừa Trú Đóng (Trấn Áp dễ hơn)" or "")),
         x + pad, y + Theme.px(35), { font = fs, color = Theme.color.good, width = w - 2 * pad })
 
     local by = y + Theme.px(50)
@@ -920,6 +1002,7 @@ function Scene:drawUnitPanel(x, y, w)
         by = by + bh + gap
     end
 
+    if isArmy then
     local okSub, whySub = false, "Không phải lượt của bạn"
     if mine then
         okSub, whySub = Units.checkFoundSub(state, u.owner, u)
@@ -947,6 +1030,7 @@ function Scene:drawUnitPanel(x, y, w)
     if mine then okG, whyG = Units.checkGarrison(state, u.owner, u) end
     btn("up_gar", "Trú Đóng", okG, "PQ không dừng được ở ô này và ô kề; lượt sau Trấn Áp dễ hơn (−1 ngưỡng).\n"
         .. (okG and "" or tostring(whyG)), function() self:cmd({ type = "garrison", uid = u.uid }) end)
+    end
     btn("up_dis", "Giải thể", mine, string.format("Hoàn %d V, đơn vị biến mất.", C.UNIT_DISBAND_REFUND[u.type] or 0),
         function() self:cmd({ type = "disband", uid = u.uid }); self.selectedUnit = nil end)
 end
@@ -1029,7 +1113,7 @@ function Scene:drawTradePopup(W, H)
     local w, h = Theme.px(380), Theme.px(210)
     local x, y = (W - w) / 2, (H - h) / 2
     ui:panel(x, y, w, h)
-    ui:label(string.format("Đổi tài nguyên với ngân hàng (%d : 1)", C.BANK_TRADE_RATE), x, y + Theme.px(8),
+    ui:label(string.format("Đổi tài nguyên với ngân hàng (%d : 1)", Trade.bankRate(state, Game.actor(state))), x, y + Theme.px(8),
         { font = Theme.font(14, true), width = w, align = "center", color = Theme.color.accent })
 
     local bw = (w - Theme.px(30)) / 5
@@ -1044,16 +1128,124 @@ function Scene:drawTradePopup(W, H)
                 })
         end
     end
-    row("Đưa", y + Theme.px(34), function(k) return p.res[k] >= C.BANK_TRADE_RATE end, self.trade.give, true,
+    row("Đưa", y + Theme.px(34), function(k) return p.res[k] >= Trade.bankRate(state, Game.actor(state)) end, self.trade.give, true,
         function(k) self.trade.give = k end)
     row("Nhận", y + Theme.px(100), function(k) return self.trade.give ~= nil and k ~= self.trade.give end, nil, false,
         function(k)
             if self:cmd({ type = "trade", give = self.trade.give, get = k }) then self.popup = nil end
         end)
-    ui:label(self.trade.give and ("Đưa " .. C.BANK_TRADE_RATE .. " " .. Fmt.res(self.trade.give) .. " — chọn loại muốn nhận")
+    ui:label(self.trade.give and ("Đưa " .. Trade.bankRate(state, Game.actor(state)) .. " " .. Fmt.res(self.trade.give) .. " — chọn loại muốn nhận")
         or "Chọn loại tài nguyên để đưa", x, y + Theme.px(158), { font = Theme.font(11), width = w, align = "center" })
     ui:button("t_cancel", x + w / 2 - Theme.px(50), y + h - Theme.px(36), Theme.px(100), Theme.px(26), "Hủy", {
         font = Theme.font(11, true), onClick = function() self.popup = nil end,
+    })
+end
+
+-- Popup đề xuất trao đổi với người chơi khác: chọn đối tác, số lượng đưa / nhận của từng loại; hiện phí đường.
+function Scene:drawProposePopup(W, H)
+    local ui, state = self.ui, self.state
+    local actor = Game.actor(state)
+    local p = self.propose
+    ui:blockBelow()
+    dim(W, H)
+    local me = state.players[actor]
+    local w, h = Theme.px(470), Theme.px(310)
+    local x, y = (W - w) / 2, (H - h) / 2
+    ui:panel(x, y, w, h)
+    ui:label("Trao đổi với người chơi khác", x, y + Theme.px(8),
+        { font = Theme.font(14, true), width = w, align = "center", color = Theme.color.accent })
+
+    -- đối tác
+    ui:label("Đối tác", x + Theme.px(12), y + Theme.px(34), { font = Theme.font(11), color = Theme.color.dim })
+    local bx = x + Theme.px(70)
+    for other = 1, state.playerCount do
+        if other ~= actor then
+            local linked = Trade.route(state, actor, other) ~= nil
+            ui:button("pr_to" .. other, bx, y + Theme.px(30), Theme.px(56), Theme.px(22), "P" .. other, {
+                enabled = linked, focused = p.to == other, font = Theme.font(11, true),
+                tip = linked and nil or "Chưa có tuyến đường nối Khu Chợ của hai bên",
+                onClick = function() p.to, p.give, p.get = other, {}, {} end,
+            })
+            bx = bx + Theme.px(60)
+        end
+    end
+
+    local them = state.players[p.to]
+    local bw = (w - Theme.px(24)) / 5
+    local function row(title, ry, map, holder)
+        ui:label(title, x + Theme.px(12), ry, { font = Theme.font(11, true), color = Theme.color.text })
+        for i, r in ipairs(Resources.core) do
+            local cx = x + Theme.px(12) + (i - 1) * bw
+            local have = holder.res[r.key]
+            local n = map[r.key] or 0
+            ui:label(string.format("%s  %d", r.abbr, have), cx, ry + Theme.px(16), { font = Theme.font(10), color = Theme.resource[r.key] })
+            ui:label(tostring(n), cx + bw * 0.28, ry + Theme.px(32), { font = Theme.font(14, true), width = bw * 0.3, align = "center" })
+            ui:button("pr_" .. title .. r.key .. "m", cx, ry + Theme.px(32), bw * 0.28, Theme.px(22), "-", {
+                enabled = n > 0, font = Theme.font(11, true),
+                onClick = function() map[r.key] = (n - 1 > 0) and n - 1 or nil end,
+            })
+            ui:button("pr_" .. title .. r.key .. "p", cx + bw * 0.6, ry + Theme.px(32), bw * 0.28, Theme.px(22), "+", {
+                enabled = n < have, font = Theme.font(11, true), onClick = function() map[r.key] = n + 1 end,
+            })
+        end
+    end
+    row("Đưa", y + Theme.px(62), p.give, me)
+    row("Nhận", y + Theme.px(130), p.get, them)
+
+    local ok, why, route = Trade.check(state, actor, p.to, p.give, p.get)
+    local info = ok and string.format("Phí đường %d V (bạn trả). P%d sẽ được hỏi chấp nhận hay từ chối.", route.fee, p.to) or why
+    ui:label(info, x + Theme.px(12), y + Theme.px(204), { font = Theme.font(11), width = w - Theme.px(24), align = "center",
+        color = ok and Theme.color.good or Theme.color.bad })
+    local btnW = Theme.px(130)
+    ui:button("pr_send", x + w / 2 - btnW - Theme.px(6), y + h - Theme.px(40), btnW, Theme.px(28), "Gửi đề xuất", {
+        enabled = ok, font = Theme.font(12, true), color = ok and { 0.25, 0.45, 0.30 } or nil,
+        onClick = function()
+            if self:cmd({ type = "proposeTrade", to = p.to, give = p.give, get = p.get }) then self.popup, self.propose = nil, nil end
+        end,
+    })
+    ui:button("pr_cancel", x + w / 2 + Theme.px(6), y + h - Theme.px(40), btnW, Theme.px(28), "Hủy", {
+        font = Theme.font(12, true), onClick = function() self.popup, self.propose = nil, nil end,
+    })
+end
+
+-- Người nhận trả lời đề xuất (hot-seat): màn che "chuyền máy" trước, rồi mới lộ nội dung.
+function Scene:drawTradeReply(W, H)
+    local ui, state = self.ui, self.state
+    local pr = state.prompt
+    ui:blockBelow()
+    if self.replyShown ~= pr then
+        love.graphics.setColor(0.04, 0.05, 0.08, 1)
+        love.graphics.rectangle("fill", 0, 0, W, H)
+        ui:label(string.format("Chuyền máy cho P%d", pr.pid), 0, H * 0.38,
+            { font = Theme.font(20, true), width = W, align = "center", color = Theme.player[pr.pid] })
+        ui:label("P" .. pr.from .. " vừa đề xuất trao đổi. Chỉ P" .. pr.pid .. " nhìn màn hình.", 0, H * 0.38 + Theme.px(34),
+            { font = Theme.font(12), width = W, align = "center", color = Theme.color.dim })
+        ui:button("rp_show", W / 2 - Theme.px(90), H * 0.38 + Theme.px(66), Theme.px(180), Theme.px(32), "Tôi là P" .. pr.pid, {
+            font = Theme.font(13, true), onClick = function() self.replyShown = pr end,
+        })
+        return
+    end
+    dim(W, H)
+    local w, h = Theme.px(440), Theme.px(210)
+    local x, y = (W - w) / 2, (H - h) / 2
+    ui:panel(x, y, w, h, { borderColor = Theme.player[pr.pid] })
+    ui:label(string.format("P%d đề xuất trao đổi với bạn", pr.from), x, y + Theme.px(8),
+        { font = Theme.font(14, true), width = w, align = "center", color = Theme.color.accent })
+    ui:label(string.format("P%d đưa bạn: %s\nBạn đưa P%d: %s\nPhí đường %d V do P%d trả.", pr.from, Fmt.bundle(pr.give),
+        pr.from, Fmt.bundle(pr.get), pr.fee, pr.from), x + Theme.px(16), y + Theme.px(40),
+        { font = Theme.font(12), width = w - Theme.px(32), align = "center" })
+    local okAccept, why = Game.check(state, { type = "respond", choice = "accept" })
+    if not okAccept then
+        ui:label(why or "", x + Theme.px(16), y + Theme.px(112), { font = Theme.font(11), width = w - Theme.px(32),
+            align = "center", color = Theme.color.bad })
+    end
+    local bw = Theme.px(130)
+    ui:button("rp_ok", x + w / 2 - bw - Theme.px(6), y + h - Theme.px(42), bw, Theme.px(30), "Chấp nhận", {
+        enabled = okAccept and true or false, font = Theme.font(12, true), color = okAccept and { 0.25, 0.45, 0.30 } or nil,
+        onClick = function() self:cmd({ type = "respond", choice = "accept" }); self.replyShown = nil end,
+    })
+    ui:button("rp_no", x + w / 2 + Theme.px(6), y + h - Theme.px(42), bw, Theme.px(30), "Từ chối", {
+        font = Theme.font(12, true), onClick = function() self:cmd({ type = "respond", choice = "decline" }); self.replyShown = nil end,
     })
 end
 
@@ -1144,6 +1336,10 @@ function Scene:draw()
 
     if state.phase == "rebel_loss" then
         self:drawLossPopup(W, H)
+    elseif state.phase == "prompt" and state.prompt.kind == "trade" then
+        self:drawTradeReply(W, H)
+    elseif self.popup == "propose" then
+        self:drawProposePopup(W, H)
     elseif self.confirm then
         if self.confirm.kind == "sub" then self:drawFoundSubPopup(W, H) else self:drawDemolishPopup(W, H) end
     elseif self.popup == "pause" then
@@ -1161,7 +1357,7 @@ end
 
 function Scene:keypressed(key)
     local state = self.state
-    if state.phase == "rebel_loss" then return end   -- bắt buộc chọn
+    if state.phase == "rebel_loss" or state.phase == "prompt" then return end   -- bắt buộc chọn
 
     if Actions.matches("cancel", key) then
         if self.confirm then self.confirm = nil
@@ -1193,7 +1389,7 @@ end
 
 function Scene:mousepressed(x, y, button)
     if self.ui:mousepressed(x, y, button) then return end
-    if button ~= 1 or self.popup or self.confirm or self.rollAnim then return end
+    if button ~= 1 or self.popup or self.confirm or self.rollAnim or self.state.phase == "prompt" then return end
 
     local state = self.state
     local wx, wy = self.camera:screenToWorld(x, y)
@@ -1219,6 +1415,10 @@ function Scene:mousepressed(x, y, button)
             self:cmd({ type = "buyTile", q = tile.q, r = tile.r })
         elseif self.mode.kind == "buyunit" then
             if self:cmd({ type = "buyUnit", unit = "expedition", q = tile.q, r = tile.r }) then self.mode = nil end
+        elseif self.mode.kind == "buytrade" then
+            if self:cmd({ type = "buyUnit", unit = "trade", q = tile.q, r = tile.r }) then self.mode = nil end
+        elseif self.mode.kind == "road" then
+            self:cmd({ type = "upgradeRoad", q = tile.q, r = tile.r })
         elseif self.mode.kind == "suppress" then
             local dir = self:suppressDirOf(tile)
             if not dir then

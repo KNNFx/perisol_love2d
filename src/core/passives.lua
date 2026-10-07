@@ -8,7 +8,9 @@
 -- Công trình bị Phiến Quân phong tỏa (bất kỳ ô nào) hoặc đang chờ dỡ không nhận thu nhập; ô TN bị phong tỏa cũng vậy.
 -- Phần lẻ (0.5) dồn vào player.carry và chỉ cộng vào tài nguyên khi đủ 1.
 
+local C          = require("src.config.constants")
 local Hex        = require("src.core.hex")
+local Roads      = require("src.core.roads")
 local Rebel      = require("src.core.rebel")
 local Structures = require("src.core.structures")
 local Upkeep     = require("src.core.upkeep")
@@ -58,6 +60,9 @@ function Passives.compute(state, pid)
                         if state.rebel then add(b.id, y.res, y.n, tiles[1]) end
                     elseif y.when == "adjacent" then
                         add(b.id, y.res, y.n * adjacentOwned(state, pid, tiles), tiles[1])
+                    elseif y.when == "roads" then
+                        add(b.id, y.res, y.n * math.min(C.MARKET_ROUTE_BONUS_MAX, Roads.adjacentRoadCount(state, tiles)),
+                            tiles[1])
                     else
                         add(b.id, y.res, y.n, tiles[1])
                     end

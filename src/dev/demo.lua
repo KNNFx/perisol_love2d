@@ -99,6 +99,39 @@ function Demo.suppress(state)
              hover = state.map:get(best.q + 2, best.r) }
 end
 
+-- Hai Khu Chợ nối bằng đường, một Giao Thương đã chọn và (tùy `step`) popup đề xuất trao đổi / lời nhắc trả lời.
+local function tradeArena(state)
+    local Roads = require("src.core.roads")
+    local best, pid, built = upgradeArena(state)
+    for _, b in ipairs(built) do Structures.remove(state, b.uid) end
+    local other = 3 - pid
+    local oc = state.map:get(best.q + 3, best.r)
+    state.owner[State.key(oc)] = other
+    state.votes[State.key(oc)] = { [other] = 9 }
+    Structures.place(state, { id = "B-05", level = 1, owner = pid }, { best })
+    Structures.place(state, { id = "B-05", level = 2, owner = other }, { oc, state.map:get(oc.q, oc.r + 1) })
+    for _, d in ipairs({ { 1, 0 }, { 2, 0 } }) do Roads.build(state, state.map:get(best.q + d[1], best.r + d[2])) end
+    state.roads[State.key(state.map:get(best.q + 2, best.r))].level = 2
+    state.rebel = { q = -99, r = -99 }
+    for k in pairs(state.players[other].res) do state.players[other].res[k] = 6 end
+    return best, pid, other
+end
+
+function Demo.trade(state)
+    local best, pid, other = tradeArena(state)
+    local u = require("src.core.units").spawn(state, pid, "trade", best)
+    return { focus = best, selectedUnit = u.uid, hover = state.map:get(best.q, best.r + 3),
+             popup = "propose", propose = { to = other, give = { science = 2 }, get = { culture = 3 } } }
+end
+
+-- Lời nhắc trả lời của người nhận (màn che "chuyền máy").
+function Demo.reply(state)
+    local Game = require("src.core.game")
+    local best, pid, other = tradeArena(state)
+    Game.apply(state, { type = "proposeTrade", to = other, give = { science = 2 }, get = { culture = 3 } })
+    return { focus = best }
+end
+
 -- Trả bảng gợi ý cho scene (selected / selectedUnit / mode / confirm / hover / focus) hoặc nil.
 function Demo.apply(state, name)
     local fn = Demo[name]

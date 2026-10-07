@@ -17,6 +17,15 @@ function Fmt.res(key)
     return r and r.abbr or tostring(key)
 end
 
+-- "2 KT + 1 V" từ bảng { [res] = n } (thứ tự cố định theo Resources.core).
+function Fmt.bundle(t)
+    local parts = {}
+    for _, r in ipairs(Resources.core) do
+        if t[r.key] and t[r.key] > 0 then parts[#parts + 1] = t[r.key] .. " " .. r.abbr end
+    end
+    return table.concat(parts, " + ")
+end
+
 local function P(pid) return "P" .. tostring(pid) end
 
 local function at(e) return string.format("(%d,%d)", e.q, e.r) end
@@ -90,8 +99,22 @@ function Fmt.line(e)
     elseif k == "unit_buy" then
         return { text = string.format("%s mua %s tại %s", P(e.pid), unitName(e.unit), at(e)), pid = e.pid, tier = "medium" }
     elseif k == "unit_move" then
-        return { text = string.format("%s đưa %s tới %s (tốn %d, còn %d)", P(e.pid), unitName(e.unit), at(e), e.cost, e.left),
-                 pid = e.pid, tier = "small" }
+        local road = (e.roads or 0) > 0 and string.format(", xây %d đường (%d V)", e.roads, e.gold or 0) or ""
+        return { text = string.format("%s đưa %s tới %s (tốn %d, còn %d%s)", P(e.pid), unitName(e.unit), at(e), e.cost,
+                 e.left, road), pid = e.pid, tier = "small" }
+    elseif k == "road_upgrade" then
+        return { text = string.format("%s nâng đường tại %s lên Lát Đá", P(e.pid), at(e)), pid = e.pid, tier = "small" }
+    elseif k == "road_damaged" then
+        return { text = string.format("Phiến Quân %s đường tại %s", e.lost and "phá mất" or "làm hư (tụt xuống Đường Đất)", at(e)),
+                 tier = "medium" }
+    elseif k == "trade_proposed" then
+        return { text = string.format("%s đề xuất đổi với %s: đưa %s, nhận %s (phí %d V)", P(e.pid), P(e.to),
+                 Fmt.bundle(e.give), Fmt.bundle(e.get), e.fee), pid = e.pid, tier = "medium" }
+    elseif k == "trade_accepted" then
+        return { text = string.format("%s chấp nhận trao đổi với %s (phí %d V)", P(e.to), P(e.pid), e.fee),
+                 pid = e.pid, tier = "medium" }
+    elseif k == "trade_declined" then
+        return { text = string.format("%s từ chối đề xuất của %s", P(e.to), P(e.pid)), pid = e.pid, tier = "small" }
     elseif k == "unit_garrison" then
         return { text = string.format("%s cho đơn vị trú đóng tại %s", P(e.pid), at(e)), pid = e.pid, tier = "small" }
     elseif k == "unit_disband" then

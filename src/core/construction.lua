@@ -11,6 +11,7 @@
 
 local Hex        = require("src.core.hex")
 local Rebel      = require("src.core.rebel")
+local Roads      = require("src.core.roads")
 local Structures = require("src.core.structures")
 local Territory  = require("src.core.territory")
 local Upkeep     = require("src.core.upkeep")
@@ -40,6 +41,22 @@ function K.cost(state, id, level, anchorTile)
         cost.engineering = math.max(0, cost.engineering - 1)
     end
     return cost
+end
+
+-- ─── Khu Chợ cần đường (Data B-05.1/.2: "cần đường nếu không liền HQ") ──────
+
+-- Footprint Khu Chợ C1/C2 phải liền Nhà Chính, hoặc nối đường tới Nhà Chính, hoặc có ô TN-03 Cá (D-014).
+-- Chỉ kiểm lúc xây/nâng; mất đường sau đó không tắt chợ. Trả ok, lý do.
+function K.marketReach(state, pid, tiles)
+    local hq = state.players[pid].hq
+    local hqTile = hq and state.map:get(hq.q, hq.r)
+    if not hqTile then return false, "Chưa đặt Nhà Chính" end
+    for _, t in ipairs(tiles) do
+        if Hex.distance(t, hqTile) <= 1 then return true end
+        if Structures.strategicAt(state, t) == "TN-03" then return true end
+    end
+    if Roads.route(state, tiles, { hqTile }) then return true end
+    return false, "Khu Chợ phải liền Nhà Chính hoặc nối đường tới Nhà Chính (trừ ô có Cá)"
 end
 
 -- ─── Nâng cấp ───────────────────────────────────────────────────────────────
@@ -81,6 +98,10 @@ function K.checkFootprint(state, pid, b, q, r, rot)
     local ordered = Structures.tilesOf(state, b)
     for _, t in ipairs(newTiles) do
         if not inOld[t.q .. "," .. t.r] then ordered[#ordered + 1] = t end
+    end
+    if b.id == "B-05" and b.level + 1 <= 2 then
+        local okM, whyM = K.marketReach(state, pid, ordered)
+        if not okM then return false, whyM end
     end
     return true, nil, ordered
 end

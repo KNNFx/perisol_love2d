@@ -204,6 +204,41 @@ function L.drawBuildings(state, opts)
     love.graphics.setColor(1, 1, 1)
 end
 
+-- Đường: nét nối tâm các ô có đường kề nhau (nâu = Đường Đất, xám sáng đậm hơn = Lát Đá) và chấm ở mỗi ô.
+function L.drawRoads(state, opts)
+    local zoom = opts.zoom or 1
+    local function colorOf(road)
+        if road.level >= 2 then return 0.82, 0.82, 0.86, 3.2 end
+        return 0.62, 0.45, 0.27, 2.2
+    end
+    for _, t in ipairs(state.map.list) do
+        local road = state.roads[key(t)]
+        if road then
+            local cx, cy = tileCenter(t)
+            local r, g, b, w = colorOf(road)
+            for _, nb in ipairs(state.map:neighbors(t)) do
+                local nr = state.roads[key(nb)]
+                if nr and key(nb) > key(t) then
+                    local nx, ny = tileCenter(nb)
+                    love.graphics.setColor(0, 0, 0, 0.4)
+                    love.graphics.setLineWidth((w + 1.2) / zoom)
+                    love.graphics.line(cx, cy, nx, ny)
+                    local r2, g2, b2, w2 = colorOf(nr)
+                    love.graphics.setColor((r + r2) / 2, (g + g2) / 2, (b + b2) / 2)
+                    love.graphics.setLineWidth(math.min(w, w2) / zoom)
+                    love.graphics.line(cx, cy, nx, ny)
+                end
+            end
+            love.graphics.setColor(0, 0, 0, 0.45)
+            love.graphics.circle("fill", cx, cy, w * 0.9 + 0.8)
+            love.graphics.setColor(r, g, b)
+            love.graphics.circle("fill", cx, cy, w * 0.9)
+        end
+    end
+    love.graphics.setLineWidth(1)
+    love.graphics.setColor(1, 1, 1)
+end
+
 local UNIT_LETTER = { expedition = "VC", knight = "HS", trade = "GT" }
 
 -- Đơn vị: huy hiệu tròn màu phe, chữ viết tắt, điểm di chuyển còn lại; vòng vàng = đang chọn,
@@ -266,10 +301,12 @@ function L.drawPath(from, path, cost, zoom)
     end
     love.graphics.setLineWidth(1)
     love.graphics.circle("fill", px, py, 2.5)
+    local text = tostring(cost)
+    local tw = love.graphics.getFont():getWidth(text) * 0.5 + 6
     love.graphics.setColor(0, 0, 0, 0.75)
-    love.graphics.rectangle("fill", px + 3, py - 12, 14, 9, 2, 2)
+    love.graphics.rectangle("fill", px + 3, py - 12, tw, 9, 2, 2)
     love.graphics.setColor(1, 1, 1)
-    worldText(tostring(cost), px + 10, py - 7.5, 0.5)
+    worldText(text, px + 3 + tw / 2, py - 7.5, 0.5)
 end
 
 -- Phiến Quân + vùng phong tỏa. opts = { zoom, time }

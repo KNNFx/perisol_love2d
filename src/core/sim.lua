@@ -72,6 +72,12 @@ function Sim.invariants(state)
     for _ in pairs(state.occupied) do occ = occ + 1 end
     if occ ~= seen then return false, "occupied có ô thừa" end
 
+    for k, road in pairs(state.roads) do
+        local q, r = k:match("^(-?%d+),(-?%d+)$")
+        if not q or not state.map:get(tonumber(q), tonumber(r)) then return false, "đường ngoài bản đồ " .. tostring(k) end
+        if road.level ~= 1 and road.level ~= 2 then return false, "đường " .. k .. " có cấp " .. tostring(road.level) end
+    end
+
     local perQuota = {}
     for uid, u in pairs(state.units) do
         if u.uid ~= uid then return false, "uid đơn vị lệch " .. tostring(uid) end
@@ -131,7 +137,8 @@ function Sim.play(seed, players)
     local prng = Rng.new("sim:" .. tostring(seed) .. ":" .. players)
     local stats = { sevens = 0, builds = 0, claims = 0, commands = 0, rebelStops = 0, losses = 0,
                     upgrades = 0, demolishes = 0, tnLost = 0, unitsBought = 0, unitMoves = 0, suppressWins = 0,
-                    suppressLosses = 0, unitsLost = 0, subsFounded = 0 }
+                    suppressLosses = 0, unitsLost = 0, subsFounded = 0, roadsBuilt = 0, roadUpgrades = 0,
+                    tradesProposed = 0, tradesAccepted = 0 }
     local perTurn = 0
 
     while state.phase ~= "over" do
@@ -156,7 +163,12 @@ function Sim.play(seed, players)
             elseif e.kind == "demolished" then stats.demolishes = stats.demolishes + 1
             elseif e.kind == "strategic_lost" then stats.tnLost = stats.tnLost + 1
             elseif e.kind == "unit_buy" then stats.unitsBought = stats.unitsBought + 1
-            elseif e.kind == "unit_move" then stats.unitMoves = stats.unitMoves + 1
+            elseif e.kind == "unit_move" then
+                stats.unitMoves = stats.unitMoves + 1
+                stats.roadsBuilt = stats.roadsBuilt + (e.roads or 0)
+            elseif e.kind == "road_upgrade" then stats.roadUpgrades = stats.roadUpgrades + 1
+            elseif e.kind == "trade_proposed" then stats.tradesProposed = stats.tradesProposed + 1
+            elseif e.kind == "trade_accepted" then stats.tradesAccepted = stats.tradesAccepted + 1
             elseif e.kind == "suppress" then
                 if e.ok then stats.suppressWins = stats.suppressWins + 1 else stats.suppressLosses = stats.suppressLosses + 1 end
             elseif e.kind == "unit_destroyed" then stats.unitsLost = stats.unitsLost + 1
@@ -194,7 +206,8 @@ end
 function Sim.batch(count, firstSeed, onGame)
     local sum = { games = 0, sevens = 0, builds = 0, claims = 0, commands = 0, rebelStops = 0, losses = 0,
                   upgrades = 0, demolishes = 0, tnLost = 0, unitsBought = 0, unitMoves = 0, suppressWins = 0,
-                  suppressLosses = 0, unitsLost = 0, subsFounded = 0, score = 0, tiles = 0, winnerTiles = 0 }
+                  suppressLosses = 0, unitsLost = 0, subsFounded = 0, roadsBuilt = 0, roadUpgrades = 0,
+                  tradesProposed = 0, tradesAccepted = 0, score = 0, tiles = 0, winnerTiles = 0 }
     for i = 0, count - 1 do
         local seed = (firstSeed or 1) + i
         local players = 2 + (i % 3)

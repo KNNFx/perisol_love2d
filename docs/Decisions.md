@@ -290,6 +290,35 @@ Cụ thể hóa luật đơn vị khi Data (sheet "Các đơn vị cờ") chưa 
 - **Tunable mới:** `EXPEDITION_COST`, `SUPPRESS_PUSH_TILES`, `SUPPRESS_REWARD_FAITH`, `TN04_BONUS_MOVE`, `TN04_HOME_RADIUS`, `TN11_STEP_REFUND`, `UNIT_DISBAND_REFUND`.
 - **Chưa làm / còn mở:** FSM đầy đủ của Data §9 (chỉ dùng cờ `acted`, `garrison`); Hộ Tống; đơn vị không tính điểm cuối ván (Data Hỏi đáp #12); upkeep cho Giao Thương chưa định nghĩa.
 
+## D-016 — Đường, Giao Thương, Khu Chợ, trao đổi giữa người chơi (M1.5 phase E) — 2026-10-07
+Cụ thể hóa GDD §5.4, §9.2 và Data sheet Hạ tầng / Công trình. Mọi con số nằm trong `constants.lua`.
+- **Đường:**
+  - Lưu ở `state.roads["q,r"] = { level }` (1 = Đường Đất, 2 = Lát Đá). Đường **không có chủ** (Data Hỏi đáp #11), tồn tại vĩnh viễn cho tới khi Phiến Quân phá.
+  - Chỉ xây trên Đồng Bằng, Rừng, Bờ Biển, Đồi Cỏ (`ROAD_TERRAINS`, GDD §9.2).
+  - Vào ô có đường: chi phí di chuyển giảm 1, tối thiểu 1 (`ROAD_STEP_REDUCTION`). Đơn vị đầu lượt đứng trên Lát Đá được +1 bước (Data §3 viết "−1 và +1 bước/lượt, cộng dồn tối đa +2"; đây là cách hiểu đơn giản).
+  - Áp dụng cho Viễn Chinh, Hiệp Sĩ và Giao Thương, không áp cho Phiến Quân (Data: "0, PQ không dùng đường").
+- **Nâng Lát Đá:** lệnh `upgradeRoad{q,r}`, 1 KT + 1 V mỗi ô, ô nằm trong lãnh thổ hoặc vùng ảnh hưởng của người nâng.
+- **Giao Thương (U-02):**
+  - Mua 5 V, sinh ở ô thuộc một Khu Chợ của mình, chưa có chợ nào thì ở Nhà Chính. Quota 2 (riêng với Viễn Chinh). Đi ngay với đủ 5 bước.
+  - **Mỗi ô đi vào mà chưa có đường (và địa hình cho phép) tự xây Đường Đất**, tốn `ROAD_COST_PER_TILE` (1 V). Thiếu Vàng cho cả quãng thì không đi được; TN-10 miễn phí đường trên ô đó và +3 bước đầu lượt đứng trên ô đó.
+  - Không có "đi rồi về để hoàn tất trade" (A-07): trao đổi chỉ cần tuyến đường nối. Đơn vị Giao Thương chỉ dùng để mở đường và không bị tính upkeep (D-015).
+- **Phiến Quân và đường (Data §6.2 phần Đường Đất/Lát Đá):**
+  - Đi qua (không dừng): Đường Đất bị xóa, Lát Đá miễn nhiễm.
+  - Dừng trên ô: Đường Đất mất, Lát Đá tụt về Đường Đất.
+  - Vì vậy một lần dừng trên ô cuối của một tuyến Lát Đá đủ để cắt đường tạm thời.
+- **Khu Chợ cần đường:** C1/C2 phải có ô liền Nhà Chính, hoặc nối đường tới Nhà Chính, hoặc có ô TN-03 Cá. Chỉ kiểm lúc xây hoặc nâng lên C2; mất đường về sau không tắt chợ. C3 không bị ràng buộc.
+- **Khu Chợ C2:** +0.5 V mỗi vòng cho mỗi ô đường kề footprint, tối đa 3 (cách hiểu "tuyến đường nối tới").
+- **Trao đổi giữa người chơi** (chốt ở D-014: không cho không, giữ ngân hàng 4:1):
+  - Lệnh `proposeTrade{to, give, get}` mở `prompt` cho người nhận; người nhận trả lời `respond{accept|decline}`. Điều kiện được kiểm lại lúc chấp nhận (đường có thể đã bị phá).
+  - Chỉ trao đổi 5 tài nguyên cốt lõi. Mỗi bên đưa ít nhất 1, không có loại nào ở cả hai phía, mỗi bên phải đang đủ.
+  - Cần mỗi bên có một Khu Chợ không chờ dỡ, không bị phong tỏa, nối nhau bằng đường (hoặc một trong hai là C3 và khoảng cách hai chợ ≤ 2).
+  - **Phí** do người đề xuất trả: số ô đường × `TRADE_FEE_PER_TILE`; toàn tuyến Lát Đá thì nhân 0.5 làm tròn lên; tuyến đi qua TN-10 miễn phí; hai chợ kề nhau miễn phí. Với đường tắt của Khu Chợ C3 phí = số ô trống giữa hai chợ. Nhiều cặp chợ thì lấy cặp rẻ nhất.
+  - `Game.legal` chỉ liệt kê mẫu 1 đổi 1; `Game.check` chấp nhận mọi số lượng hợp lệ.
+  - Hot-seat: người nhận phải qua màn che "Chuyền máy cho P#" trước khi thấy nội dung.
+- **Đổi ngân hàng:** vẫn 4:1; nếu có Khu Chợ C2+ của mình có footprint chứa TN-06 Vàng Sa Khoáng thì 1:1 (Data, bonus công trình của TN-06).
+- **Tunable mới:** `UNIT_COST`, `ROAD_TERRAINS`, `ROAD_UPGRADE_COST`, `ROAD_STEP_REDUCTION`, `STONE_ROAD_START_BONUS`, `STONE_FEE_FACTOR`, `TN10_BONUS_MOVE`, `MARKET_ROUTE_BONUS_MAX`, `MARKET_C3_RADIUS`, `TN06_MARKET_RATE`.
+- **Chưa làm:** độ bền nhiều mức, sửa chữa và Đường Ray (hoãn cùng tầng công nghiệp, D-014); Hảo Cảm và trao đổi với Khu Dân Cư có Cảng/Chợ; cho không (đã loại).
+
 ## Xung đột tài liệu đã phát hiện (chọn theo Data)
 | Chủ đề | GDD §3.1 / §8 | Data | Chọn |
 |---|---|---|---|

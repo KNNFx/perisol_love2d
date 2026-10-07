@@ -115,7 +115,19 @@ C.TN04_HOME_RADIUS       = 2
 C.TN11_STEP_REFUND       = 1        -- TN-11 Gió Mạnh: vào ô này tốn ít hơn 1 điểm (tối thiểu 0)
 C.UNIT_DISBAND_REFUND    = { expedition = 1, knight = 1, trade = 2 }  -- Vàng hoàn khi Giải Thể (A-06)
 
-C.SAVE_VERSION       = 3                -- version file save (D-011, v3 = D-014)
+-- Đường, Giao Thương, Khu Chợ (M1.5 phase E, D-016)
+C.UNIT_COST              = { expedition = C.EXPEDITION_COST, trade = { gold = 5 } }   -- U-01, U-02
+C.ROAD_TERRAINS          = { ["DH-01"] = true, ["DH-02"] = true, ["DH-05"] = true, ["DH-09"] = true }  -- GDD §9.2
+C.ROAD_UPGRADE_COST      = { engineering = 1, gold = 1 }   -- Đường Đất -> Lát Đá, mỗi ô
+C.ROAD_STEP_REDUCTION    = 1        -- vào ô có đường: chi phí giảm 1 (tối thiểu 1)
+C.STONE_ROAD_START_BONUS = 1        -- đầu lượt đứng trên Lát Đá: +1 bước
+C.STONE_FEE_FACTOR       = 0.5      -- toàn tuyến Lát Đá: phí giao thương nhân 0.5 (làm tròn lên)
+C.TN10_BONUS_MOVE        = 3        -- TN-10 Cảng Tự Nhiên: đơn vị Giao Thương đầu lượt đứng trên ô này +3 bước
+C.MARKET_ROUTE_BONUS_MAX = 3        -- B-05 C2: +0.5 V mỗi vòng cho mỗi tuyến đường nối (tối đa 3)
+C.MARKET_C3_RADIUS       = 2        -- B-05 C3: giao thương không cần đường trong bán kính này
+C.TN06_MARKET_RATE       = 1        -- TN-06 + Khu Chợ C2+: đổi ngân hàng 1:1
+
+C.SAVE_VERSION       = 3               -- version file save (D-011, v3 = D-014)
 
 -- ─── Render ────────────────────────────────────────────────────────────────
 -- Sprite hex pointy-top 32×32; lát gạch bước ngang 32, bước dọc 24.
