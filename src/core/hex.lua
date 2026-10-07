@@ -18,6 +18,14 @@ function Hex.add(a, b) return { q = a.q + b.q, r = a.r + b.r } end
 function Hex.sub(a, b) return { q = a.q - b.q, r = a.r - b.r } end
 function Hex.scale(a, k) return { q = a.q * k, r = a.r * k } end
 
+-- Xoay `h` quanh gốc (0,0) `steps` × 60° (steps nguyên). Một bước: (q, r) -> (-r, q + r),
+-- tức hướng DIRECTIONS[i] thành DIRECTIONS[i - 1]; steps âm xoay chiều ngược lại.
+function Hex.rotate(h, steps)
+    local q, r = h.q, h.r
+    for _ = 1, steps % 6 do q, r = -r, q + r end
+    return { q = q + 0, r = r + 0 }   -- "+ 0" đổi -0 thành 0 để Hex.key không ra "-0"
+end
+
 function Hex.neighbor(h, dir)
     local d = Hex.DIRECTIONS[dir]
     return { q = h.q + d.q, r = h.r + d.r }

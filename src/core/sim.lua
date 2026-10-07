@@ -21,10 +21,12 @@ local P_END_TURN  = 0.12
 -- Kiểm tra bất biến của state. Trả true hoặc false, mô tả lỗi.
 function Sim.invariants(state)
     for pid, p in ipairs(state.players) do
-        for _, r in ipairs(Resources.core) do
-            local v = p.res[r.key]
-            if type(v) ~= "number" or v < 0 or v ~= math.floor(v) then
-                return false, string.format("P%d %s = %s", pid, r.key, tostring(v))
+        for _, group in ipairs({ Resources.core, Resources.materials }) do
+            for _, r in ipairs(group) do
+                local v = p.res[r.key]
+                if type(v) ~= "number" or v < 0 or v ~= math.floor(v) then
+                    return false, string.format("P%d %s = %s", pid, r.key, tostring(v))
+                end
             end
         end
         if p.votes < 0 then return false, "P" .. pid .. " có phiếu âm" end
@@ -34,20 +36,28 @@ function Sim.invariants(state)
         if not state.players[pid] then return false, "chủ ô " .. k .. " không hợp lệ" end
     end
 
-    for k, b in pairs(state.buildings) do
-        if state.owner[k] ~= b.owner then return false, "công trình " .. k .. " không nằm trên ô của chủ" end
-        local q, r = k:match("^(-?%d+),(-?%d+)$")
-        local tile = state.map:get(tonumber(q), tonumber(r))
-        if not tile then return false, "công trình ngoài bản đồ " .. k end
-        if not Buildings.allowedOn(b.id, b.level, tile.terrain) then
-            return false, "công trình " .. k .. " trên địa hình không hợp lệ " .. tile.terrain
-        end
-        for pid in ipairs(state.players) do
-            for _, a in ipairs(Territory.anchors(state, pid)) do
-                if a.q == tile.q and a.r == tile.r then return false, "công trình đè lên HQ " .. k end
+    local seen = 0
+    for uid, b in pairs(state.buildings) do
+        if b.uid ~= uid then return false, "uid công trình lệch " .. tostring(uid) end
+        for _, k in ipairs(b.tiles) do
+            seen = seen + 1
+            if state.occupied[k] ~= uid then return false, "occupied lệch tại " .. k end
+            if state.owner[k] ~= b.owner then return false, "công trình " .. k .. " không nằm trên ô của chủ" end
+            local tile = state.map:get(k:match("^(-?%d+),(-?%d+)$"))
+            if not tile then return false, "công trình ngoài bản đồ " .. k end
+            if not Buildings.allowedOn(b.id, b.level, tile.terrain) then
+                return false, "công trình " .. k .. " trên địa hình không hợp lệ " .. tile.terrain
+            end
+            for pid in ipairs(state.players) do
+                for _, a in ipairs(Territory.anchors(state, pid)) do
+                    if a.q == tile.q and a.r == tile.r then return false, "công trình đè lên HQ " .. k end
+                end
             end
         end
     end
+    local occ = 0
+    for _ in pairs(state.occupied) do occ = occ + 1 end
+    if occ ~= seen then return false, "occupied có ô thừa" end
 
     -- ô không phải HQ/Sub chỉ có chủ khi chủ đủ phiếu theo ngưỡng
     for k, pid in pairs(state.owner) do

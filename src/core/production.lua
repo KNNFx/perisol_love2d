@@ -9,6 +9,7 @@ local Dice      = require("src.core.dice")
 local State     = require("src.core.state")
 local Modifiers = require("src.core.modifiers")
 local Rebel     = require("src.core.rebel")
+local Structures = require("src.core.structures")
 local Buildings = require("src.data.buildings")
 local Strategic = require("src.data.strategic")
 local Terrains  = require("src.data.terrains")
@@ -27,9 +28,9 @@ P.modifiers:register("base", function(value, ctx)
     return value
 end)
 
--- Stage "strategic": bonus ô của tài nguyên chiến lược (ctx.tile.strategic).
+-- Stage "strategic": bonus ô của tài nguyên chiến lược (TN chưa bị mất, D-014).
 P.modifiers:register("strategic", function(value, ctx)
-    local tn = ctx.tile.strategic
+    local tn = Structures.strategicAt(ctx.state, ctx.tile)
     local b = tn and Strategic.productionBonus[tn]
     if not b then return value end
     if b.building and b.building ~= ctx.buildingId then return value end
@@ -50,10 +51,14 @@ function P.compute(state, dice, activePid)
         events[#events + 1] = { kind = "votes", pid = activePid, amount = hex * C.VOTES_PER_HEX_FACE }
     end
 
-    for _, tile in ipairs(state.map.list) do
-        local k = State.key(tile)
-        local b = state.buildings[k]
-        if b and not Rebel.isBlockaded(state, tile) then
+    for _, b in ipairs(Structures.list(state)) do
+        local tiles = Structures.tilesOf(state, b)
+        local tile, k = tiles[1], b.anchor
+        local blocked = false
+        for _, t in ipairs(tiles) do
+            if Rebel.isBlockaded(state, t) then blocked = true end
+        end
+        if not blocked then
             local def = Buildings.level(b.id, b.level)
             for _, entry in ipairs(def.produces) do
                 local face, res, n = entry[1], entry[2], entry[3]

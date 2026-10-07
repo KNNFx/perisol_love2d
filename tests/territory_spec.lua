@@ -2,6 +2,7 @@ local C         = require("src.config.constants")
 local Hex       = require("src.core.hex")
 local Mapgen    = require("src.core.mapgen")
 local State     = require("src.core.state")
+local Structures = require("src.core.structures")
 local Territory = require("src.core.territory")
 
 -- State 2 người trên map 32x16: HQ1 ở giữa, HQ2 cách 4 ô theo hướng Đông.
@@ -88,10 +89,10 @@ describe("territory: đặt phiếu", function()
         ok, why = Territory.canVote(s, 1, hq)
         expect.falsy(ok); expect.eq(why, "Không đặt phiếu lên ô Nhà Chính / Khu Trực Thuộc")
 
-        s.buildings[State.key(near)] = { id = "B-01", level = 1, owner = 2 }
+        local placed = Structures.place(s, { id = "B-01", level = 1, owner = 2 }, { near })
         ok, why = Territory.canVote(s, 1, near)
         expect.falsy(ok); expect.eq(why, "Ô có công trình của đối thủ")
-        s.buildings[State.key(near)] = nil
+        Structures.remove(s, placed.uid)
 
         s.rebel = { q = near.q, r = near.r }
         ok, why = Territory.canVote(s, 1, near)

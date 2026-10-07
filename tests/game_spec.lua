@@ -4,6 +4,7 @@ local Game     = require("src.core.game")
 local Scoring  = require("src.core.scoring")
 local Serialize = require("src.core.serialize")
 local State    = require("src.core.state")
+local Structures = require("src.core.structures")
 local Rebel    = require("src.core.rebel")
 local Territory = require("src.core.territory")
 local Save     = require("src.save")
@@ -190,7 +191,7 @@ describe("game: hành động", function()
         for k, v in pairs(res) do before[k] = v end
         Game.apply(s, build)
         for k, n in pairs(cost) do expect.eq(res[k], before[k] - n) end
-        local b = s.buildings[State.key(build)]
+        local b = Structures.at(s, build)
         expect.eq(b.id, build.id); expect.eq(b.owner, pid); expect.eq(b.level, 1)
         expect.falsy(Game.check(s, build), "không xây chồng lên công trình")
     end)
@@ -381,8 +382,8 @@ describe("scoring", function()
         s.players[1].res.gold = 12                      -- 2 điểm (12 // 5)
         local lm = s.map.landmarks[1]
         for _, t in ipairs(lm.tiles) do s.owner[State.key(t)] = 1 end
-        s.buildings["0,0"] = { id = "B-01", level = 2, owner = 1 }
-        s.buildings["1,0"] = { id = "B-01", level = 1, owner = 1 }   -- C1 không tính
+        Structures.place(s, { id = "B-01", level = 2, owner = 1 }, { s.map:get(0, 0) })
+        Structures.place(s, { id = "B-01", level = 1, owner = 1 }, { s.map:get(1, 0) })   -- C1 không tính
         local sc = Scoring.score(s)
         expect.eq(sc[1].resources, 2)
         expect.eq(sc[1].landmarks, C.SCORE_LANDMARK)

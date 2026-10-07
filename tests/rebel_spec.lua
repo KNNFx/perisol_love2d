@@ -2,6 +2,7 @@ local C       = require("src.config.constants")
 local Hex     = require("src.core.hex")
 local Mapgen  = require("src.core.mapgen")
 local State   = require("src.core.state")
+local Structures = require("src.core.structures")
 local Rebel   = require("src.core.rebel")
 local Territory = require("src.core.territory")
 
@@ -122,7 +123,7 @@ describe("rebel: hiệu ứng khi dừng", function()
     local function setup(victimRes)
         local s = newState()
         local here = arena(s)
-        s.buildings[State.key(here)] = { id = "B-01", level = 1, owner = 2 }
+        Structures.place(s, { id = "B-01", level = 1, owner = 2 }, { here })
         for k, v in pairs(victimRes) do s.players[2].res[k] = v end
         s.rebel.pending = { stage = "move", points = 3, roller = 1 }
         return s, here
@@ -168,7 +169,7 @@ describe("rebel: hiệu ứng khi dừng", function()
         local ev = Rebel.stop(s)                           -- chủ có 0 tài nguyên
         expect.eq(#ev, 1)
         local s2, here = setup({ gold = 5 })
-        s2.buildings[State.key(here)].owner = 1            -- của chính người đổ
+        Structures.at(s2, here).owner = 1           -- của chính người đổ
         Rebel.stop(s2)
         expect.eq(s2.players[2].res.gold, 5)
         local s3 = newState()

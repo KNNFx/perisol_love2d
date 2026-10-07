@@ -71,7 +71,7 @@ function R.drawTerrain(map, opts)
 end
 
 -- Lượt 2: lớp phủ của bản đồ (vùng khởi đầu, Danh Thắng, tài nguyên chiến lược).
--- opts = { zoom, showZones }
+-- opts = { zoom, showZones, lostStrategic = { ["q,r"] = true } }
 function R.drawMarkers(map, opts)
     local zoom = opts.zoom or 1
     for _, tile in ipairs(map.list) do
@@ -97,7 +97,7 @@ function R.drawMarkers(map, opts)
             love.graphics.polygon("line", cx, cy - 5, cx + 4, cy, cx, cy + 5, cx - 4, cy)
         end
 
-        if tile.strategic then
+        if tile.strategic and not (opts.lostStrategic and opts.lostStrategic[tile.q .. "," .. tile.r]) then
             local tn = Strategic.byId[tile.strategic]
             local col = RARITY_COLOR[tn.rarity]
             local sx, sy = cx + 8, cy + 7

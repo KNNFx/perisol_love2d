@@ -11,6 +11,7 @@ local C         = require("src.config.constants")
 local Hex       = require("src.core.hex")
 local Dice      = require("src.core.dice")
 local State     = require("src.core.state")
+local Structures = require("src.core.structures")
 local Movement  = require("src.data.movement")
 local Resources = require("src.data.resources")
 
@@ -135,7 +136,7 @@ end
 
 -- Chủ của công trình / HQ tại tile, hoặc nil.
 local function ownerAt(state, tile)
-    local b = state.buildings[State.key(tile)]
+    local b = Structures.at(state, tile)
     if b then return b.owner end
     for pid, p in ipairs(state.players) do
         if p.hq and p.hq.q == tile.q and p.hq.r == tile.r then return pid end

@@ -106,7 +106,7 @@ C.SCORE_LANDMARK     = 3
 C.SCORE_BUILDING_C2  = 2
 C.SCORE_RES_PER_POINT = 5
 
-C.SAVE_VERSION       = 2                 -- version file save (D-011)
+C.SAVE_VERSION       = 3                 -- version file save (D-011, v3 = D-014)
 
 -- ─── Render ────────────────────────────────────────────────────────────────
 -- Sprite hex pointy-top 32×32; lát gạch bước ngang 32, bước dọc 24.

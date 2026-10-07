@@ -169,14 +169,14 @@ Do this in order:
 ### Progress checklist (P3 / M1.5) — added 2026-10-07
 Each phase ends with `test.bat` green, `lovec . --sim 100` clean, a UI check (screenshot or `--drive`), and its own commit.
 
-- [ ] **A. Foundation (refactor, no rule change)**
-  - [ ] Buildings keyed by uid (`state.buildings[uid]` + `state.occupied["q,r"]`) and a new `src/core/structures.lua`. Replace every `state.buildings[key(tile)]` read in game, territory, production, rebel, scoring, sim, render, scene, drive and log_format.
-  - [ ] Materials (alloy, paper, steel, silk, bond) in `player.res`, checked by the sim invariants. Score still counts only the 5 core resources.
-  - [ ] `Hex.rotate` + test.
-  - [ ] `state.lostStrategic` + `Structures.strategicAt`. Replace logic reads of `tile.strategic` in production, territory (TN-06), and the renderer/tooltips.
-  - [ ] Turn-start step `src/core/upkeep.lua` (`startTurn`, run in `roll` before the dice). It is empty for now and will hold demolish completion, passives, unit upkeep and movement reset.
-  - [ ] Generic `prompt` phase + `respond` command, for trade replies and S-05 reactions (and M2 reaction Edicts later).
-  - [ ] Save v3 + `MIGRATIONS[2]` (v2 → v3) + a load test for an old save.
+- [x] **A. Foundation (refactor, no rule change)** — done 2026-10-07
+  - [x] Buildings keyed by uid (`state.buildings[uid]` + `state.occupied["q,r"]`) and a new `src/core/structures.lua`. Replace every `state.buildings[key(tile)]` read in game, territory, production, rebel, scoring, sim, render, scene, drive and log_format.
+  - [x] Materials (alloy, paper, steel, silk, bond) in `player.res`, checked by the sim invariants. Score still counts only the 5 core resources.
+  - [x] `Hex.rotate` + test.
+  - [x] `state.lostStrategic` + `Structures.strategicAt`. Replace logic reads of `tile.strategic` in production, territory (TN-06), and the renderer/tooltips.
+  - [x] Turn-start step `src/core/upkeep.lua` (`startTurn`, run in `roll` before the dice). It is empty for now and will hold demolish completion, passives, unit upkeep and movement reset.
+  - [x] Generic `prompt` phase + `respond` command, for trade replies and S-05 reactions (and M2 reaction Edicts later).
+  - [x] Save v3 + `MIGRATIONS[2]` (v2 → v3) + a load test for an old save.
 - [ ] **B. Step 1 — Basic C2/C3 multi-hex + demolish**
   - [ ] `src/data/shapes.lua`: pair, triangle, line3, L, rect, trapezoid, cluster as axial offsets with distinct rotations.
   - [ ] `upgrade{uid,q,r,rot}` + `Structures.upgradeOptions`.

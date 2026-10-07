@@ -8,7 +8,9 @@
 --   players = { [pid] = { id, res = {science=..}, votes = n, hq = {q,r}|nil, subs = {} } },
 --   owner     = { ["q,r"] = pid },
 --   votes     = { ["q,r"] = { [pid] = n } },
---   buildings = { ["q,r"] = { id = "B-01", level = 1, owner = pid } },
+--   buildings = { [uid] = { uid, id, level, owner, tiles = {"q,r"...}, anchor, rot } },   (src/core/structures.lua)
+--   occupied  = { ["q,r"] = uid },  nextUid, lostStrategic = { ["q,r"] = true },
+--   units = {}, roads = {}   (M1.5 phase D / E)
 --   rebel     = { q, r, pending = { points, roller } | nil } | nil,
 --   dice, log = {},
 -- }
@@ -26,7 +28,8 @@ function State.new(map, playerCount, seed)
     for pid = 1, playerCount do
         local res = {}
         for _, r in ipairs(Resources.core) do res[r.key] = 0 end
-        players[pid] = { id = pid, res = res, votes = 0, hq = nil, hqLevel = 1, subs = {} }
+        for _, r in ipairs(Resources.materials) do res[r.key] = 0 end
+        players[pid] = { id = pid, res = res, votes = 0, hq = nil, hqLevel = 1, subs = {}, carry = {} }
     end
     local order = {}
     for pid = 1, playerCount do order[pid] = pid end
@@ -35,7 +38,8 @@ function State.new(map, playerCount, seed)
         round = 1, turn = 1, order = order, phase = "setup_hq",
         rng = Rng.new(tostring(seed) .. ":game"),
         players = players,
-        owner = {}, votes = {}, buildings = {},
+        owner = {}, votes = {}, buildings = {}, occupied = {}, nextUid = 1, lostStrategic = {},
+        units = {}, roads = {},
         rebel = nil, dice = nil, log = {},
     }
 end

@@ -5,6 +5,7 @@
 local Hex         = require("src.core.hex")
 local MapRenderer = require("src.render.map_renderer")
 local Buildings   = require("src.data.buildings")
+local Structures  = require("src.core.structures")
 
 local L = {}
 
@@ -127,10 +128,9 @@ end
 function L.drawBuildings(state, opts)
     local zoom = opts.zoom or 1
 
-    for _, tile in ipairs(state.map.list) do
-        local b = state.buildings[key(tile)]
-        if b then
-            local cx, cy = tileCenter(tile)
+    for _, b in ipairs(Structures.list(state)) do
+        do
+            local cx, cy = tileCenter(Structures.tilesOf(state, b)[1])
             local def = Buildings.byId[b.id]
             local rc, pc = RES_COLOR[def.main], PLAYER[b.owner]
             love.graphics.setColor(0, 0, 0, 0.45)

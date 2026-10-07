@@ -8,6 +8,7 @@ local C         = require("src.config.constants")
 local Hex       = require("src.core.hex")
 local State     = require("src.core.state")
 local Rebel     = require("src.core.rebel")
+local Structures = require("src.core.structures")
 local Terrains  = require("src.data.terrains")
 
 local T = {}
@@ -102,7 +103,7 @@ function T.threshold(state, pid, tile)
     local d = T.distanceToAnchor(state, pid, tile)
     local idx = math.max(1, math.min(d, #C.CHI_PHOI_THRESHOLD))
     local need = C.CHI_PHOI_THRESHOLD[idx]
-    if tile.strategic == TN_THRESHOLD_BONUS then need = need - 1 end
+    if Structures.strategicAt(state, tile) == TN_THRESHOLD_BONUS then need = need - 1 end
     return math.max(1, need)
 end
 
@@ -181,7 +182,7 @@ end
 function T.canFoundSub(state, pid, tile)
     if not tile then return false, "Không có ô này" end
     if state.owner[key(tile)] ~= pid then return false, "Phải lập Khu Trực Thuộc trên lãnh thổ thực hữu của bạn" end
-    if state.buildings[key(tile)] or T.isAnchorTile(state, tile) then return false, "Ô đã có công trình" end
+    if Structures.at(state, tile) or T.isAnchorTile(state, tile) then return false, "Ô đã có công trình" end
     if Rebel.isBlockaded(state, tile) then return false, "Ô đang bị Phiến Quân phong tỏa" end
     if not Terrains.byId[tile.terrain].canSub then return false, "Không đặt Khu Trực Thuộc trên địa hình này" end
     if #state.map:neighbors(tile) < 6 then return false, "Cần đủ 6 ô xung quanh" end
@@ -217,7 +218,7 @@ function T.canVote(state, pid, tile)
     if Rebel.isBlockaded(state, tile) then return false, "Ô đang bị Phiến Quân phong tỏa" end
     if not T.inInfluence(state, pid, tile) then return false, "Chỉ đặt phiếu trong vùng ảnh hưởng của bạn" end
     if T.isAnchorTile(state, tile) then return false, "Không đặt phiếu lên ô Nhà Chính / Khu Trực Thuộc" end
-    local b = state.buildings[key(tile)]
+    local b = Structures.at(state, tile)
     if b and b.owner ~= pid then return false, "Ô có công trình của đối thủ" end
     local owner = state.owner[key(tile)]
     if owner == pid and not T.isDisputed(state, tile) then return false, "Ô đã thuộc về bạn" end

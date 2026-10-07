@@ -20,6 +20,8 @@ local Rebel       = require("src.core.rebel")
 local Scoring     = require("src.core.scoring")
 local Serialize   = require("src.core.serialize")
 local State       = require("src.core.state")
+local Structures  = require("src.core.structures")
+local Upkeep      = require("src.core.upkeep")
 local Territory   = require("src.core.territory")
 local Buildings   = require("src.data.buildings")
 local Terrains    = require("src.data.terrains")
@@ -92,6 +94,7 @@ function Game.actor(state)
     if ph == "roll" or ph == "action" then return state.order[state.turn] end
     if ph == "rebel_move" then return state.rebel.pending.roller end
     if ph == "rebel_loss" then return state.rebel.pending.owner end
+    if ph == "prompt" then return state.prompt.pid end
     return nil
 end
 
@@ -134,7 +137,7 @@ local function buildCheck(state, pid, id, tile)
     if not def then return false, "Công trình không tồn tại" end
     if not tile then return false, "Không có ô này" end
     if state.owner[key(tile)] ~= pid then return false, "Chỉ xây được trên lãnh thổ thực hữu của bạn" end
-    if state.buildings[key(tile)] or Territory.isAnchorTile(state, tile) then return false, "Ô đã có công trình" end
+    if Structures.at(state, tile) or Territory.isAnchorTile(state, tile) then return false, "Ô đã có công trình" end
     if Rebel.isBlockaded(state, tile) then return false, "Ô đang bị Phiến Quân phong tỏa" end
     if not Buildings.allowedOn(id, 1, tile.terrain) then return false, "Địa hình này không xây được công trình này" end
     if not canAfford(state.players[pid].res, buildCost(state, pid, id, tile)) then return false, "Không đủ tài nguyên" end
@@ -185,6 +188,7 @@ H.roll = {
     phase = "roll",
     check = function() return true end,
     apply = function(state, cmd, pid, events)
+        for _, e in ipairs(Upkeep.startTurn(state, pid)) do events[#events + 1] = e end
         local dice = Dice.roll(state.rng)
         state.dice = dice
         events[#events + 1] = { kind = "roll", pid = pid, dice = dice }
@@ -326,9 +330,43 @@ H.build = {
         return buildCheck(state, pid, cmd.id, state.map:get(cmd.q, cmd.r))
     end,
     apply = function(state, cmd, pid, events)
-        pay(state.players[pid].res, buildCost(state, pid, cmd.id, state.map:get(cmd.q, cmd.r)))
-        state.buildings[key({ q = cmd.q, r = cmd.r })] = { id = cmd.id, level = 1, owner = pid }
+        local tile = state.map:get(cmd.q, cmd.r)
+        pay(state.players[pid].res, buildCost(state, pid, cmd.id, tile))
+        Structures.place(state, { id = cmd.id, level = 1, owner = pid }, { tile })
         events[#events + 1] = { kind = "build", pid = pid, id = cmd.id, level = 1, q = cmd.q, r = cmd.r }
+    end,
+}
+
+-- Lời nhắc xen lượt (trả lời đề xuất trao đổi, phản ứng của Đặc Biệt, Sắc Lệnh Phản Ứng ở M2...).
+-- state.prompt = { kind, pid, options = { choice... }, resume = "action", ... dữ liệu riêng của kind }
+-- Mỗi kind đăng ký vào Game.prompts: { check(state, prompt, choice) -> ok, lý do,
+--                                      apply(state, prompt, choice, events) }.
+Game.prompts = {}
+
+-- Mở lời nhắc: phase chuyển sang "prompt" cho người trả lời. `resume` là phase quay về sau khi trả lời.
+function Game.openPrompt(state, prompt)
+    assert(Game.prompts[prompt.kind], "kind lời nhắc chưa đăng ký: " .. tostring(prompt.kind))
+    prompt.resume = prompt.resume or state.phase
+    state.prompt = prompt
+    state.phase = "prompt"
+end
+
+H.respond = {
+    phase = "prompt",
+    check = function(state, cmd)
+        local p = state.prompt
+        local ok = false
+        for _, c in ipairs(p.options) do
+            if c == cmd.choice then ok = true end
+        end
+        if not ok then return false, "Lựa chọn không hợp lệ" end
+        return Game.prompts[p.kind].check(state, p, cmd.choice)
+    end,
+    apply = function(state, cmd, pid, events)
+        local p = state.prompt
+        state.prompt = nil
+        state.phase = p.resume
+        Game.prompts[p.kind].apply(state, p, cmd.choice, events)
     end,
 }
 
@@ -402,6 +440,10 @@ function Game.legal(state)
         for _, k in ipairs(state.rebel.pending.options) do
             out[#out + 1] = { type = "chooseLoss", pid = actor, res = k }
         end
+    elseif ph == "prompt" then
+        for _, c in ipairs(state.prompt.options) do
+            out[#out + 1] = { type = "respond", pid = actor, choice = c }
+        end
     elseif ph == "action" then
         local p = state.players[actor]
         for _, give in ipairs(Resources.core) do
@@ -450,7 +492,8 @@ end
 Game.score   = Scoring.score
 Game.ranking = Scoring.ranking
 
-local PHASES = { setup_hq = true, roll = true, rebel_move = true, rebel_loss = true, action = true, over = true }
+local PHASES = { setup_hq = true, roll = true, rebel_move = true, rebel_loss = true, prompt = true,
+                 action = true, over = true }
 
 -- Migration: MIGRATIONS[v] đưa dữ liệu version v lên v+1 (chưa cần ở version 1).
 local MIGRATIONS = {
@@ -461,6 +504,28 @@ local MIGRATIONS = {
             for _, sub in ipairs(p.subs or {}) do sub.level = sub.level or 1 end
         end
         data.version = 2
+        return data
+    end,
+    -- v2 -> v3 (D-014): công trình theo uid + occupied, vật liệu, carry, units/roads/lostStrategic.
+    [2] = function(data)
+        local s = data.state
+        local old, keys = s.buildings or {}, {}
+        for k in pairs(old) do keys[#keys + 1] = k end
+        table.sort(keys)
+        s.buildings, s.occupied, s.nextUid = {}, {}, 1
+        for _, k in ipairs(keys) do
+            local b, uid = old[k], s.nextUid
+            s.nextUid = uid + 1
+            s.buildings[uid] = { uid = uid, id = b.id, level = b.level, owner = b.owner,
+                                 tiles = { k }, anchor = k, rot = 0 }
+            s.occupied[k] = uid
+        end
+        s.lostStrategic, s.units, s.roads = s.lostStrategic or {}, s.units or {}, s.roads or {}
+        for _, p in ipairs(s.players or {}) do
+            for _, r in ipairs(Resources.materials) do p.res[r.key] = p.res[r.key] or 0 end
+            p.carry = p.carry or {}
+        end
+        data.version = 3
         return data
     end,
 }
@@ -490,7 +555,8 @@ function Game.load(str)
     if type(n) ~= "number" or n < 1 or n > 4 or #s.players ~= n or type(s.rng) ~= "table" then
         return nil, "dữ liệu save không hợp lệ (người chơi)"
     end
-    for _, t in ipairs({ "owner", "votes", "buildings", "log", "history", "order" }) do
+    for _, t in ipairs({ "owner", "votes", "buildings", "occupied", "lostStrategic", "units", "roads",
+                         "log", "history", "order" }) do
         if type(s[t]) ~= "table" then return nil, "dữ liệu save thiếu " .. t end
     end
 

@@ -15,6 +15,7 @@ local Buildings   = require("src.data.buildings")
 local Resources   = require("src.data.resources")
 local Terrains    = require("src.data.terrains")
 local Strategic   = require("src.data.strategic")
+local Structures  = require("src.core.structures")
 local Camera      = require("src.render.camera")
 local Tileset     = require("src.render.tileset")
 local MapRenderer = require("src.render.map_renderer")
@@ -334,7 +335,7 @@ function Scene:drawMap()
         zoom = zoom,
         thresholdFn = function(tile, pid) return Territory.threshold(state, pid, tile) end,
     })
-    MapRenderer.drawMarkers(state.map, { zoom = zoom, showZones = self.showZones })
+    MapRenderer.drawMarkers(state.map, { zoom = zoom, showZones = self.showZones, lostStrategic = state.lostStrategic })
     Layers.drawBuildings(state, { zoom = zoom })
     Layers.drawRebel(state, { zoom = zoom, time = self.time })
 
@@ -619,7 +620,8 @@ function Scene:drawInfo(x, y, w, h)
     if not t then return end
     local def = Terrains.byId[t.terrain]
     local parts = { string.format("(%d,%d) %s", t.q, t.r, def.name) }
-    if t.strategic then parts[#parts + 1] = Strategic.byId[t.strategic].name end
+    local tn = Structures.strategicAt(state, t)
+    if tn then parts[#parts + 1] = Strategic.byId[tn].name end
     local k = t.q .. "," .. t.r
     local owner = state.owner[k]
     parts[#parts + 1] = owner and ("Chủ: P" .. owner) or "Chưa có chủ"
@@ -635,7 +637,7 @@ function Scene:drawInfo(x, y, w, h)
     if actor and state.players[actor].hq and not owner then
         parts[#parts + 1] = string.format("Ngưỡng P%d: %d", actor, Territory.threshold(state, actor, t))
     end
-    local b = state.buildings[k]
+    local b = Structures.at(state, t)
     if b then parts[#parts + 1] = Buildings.byId[b.id].name .. " C" .. b.level end
     if state.rebel and Rebel.isBlockaded(state, t) then parts[#parts + 1] = "BỊ PHONG TỎA" end
     ui:panel(x, y, w, h)

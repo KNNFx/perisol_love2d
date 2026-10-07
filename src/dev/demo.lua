@@ -3,7 +3,7 @@
 
 local Game = require("src.core.game")
 local Rebel = require("src.core.rebel")
-local State = require("src.core.state")
+local Structures = require("src.core.structures")
 
 local Demo = {}
 
@@ -21,7 +21,7 @@ function Demo.loss(state)
         if n.terrain == "DH-01" then tile = n break end
     end
     tile = tile or state.map:get(hq.q, hq.r)
-    state.buildings[State.key(tile)] = { id = "B-01", level = 1, owner = victim }
+    Structures.place(state, { id = "B-01", level = 1, owner = victim }, { tile })
     for k in pairs(state.players[victim].res) do state.players[victim].res[k] = 0 end
     state.players[victim].res.gold, state.players[victim].res.culture = 4, 4
 

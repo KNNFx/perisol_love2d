@@ -1,6 +1,7 @@
 local Mapgen     = require("src.core.mapgen")
 local State      = require("src.core.state")
 local Production = require("src.core.production")
+local Structures = require("src.core.structures")
 
 -- State 3 người trên map 32x16, không TN; trả state + hàm đặt công trình tại tile bất kỳ.
 local function newState()
@@ -9,7 +10,7 @@ local function newState()
     local s = State.new(map, 3, 11)
     local function put(i, id, level, pid)
         local t = map.list[i]
-        s.buildings[State.key(t)] = { id = id, level = level or 1, owner = pid }
+        Structures.place(s, { id = id, level = level or 1, owner = pid }, { t })
         return t
     end
     return s, put
@@ -47,7 +48,7 @@ describe("production: Long Mạch", function()
         put(10, "B-01", 2, 1)
         expect.eq(sum(Production.compute(s, { 3, 5 }, 1), 1, "engineering"), 2)
         expect.eq(sum(Production.compute(s, { 1, 5 }, 1), 1, "engineering"), 1)
-        s.buildings[State.key(s.map.list[10])].level = 3
+        Structures.at(s, s.map.list[10]).level = 3
         expect.eq(sum(Production.compute(s, { 3, 3 }, 1), 1, "engineering"), 6)
         expect.eq(sum(Production.compute(s, { 1, 2 }, 1), 1, "engineering"), 2)
     end)
