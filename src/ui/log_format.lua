@@ -4,6 +4,7 @@
 
 local Buildings = require("src.data.buildings")
 local Resources = require("src.data.resources")
+local Strategic = require("src.data.strategic")
 
 local Fmt = {}
 
@@ -82,6 +83,19 @@ function Fmt.line(e)
     elseif k == "build" then
         return { text = string.format("%s xây %s C%d tại %s", P(e.pid), buildingName(e.id), e.level, at(e)),
                  pid = e.pid, tier = "medium" }
+    elseif k == "upgrade" then
+        return { text = string.format("%s nâng %s lên C%d tại %s", P(e.pid), buildingName(e.id), e.level, at(e)),
+                 pid = e.pid, tier = "medium" }
+    elseif k == "demolish_start" then
+        return { text = string.format("%s ra lệnh dỡ %s tại %s (xong đầu lượt sau)", P(e.pid), buildingName(e.id), at(e)),
+                 pid = e.pid, tier = "medium" }
+    elseif k == "demolished" then
+        return { text = string.format("%s đã dỡ %s tại %s", P(e.pid), buildingName(e.id), at(e)),
+                 pid = e.pid, tier = "medium" }
+    elseif k == "strategic_lost" then
+        local tn = Strategic.byId[e.tn]
+        return { text = string.format("Mất %s tại %s do dỡ công trình", tn and tn.name or tostring(e.tn), at(e)),
+                 pid = e.pid, tier = "large" }
     elseif k == "end_turn" then
         return { text = "Hết lượt " .. P(e.pid), pid = e.pid, tier = "small" }
     elseif k == "global_event" then

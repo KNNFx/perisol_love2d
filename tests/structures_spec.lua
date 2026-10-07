@@ -167,7 +167,7 @@ describe("save v3", function()
         s.owner[State.key(a)], s.owner[State.key(b)] = 1, 2
         s.votes[State.key(a)], s.votes[State.key(b)] = { [1] = 9 }, { [2] = 9 }   -- đủ ngưỡng cho bất biến
         Structures.place(s, { id = "B-01", level = 1, owner = 1 }, { a })
-        Structures.place(s, { id = "B-04", level = 2, owner = 2 }, { b })
+        Structures.place(s, { id = "B-04", level = 1, owner = 2 }, { b })
         local data = assert(Serialize.load(Game.save(s)))
         local st = data.state
         local old = {}
@@ -183,7 +183,7 @@ describe("save v3", function()
         local s2 = assert(Game.load(Serialize.dump(data)))
         local b1, b2 = Structures.at(s2, a), Structures.at(s2, b)
         expect.eq(b1.id, "B-01"); expect.eq(b1.owner, 1)
-        expect.eq(b2.id, "B-04"); expect.eq(b2.level, 2)
+        expect.eq(b2.id, "B-04"); expect.eq(b2.level, 1)
         expect.truthy(b1.uid ~= b2.uid)
         expect.eq(s2.players[1].res.steel, 0)
         expect.eq(next(s2.lostStrategic), nil)

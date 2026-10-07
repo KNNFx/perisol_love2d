@@ -4,6 +4,7 @@
 local Game = require("src.core.game")
 local Rebel = require("src.core.rebel")
 local Structures = require("src.core.structures")
+local State = require("src.core.state")
 
 local Demo = {}
 
@@ -30,10 +31,56 @@ function Demo.loss(state)
     state.phase = Rebel.stage(state) == "loss" and "rebel_loss" or "action"
 end
 
+-- Vùng bán kính 2 toàn Đồng Bằng thuộc người đang lượt, xa mọi HQ; có 2 công trình C1 và đủ tài nguyên.
+-- Trả tile trung tâm, pid, danh sách công trình.
+local function upgradeArena(state)
+    local Hex = require("src.core.hex")
+    while state.phase == "setup_hq" do Game.apply(state, Game.legal(state)[1]) end
+    state.phase = "action"
+    local pid = Game.actor(state)
+    local best, bestD = nil, -1
+    for _, t in ipairs(state.map.list) do
+        local ok, d = true, math.huge
+        for _, h in ipairs(Hex.range(t, 3)) do
+            if not state.map:get(h.q, h.r) then ok = false end
+        end
+        if ok then
+            for p = 1, state.playerCount do d = math.min(d, Hex.distance(state.players[p].hq, t)) end
+            if d > bestD then best, bestD = t, d end
+        end
+    end
+    for _, h in ipairs(Hex.range(best, 2)) do
+        local t = state.map:get(h.q, h.r)
+        t.terrain, t.settlement, t.landmark, t.strategic = "DH-01", nil, nil, nil
+        state.owner[State.key(t)] = pid
+        state.votes[State.key(t)] = { [pid] = 9 }
+    end
+    for k in pairs(state.players[pid].res) do state.players[pid].res[k] = 20 end
+    local a = Structures.place(state, { id = "B-01", level = 1, owner = pid }, { best })
+    local ring = state.map:neighbors(best)
+    local b = Structures.place(state, { id = "B-03", level = 1, owner = pid }, { state.map:get(best.q - 2, best.r + 1) or ring[4] })
+    return best, pid, { a, b }
+end
+
+-- Chọn Trại Khai Thác và vào chế độ nâng cấp: xem ghost hình tam giác (phím Q đổi hình).
+function Demo.upgrade(state)
+    local best, _, bs = upgradeArena(state)
+    local hover = state.map:get(best.q + 1, best.r)
+    return { focus = best, selected = bs[1].uid, mode = { kind = "upgrade", uid = bs[1].uid, variant = 0 }, hover = hover }
+end
+
+-- Popup xác nhận dỡ khi công trình nằm trên TN (cảnh báo mất vĩnh viễn).
+function Demo.demolish(state)
+    local best, _, bs = upgradeArena(state)
+    best.strategic = "TN-05"
+    return { focus = best, selected = bs[1].uid, confirm = { uid = bs[1].uid } }
+end
+
+-- Trả bảng gợi ý cho scene (selected / mode / confirm / hover / focus) hoặc nil.
 function Demo.apply(state, name)
     local fn = Demo[name]
     assert(fn and name ~= "apply", "demo không tồn tại: " .. tostring(name))
-    fn(state)
+    return fn(state)
 end
 
 return Demo

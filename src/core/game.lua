@@ -10,7 +10,8 @@
 --
 -- Pha: setup_hq -> [roll -> (rebel_move -> rebel_loss?) -> action] x lượt x 20 vòng -> over
 -- Lệnh: placeHQ{start} · roll · rebelStep{q,r} · chooseLoss{res} · trade{give,get} · placeVote{q,r} ·
---       buyTile{q,r} · upgradeHQ · foundSub{q,r} · build{id,q,r} · endTurn
+--       buyTile{q,r} · upgradeHQ · foundSub{q,r} · build{id,q,r} · upgrade{uid,q,r,rot} · demolish{uid} ·
+--       respond{choice} (phase prompt) · endTurn
 
 local C           = require("src.config.constants")
 local Dice        = require("src.core.dice")
@@ -21,6 +22,7 @@ local Scoring     = require("src.core.scoring")
 local Serialize   = require("src.core.serialize")
 local State       = require("src.core.state")
 local Structures  = require("src.core.structures")
+local Construction = require("src.core.construction")
 local Upkeep      = require("src.core.upkeep")
 local Territory   = require("src.core.territory")
 local Buildings   = require("src.data.buildings")
@@ -120,16 +122,7 @@ end
 
 -- Chi phí xây thực tế của công trình `id` cấp 1 trên `tile` (hiệu ứng địa hình giảm chi phí).
 local function buildCost(state, pid, id, tile)
-    local def = Buildings.level(id, 1)
-    local cost = {}
-    for k, n in pairs(def.cost) do cost[k] = n end
-    local fx = tile and Terrains.byId[tile.terrain].effects
-    if fx and fx.buildDiscount then
-        for k, n in pairs(fx.buildDiscount) do
-            if cost[k] then cost[k] = math.max(0, cost[k] - n) end
-        end
-    end
-    return cost
+    return Construction.cost(state, id, 1, tile)
 end
 
 local function buildCheck(state, pid, id, tile)
@@ -337,6 +330,47 @@ H.build = {
     end,
 }
 
+-- Chi phí nâng `b` lên cấp kế, tính theo ô neo (nil nếu đã tối đa).
+local function upgradeCost(state, b)
+    if not Buildings.level(b.id, b.level + 1) then return nil end
+    return Construction.cost(state, b.id, b.level + 1, Structures.tilesOf(state, b)[1])
+end
+
+local function upgradeCheck(state, pid, cmd)
+    local b = state.buildings[cmd.uid]
+    local ok, why = Construction.checkFootprint(state, pid, b, cmd.q, cmd.r, cmd.rot or 0)
+    if not ok then return false, why end
+    if not canAfford(state.players[pid].res, upgradeCost(state, b)) then return false, "Không đủ tài nguyên" end
+    return true
+end
+
+Game.upgradeCost = upgradeCost
+Game.upgradeCheck = upgradeCheck
+
+H.upgrade = {
+    phase = "action",
+    check = function(state, cmd, pid) return upgradeCheck(state, pid, cmd) end,
+    apply = function(state, cmd, pid, events)
+        local b = state.buildings[cmd.uid]
+        pay(state.players[pid].res, upgradeCost(state, b))
+        local a = Construction.upgrade(state, cmd.uid, cmd.q, cmd.r, cmd.rot or 0)
+        events[#events + 1] = { kind = "upgrade", pid = pid, id = b.id, level = b.level, q = a.q, r = a.r, uid = b.uid }
+    end,
+}
+
+H.demolish = {
+    phase = "action",
+    check = function(state, cmd, pid)
+        return Construction.checkDemolish(state, pid, state.buildings[cmd.uid])
+    end,
+    apply = function(state, cmd, pid, events)
+        local b = state.buildings[cmd.uid]
+        Construction.demolish(state, cmd.uid)
+        local a = Structures.tilesOf(state, b)[1]
+        events[#events + 1] = { kind = "demolish_start", pid = pid, id = b.id, q = a.q, r = a.r, uid = b.uid }
+    end,
+}
+
 -- Lời nhắc xen lượt (trả lời đề xuất trao đổi, phản ứng của Đặc Biệt, Sắc Lệnh Phản Ứng ở M2...).
 -- state.prompt = { kind, pid, options = { choice... }, resume = "action", ... dữ liệu riêng của kind }
 -- Mỗi kind đăng ký vào Game.prompts: { check(state, prompt, choice) -> ok, lý do,
@@ -480,6 +514,17 @@ function Game.legal(state)
                         out[#out + 1] = { type = "build", pid = actor, id = b.id, q = t.q, r = t.r }
                     end
                 end
+            end
+        end
+        for _, b in ipairs(Structures.list(state)) do
+            if b.owner == actor and not b.demolishing then
+                local cost = upgradeCost(state, b)
+                if cost and canAfford(p.res, cost) then
+                    for _, o in ipairs(Construction.upgradeOptions(state, b.uid)) do
+                        out[#out + 1] = { type = "upgrade", pid = actor, uid = b.uid, q = o.q, r = o.r, rot = o.rot }
+                    end
+                end
+                out[#out + 1] = { type = "demolish", pid = actor, uid = b.uid }
             end
         end
         out[#out + 1] = { type = "endTurn", pid = actor }

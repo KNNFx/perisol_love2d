@@ -16,6 +16,7 @@ local Resources   = require("src.data.resources")
 local Terrains    = require("src.data.terrains")
 local Strategic   = require("src.data.strategic")
 local Structures  = require("src.core.structures")
+local Construction = require("src.core.construction")
 local Camera      = require("src.render.camera")
 local Tileset     = require("src.render.tileset")
 local MapRenderer = require("src.render.map_renderer")
@@ -78,7 +79,7 @@ function Scene:enter(opts)
     local play = tonumber(Cli.option("--play"))
     if play and not opts.state then Sim.advance(self.state, play) end
     local demo = Cli.option("--demo")           -- dev: thế cờ dựng sẵn (src/dev/demo.lua)
-    if demo and not opts.state then require("src.dev.demo").apply(self.state, demo) end
+    local demoHints = demo and not opts.state and require("src.dev.demo").apply(self.state, demo) or nil
     local untilPhase = Cli.option("--until")   -- dev: tự chơi từng lệnh tới khi vào pha này
     if untilPhase and not opts.state then
         for _ = 1, 3000 do
@@ -92,6 +93,7 @@ function Scene:enter(opts)
     self.ui = UI.new()
     self.tween = Tween.new()
     self.mode, self.popup = nil, nil
+    self.selected, self.confirm = nil, nil      -- uid công trình đang chọn; { uid } popup xác nhận dỡ
     self.trade = {}
     self.rollAnim = nil
     self.dieScale = { 1, 1 }
@@ -100,6 +102,9 @@ function Scene:enter(opts)
     self.toast = nil
     self.reduceMotion, self.debug, self.showZones = false, false, false
     self.hover = nil
+    if demoHints then   -- dev: --demo upgrade / demolish dựng sẵn lựa chọn để chụp màn hình
+        self.selected, self.mode, self.confirm, self.demoHover = demoHints.selected, demoHints.mode, demoHints.confirm, demoHints.hover
+    end
 
     Theme.update(love.graphics.getDimensions())
     self:updateCameraMargin()
@@ -107,6 +112,7 @@ function Scene:enter(opts)
     self.camera:setWorld(w, h)
     self.camera:fit(love.graphics.getWidth())
     self:rebuildLog()
+    if demoHints and demoHints.focus then self:focusTile(demoHints.focus) end
 end
 
 -- Lề camera đủ rộng để kéo bất kỳ ô nào (kể cả ô sát mép bản đồ) ra khỏi vùng bị panel HUD che.
@@ -181,8 +187,12 @@ function Scene:onEvents(events)
             self:addTrauma(0.3)
             self:popValue(e.victim, e.res)
             self:popValue(e.roller, e.res)
-        elseif k == "claim" or k == "build" or k == "place_hq" or k == "found_sub" or k == "upgrade_hq" then
+        elseif k == "claim" or k == "build" or k == "place_hq" or k == "found_sub" or k == "upgrade_hq"
+            or k == "upgrade" or k == "demolished" then
             self:pulseAt(e.q, e.r)
+        elseif k == "strategic_lost" then
+            self:addTrauma(0.25)
+            self:say("Mất tài nguyên chiến lược do dỡ công trình")
         elseif k == "end_turn" then
             local nextActor = Game.actor(state)
             if nextActor and state.players[nextActor].hq then
@@ -202,6 +212,7 @@ function Scene:cmd(c)
     local ok, why = Game.check(self.state, c)
     if not ok then self:say(why or "Không thực hiện được") return false end
     self:onEvents(Game.apply(self.state, c))
+    if c.type == "endTurn" then self.selected = nil end
     return true
 end
 
@@ -274,6 +285,7 @@ function Scene:update(dt)
         local wx, wy = self.camera:screenToWorld(mx, my)
         self.hover = MapRenderer.tileAt(self.state.map, wx, wy)
     end
+    if self.demoHover then self.hover = self.demoHover end
 end
 
 -- ─── Vẽ bản đồ ──────────────────────────────────────────────────────────────
@@ -314,8 +326,57 @@ function Scene:computeTargets()
             end
         end
         ghostCheck = function(t) return Game.check(state, { type = "foundSub", q = t.q, r = t.r }) end
+    elseif state.phase == "action" and self.mode and self.mode.kind == "upgrade" then
+        local uid = self.mode.uid
+        local seen = {}
+        for _, o in ipairs(Construction.upgradeOptions(state, uid)) do
+            local _, _, tiles = Construction.checkFootprint(state, actor, state.buildings[uid], o.q, o.r, o.rot)
+            for _, t in ipairs(tiles) do
+                if not seen[t] then
+                    seen[t] = true
+                    items[#items + 1] = { tile = t, color = { 0.35, 0.9, 0.5 }, alpha = 0.18 }
+                end
+            end
+        end
+        local cand = self:upgradeCandidate()
+        if cand then
+            for _, t in ipairs(cand.tiles) do items[#items + 1] = { tile = t, color = { 0.55, 1, 0.65 }, alpha = 0.5 } end
+        end
+        ghostCheck = function(t)
+            local c = self:upgradeCandidate()
+            if not c then
+                return false, "Không có hình nâng cấp hợp lệ chứa ô này (cần ô thực hữu trống, đúng địa hình)"
+            end
+            return Game.upgradeCheck(state, actor, { uid = uid, q = c.q, r = c.r, rot = c.rot })
+        end
     end
     return items, ghostCheck
+end
+
+-- Hình nâng cấp hợp lệ chứa ô đang hover; phím Q đổi giữa các hình (mode.variant). Trả { q, r, rot, tiles } hoặc nil.
+function Scene:upgradeCandidate()
+    local state, mode, hover = self.state, self.mode, self.hover
+    if not (mode and mode.kind == "upgrade" and hover) then return nil end
+    local b = state.buildings[mode.uid]
+    if not b then return nil end
+    local list = {}
+    for _, o in ipairs(Construction.upgradeOptions(state, mode.uid)) do
+        local ok, _, tiles = Construction.checkFootprint(state, b.owner, b, o.q, o.r, o.rot)
+        if ok then
+            for _, t in ipairs(tiles) do
+                if t == hover then list[#list + 1] = { q = o.q, r = o.r, rot = o.rot, tiles = tiles } break end
+            end
+        end
+    end
+    if #list == 0 then return nil end
+    return list[(mode.variant or 0) % #list + 1]
+end
+
+-- Công trình của người đang lượt tại ô `tile` (nil nếu không có).
+function Scene:ownBuildingAt(tile)
+    local actor = Game.actor(self.state)
+    local b = Structures.at(self.state, tile)
+    return b and b.owner == actor and b or nil
 end
 
 function Scene:drawMap()
@@ -343,6 +404,14 @@ function Scene:drawMap()
         Layers.drawStartPicks(state, zoom, self.hover and self.hover.zone)
     else
         local items, ghostCheck = self:computeTargets()
+        local sel = self.selected and state.buildings[self.selected]
+        if sel then
+            local selItems = {}
+            for _, t in ipairs(Structures.tilesOf(state, sel)) do
+                selItems[#selItems + 1] = { tile = t, color = { 1, 0.9, 0.35 }, alpha = 0.12 }
+            end
+            Layers.drawHighlights(selItems, zoom)
+        end
         Layers.drawHighlights(items, zoom)
         if self.hover and ghostCheck then
             local ok, why = ghostCheck(self.hover)
@@ -381,7 +450,11 @@ function Scene:hintText()
     elseif ph == "rebel_loss" then
         return who .. " chọn loại tài nguyên bị mất"
     elseif ph == "action" then
-        if self.mode and self.mode.kind == "build" then
+        if self.mode and self.mode.kind == "upgrade" then
+            local b = state.buildings[self.mode.uid]
+            return string.format("Chọn hình nâng cấp %s lên C%d: di chuột lên ô sáng, %s đổi hình, bấm để xác nhận (Esc để hủy)",
+                b and Buildings.byId[b.id].name or "", b and b.level + 1 or 0, Actions.label("rotate"))
+        elseif self.mode and self.mode.kind == "build" then
             return "Chọn ô để xây " .. Buildings.byId[self.mode.id].name .. " (Esc để hủy)"
         elseif self.mode and self.mode.kind == "vote" then
             return string.format("Chọn ô trong vùng ảnh hưởng để đặt phiếu Chi Phối — còn %d phiếu (Esc để hủy)",
@@ -644,6 +717,96 @@ function Scene:drawInfo(x, y, w, h)
     ui:label(table.concat(parts, "  ·  "), x + Theme.px(8), y + (h - Theme.font(11):getHeight()) / 2, { font = Theme.font(11) })
 end
 
+-- Bảng ngữ cảnh của công trình đang chọn: nâng cấp tại chỗ, dỡ bỏ (D-014).
+function Scene:drawBuildingPanel(x, y, w)
+    local ui, state = self.ui, self.state
+    local b = self.selected and state.buildings[self.selected]
+    if not b then self.selected = nil return end
+    local actor = Game.actor(state)
+    local def = Buildings.byId[b.id]
+    local lv = def.levels[b.level]
+    local mine = b.owner == actor
+    local inAction = state.phase == "action" and mine and not self.popup and not self.confirm
+    local bh, gap, pad = Theme.px(24), Theme.px(4), Theme.px(8)
+    local fs = Theme.font(10)
+
+    local h = Theme.px(70) + 2 * (bh + gap) + (b.demolishing and Theme.px(14) or 0)
+    ui:panel(x, y, w, h, { borderColor = Theme.player[b.owner] })
+    ui:label(string.format("%s  C%d", def.name, b.level), x + pad, y + Theme.px(5),
+        { font = Theme.font(12, true), color = Theme.color.accent })
+    local prod = {}
+    for _, p in ipairs(lv.produces) do
+        prod[#prod + 1] = string.format("+%d %s khi ra %s", p[3], Fmt.res(p[2]), Fmt.face(p[1]))
+    end
+    ui:label(string.format("Chủ: P%d · chiếm %d ô\n%s", b.owner, #b.tiles, table.concat(prod, ", ")),
+        x + pad, y + Theme.px(22), { font = fs, color = Theme.color.dim, width = w - 2 * pad })
+    local by = y + Theme.px(66)
+    if b.demolishing then
+        ui:label("Đang chờ dỡ (xong đầu lượt sau của chủ)", x + pad, by, { font = fs, color = Theme.color.bad })
+        by = by + Theme.px(14)
+    end
+
+    local nextDef = def.levels[b.level + 1]
+    local canUp, upTip = false, "Đã ở cấp tối đa"
+    if nextDef then
+        local cost = Game.upgradeCost(state, b)
+        upTip = string.format("Nâng lên C%d: %s, chiếm %d ô (hình %s).\nHình mới phải chứa các ô hiện tại.",
+            b.level + 1, costText(cost), nextDef.tiles, nextDef.shape)
+        if b.demolishing then upTip = "Công trình đang chờ dỡ"
+        elseif mine and not canAfford(state.players[actor].res, cost) then upTip = upTip .. "\n(Không đủ tài nguyên)"
+        elseif mine and #Construction.upgradeOptions(state, b.uid) == 0 then
+            upTip = upTip .. "\n(Không có chỗ: cần ô thực hữu trống kề, đúng địa hình)"
+        else canUp = true end
+    end
+    local upLabel = nextDef and string.format("Nâng lên C%d (%s)", b.level + 1,
+        (costText(Game.upgradeCost(state, b)):gsub(" %+ ", "+"))) or "Cấp tối đa"
+    ui:button("bp_up", x + Theme.px(6), by, w - Theme.px(12), bh, upLabel, {
+        enabled = inAction and canUp, font = Theme.font(10, true), tip = upTip,
+        onClick = function() self.mode = { kind = "upgrade", uid = b.uid, variant = 0 } end,
+    })
+    by = by + bh + gap
+    local lost = Construction.lostOnDemolish(state, b)
+    local demTip = "Dỡ bỏ: không hoàn tài nguyên, xong đầu lượt kế tiếp của bạn."
+    if #lost > 0 then demTip = demTip .. "\nSẼ MẤT VĨNH VIỄN tài nguyên chiến lược trên ô." end
+    ui:button("bp_dem", x + Theme.px(6), by, w - Theme.px(12), bh, "Dỡ bỏ", {
+        enabled = inAction and not b.demolishing, font = Theme.font(10, true), tip = demTip,
+        onClick = function() self.confirm = { uid = b.uid } end,
+    })
+end
+
+-- Popup xác nhận dỡ: nêu rõ TN sẽ mất vĩnh viễn.
+function Scene:drawDemolishPopup(W, H)
+    local ui, state = self.ui, self.state
+    local b = state.buildings[self.confirm.uid]
+    if not b then self.confirm = nil return end
+    ui:blockBelow()
+    love.graphics.setColor(0, 0, 0, 0.55)
+    love.graphics.rectangle("fill", 0, 0, W, H)
+    local lost = Construction.lostOnDemolish(state, b)
+    local names = {}
+    for _, l in ipairs(lost) do names[#names + 1] = string.format("%s (%d,%d)", l.name, l.q, l.r) end
+    local w, h = Theme.px(400), Theme.px(#lost > 0 and 190 or 150)
+    local x, y = (W - w) / 2, (H - h) / 2
+    ui:panel(x, y, w, h, { borderColor = #lost > 0 and Theme.color.bad or Theme.color.panelLine })
+    ui:label("Dỡ " .. Buildings.byId[b.id].name .. " C" .. b.level .. "?", x, y + Theme.px(8),
+        { font = Theme.font(14, true), width = w, align = "center", color = Theme.color.accent })
+    ui:label("Không hoàn lại tài nguyên. Công trình ngừng sản xuất ngay và bị gỡ vào đầu lượt kế tiếp của bạn.",
+        x + Theme.px(16), y + Theme.px(34), { font = Theme.font(11), width = w - Theme.px(32), align = "center" })
+    if #lost > 0 then
+        ui:label("CẢNH BÁO: mất vĩnh viễn tài nguyên chiến lược: " .. table.concat(names, ", "),
+            x + Theme.px(16), y + Theme.px(84), { font = Theme.font(11, true), width = w - Theme.px(32),
+            align = "center", color = Theme.color.bad })
+    end
+    local bw, by = Theme.px(120), y + h - Theme.px(40)
+    ui:button("dm_ok", x + w / 2 - bw - Theme.px(6), by, bw, Theme.px(28), "Xác nhận dỡ", {
+        font = Theme.font(12, true), color = { 0.55, 0.2, 0.18 },
+        onClick = function() self:cmd({ type = "demolish", uid = b.uid }); self.confirm = nil end,
+    })
+    ui:button("dm_cancel", x + w / 2 + Theme.px(6), by, bw, Theme.px(28), "Hủy", {
+        font = Theme.font(12, true), onClick = function() self.confirm = nil end,
+    })
+end
+
 -- ─── Popup ──────────────────────────────────────────────────────────────────
 
 local function dim(W, H)
@@ -759,6 +922,10 @@ function Scene:draw()
     local logH = Theme.px(150)
     self:drawPlayers(pad, barH + pad, cardsW)
     self:drawActions(W - panelW - pad, barH + pad, panelW)
+    if self.selected then
+        local bpW = Theme.px(210)
+        self:drawBuildingPanel(W - panelW - bpW - 2 * pad, barH + pad + Theme.px(88), bpW)   -- dưới khung gợi ý
+    end
     local logW = Theme.px(310)
     self:drawLog(pad, H - logH - pad, logW, logH)
     self:drawInfo(pad + logW + pad, H - Theme.px(24) - pad, W - (pad + logW + pad) - pad, Theme.px(24))
@@ -798,6 +965,8 @@ function Scene:draw()
 
     if state.phase == "rebel_loss" then
         self:drawLossPopup(W, H)
+    elseif self.confirm then
+        self:drawDemolishPopup(W, H)
     elseif self.popup == "pause" then
         self:drawPausePopup(W, H)
     elseif self.popup == "trade" then
@@ -816,14 +985,18 @@ function Scene:keypressed(key)
     if state.phase == "rebel_loss" then return end   -- bắt buộc chọn
 
     if Actions.matches("cancel", key) then
-        if self.popup then self.popup = nil
+        if self.confirm then self.confirm = nil
+        elseif self.popup then self.popup = nil
         elseif self.mode then self.mode = nil
+        elseif self.selected then self.selected = nil
         else self.popup = "pause" end
         return
     end
-    if self.popup then return end
+    if self.popup or self.confirm then return end
 
-    if Actions.matches("roll", key) and state.phase == "roll" then
+    if Actions.matches("rotate", key) and self.mode and self.mode.kind == "upgrade" then
+        self.mode.variant = (self.mode.variant or 0) + 1
+    elseif Actions.matches("roll", key) and state.phase == "roll" then
         self:startRoll()
     elseif Actions.matches("endTurn", key) and state.phase == "action" then
         self.mode = nil
@@ -841,7 +1014,7 @@ end
 
 function Scene:mousepressed(x, y, button)
     if self.ui:mousepressed(x, y, button) then return end
-    if button ~= 1 or self.popup or self.rollAnim then return end
+    if button ~= 1 or self.popup or self.confirm or self.rollAnim then return end
 
     local state = self.state
     local wx, wy = self.camera:screenToWorld(x, y)
@@ -867,7 +1040,17 @@ function Scene:mousepressed(x, y, button)
             self:cmd({ type = "buyTile", q = tile.q, r = tile.r })
         elseif self.mode.kind == "sub" then
             if self:cmd({ type = "foundSub", q = tile.q, r = tile.r }) then self.mode = nil end
+        elseif self.mode.kind == "upgrade" then
+            local c = self:upgradeCandidate()
+            if c and self:cmd({ type = "upgrade", uid = self.mode.uid, q = c.q, r = c.r, rot = c.rot }) then
+                self.mode = nil
+            elseif not c then
+                self:say("Không có hình nâng cấp hợp lệ ở đây")
+            end
         end
+    elseif state.phase == "action" then
+        local b = Structures.at(state, tile)
+        self.selected = b and b.uid or nil
     end
 end
 

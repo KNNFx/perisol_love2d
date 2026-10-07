@@ -130,7 +130,25 @@ function L.drawBuildings(state, opts)
 
     for _, b in ipairs(Structures.list(state)) do
         do
-            local cx, cy = tileCenter(Structures.tilesOf(state, b)[1])
+            local tiles = Structures.tilesOf(state, b)
+            local pcol = PLAYER[b.owner]
+            -- footprint nhiều ô: tô nhạt + viền màu chủ quanh từng ô
+            if #tiles > 1 then
+                for _, t in ipairs(tiles) do
+                    local tx, ty = tileCenter(t)
+                    love.graphics.setColor(pcol[1], pcol[2], pcol[3], 0.22)
+                    love.graphics.polygon("fill", hexPolygon(tx, ty))
+                    love.graphics.setColor(pcol[1], pcol[2], pcol[3], 0.9)
+                    love.graphics.setLineWidth(1.5 / zoom)
+                    love.graphics.polygon("line", hexPolygon(tx, ty))
+                    love.graphics.setLineWidth(1)
+                    if t ~= tiles[1] then
+                        love.graphics.setColor(pcol[1], pcol[2], pcol[3], 0.9)
+                        love.graphics.circle("fill", tx, ty, 2.2)
+                    end
+                end
+            end
+            local cx, cy = tileCenter(tiles[1])
             local def = Buildings.byId[b.id]
             local rc, pc = RES_COLOR[def.main], PLAYER[b.owner]
             love.graphics.setColor(0, 0, 0, 0.45)
@@ -146,6 +164,16 @@ function L.drawBuildings(state, opts)
             if b.level > 1 then
                 love.graphics.setColor(1, 1, 1)
                 worldText(tostring(b.level), cx + 6, cy - 6, 0.4)
+            end
+            if b.demolishing then   -- chờ dỡ: gạch chéo đỏ trên mọi ô
+                love.graphics.setColor(0.95, 0.25, 0.2, 0.9)
+                love.graphics.setLineWidth(2 / zoom)
+                for _, t in ipairs(tiles) do
+                    local tx, ty = tileCenter(t)
+                    love.graphics.line(tx - 6, ty - 6, tx + 6, ty + 6)
+                    love.graphics.line(tx - 6, ty + 6, tx + 6, ty - 6)
+                end
+                love.graphics.setLineWidth(1)
             end
         end
     end

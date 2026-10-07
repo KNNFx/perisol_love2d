@@ -50,6 +50,22 @@ function S.place(state, spec, tiles)
     return b
 end
 
+-- Nâng cấp tại chỗ: đổi cấp và mở rộng footprint. `tiles` là danh sách tile mới, ô cũ đứng trước
+-- (ô neo = tile đầu giữ nguyên). Trả công trình.
+function S.upgrade(state, uid, tiles, level, rot)
+    local b = state.buildings[uid]
+    assert(b, "công trình không tồn tại: " .. tostring(uid))
+    local keys = {}
+    for i, t in ipairs(tiles) do
+        keys[i] = key(t)
+        local at = state.occupied[keys[i]]
+        assert(at == nil or at == uid, "ô đã có công trình khác: " .. keys[i])
+        state.occupied[keys[i]] = uid
+    end
+    b.tiles, b.anchor, b.level, b.rot = keys, keys[1], level, rot or b.rot
+    return b
+end
+
 -- Gỡ công trình, giải phóng mọi ô.
 function S.remove(state, uid)
     local b = state.buildings[uid]

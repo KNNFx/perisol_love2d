@@ -177,21 +177,21 @@ Each phase ends with `test.bat` green, `lovec . --sim 100` clean, a UI check (sc
   - [x] Turn-start step `src/core/upkeep.lua` (`startTurn`, run in `roll` before the dice). It is empty for now and will hold demolish completion, passives, unit upkeep and movement reset.
   - [x] Generic `prompt` phase + `respond` command, for trade replies and S-05 reactions (and M2 reaction Edicts later).
   - [x] Save v3 + `MIGRATIONS[2]` (v2 → v3) + a load test for an old save.
-- [ ] **B. Step 1 — Basic C2/C3 multi-hex + demolish**
-  - [ ] `src/data/shapes.lua`: pair, triangle, line3, L, rect, trapezoid, cluster as axial offsets with distinct rotations.
-  - [ ] `upgrade{uid,q,r,rot}` + `Structures.upgradeOptions`.
-  - [ ] `demolish{uid}`: production stops at once; at the owner's next turn start the building is removed, TN goes into `lostStrategic`, and a `strategic_lost` event is logged.
-  - [ ] Footprint rules:
+- [x] **B. Step 1 — Basic C2/C3 multi-hex + demolish** — done 2026-10-07
+  - [x] `src/data/shapes.lua`: pair, triangle, line3, L, rect, trapezoid, cluster as axial offsets with distinct rotations.
+  - [x] `upgrade{uid,q,r,rot}` + `Construction.upgradeOptions` (in `src/core/construction.lua`, to avoid a require cycle with territory).
+  - [x] `demolish{uid}`: production stops at once; at the owner's next turn start the building is removed, TN goes into `lostStrategic`, and a `strategic_lost` event is logged.
+  - [x] Footprint rules:
     - No production if any footprint tile is blockaded.
     - A Rebel stop on any footprint tile hits the owner.
     - All footprint tiles are vote-locked for opponents.
     - C2+ scores once per building.
-  - [ ] UI:
+  - [x] UI:
     - Context panel when a building is clicked (Upgrade / Demolish).
-    - Footprint ghost with Q rotation and reason tooltips.
+    - Footprint ghost; **Q cycles between the valid shapes** that contain the hovered tile (not a literal 60-degree turn), with reason tooltips.
     - Demolish confirm popup that lists the TN to be lost.
     - Footprint outline in `game_layers`.
-  - [ ] `structures_spec` + updated production/game specs. Add sim weights and footprint invariants.
+  - [x] `structures_spec` + `construction_spec` + updated production/game specs. Sim: `upgrade`/`demolish` weights, footprint-size invariant, `--sim` prints upgrade/demolish/TN-lost stats. Plain random play almost never affords an upgrade, so a separate resource-rich sim test covers it.
 - [ ] **C. Step 2 — TN bonuses, terrain effects, passives**
   - [ ] Modifier `ctx.tiles`, with TN bonuses taken from every TN tile in the footprint.
   - [ ] New bonuses:

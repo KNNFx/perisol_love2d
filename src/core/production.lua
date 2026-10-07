@@ -58,7 +58,7 @@ function P.compute(state, dice, activePid)
         for _, t in ipairs(tiles) do
             if Rebel.isBlockaded(state, t) then blocked = true end
         end
-        if not blocked then
+        if not blocked and not b.demolishing then
             local def = Buildings.level(b.id, b.level)
             for _, entry in ipairs(def.produces) do
                 local face, res, n = entry[1], entry[2], entry[3]

@@ -9,6 +9,7 @@ Actions.bindings = {
     cancel       = { "escape" },
     roll         = { "space", "r" },
     endTurn      = { "e" },
+    rotate       = { "q" },   -- đổi hình khi xem trước nâng cấp (E đã là Kết thúc lượt)
     quicksave    = { "f5" },
     quickload    = { "f9" },
     toggleDebug  = { "f1" },

@@ -15,8 +15,10 @@ local MAX_COMMANDS_PER_TURN = 40
 local MAX_TOTAL_COMMANDS    = 100000
 
 -- Trọng số chọn loại lệnh trong pha action (kiểu lệnh nào có thì mới được chọn).
-local TYPE_WEIGHT = { build = 6, buyTile = 4, placeVote = 3, foundSub = 2, upgradeHQ = 2, trade = 1 }
+local TYPE_WEIGHT = { build = 6, buyTile = 4, placeVote = 3, foundSub = 2, upgradeHQ = 2, trade = 1,
+                         upgrade = 12 }
 local P_END_TURN  = 0.12
+local P_DEMOLISH  = 0.01   -- xác suất mỗi lệnh action chọn dỡ một công trình
 
 -- Kiểm tra bất biến của state. Trả true hoặc false, mô tả lỗi.
 function Sim.invariants(state)
@@ -39,6 +41,11 @@ function Sim.invariants(state)
     local seen = 0
     for uid, b in pairs(state.buildings) do
         if b.uid ~= uid then return false, "uid công trình lệch " .. tostring(uid) end
+        local def = Buildings.level(b.id, b.level)
+        if not def or #b.tiles ~= def.tiles then
+            return false, string.format("công trình %d (%s C%d) có %d ô, cần %d", uid, b.id, b.level, #b.tiles,
+                def and def.tiles or -1)
+        end
         for _, k in ipairs(b.tiles) do
             seen = seen + 1
             if state.occupied[k] ~= uid then return false, "occupied lệch tại " .. k end
@@ -81,13 +88,16 @@ end
 local function chooseCommand(prng, state, legal, perTurn)
     if state.phase ~= "action" then return prng:pick(legal) end
 
-    local byType, types = {}, {}
+    local byType, types, demolish = {}, {}, {}
     for _, cmd in ipairs(legal) do
-        if cmd.type ~= "endTurn" then
+        if cmd.type == "demolish" then
+            demolish[#demolish + 1] = cmd           -- hiếm: không để thành lựa chọn duy nhất của lượt
+        elseif cmd.type ~= "endTurn" then
             if not byType[cmd.type] then byType[cmd.type] = {}; types[#types + 1] = cmd.type end
             table.insert(byType[cmd.type], cmd)
         end
     end
+    if #demolish > 0 and prng:chance(P_DEMOLISH) then return prng:pick(demolish) end
     if #types == 0 or perTurn >= MAX_COMMANDS_PER_TURN or prng:chance(P_END_TURN) then
         return { type = "endTurn" }
     end
@@ -100,7 +110,8 @@ end
 function Sim.play(seed, players)
     local state = Game.new({ seed = seed, players = players })
     local prng = Rng.new("sim:" .. tostring(seed) .. ":" .. players)
-    local stats = { sevens = 0, builds = 0, claims = 0, commands = 0, rebelStops = 0, losses = 0 }
+    local stats = { sevens = 0, builds = 0, claims = 0, commands = 0, rebelStops = 0, losses = 0,
+                    upgrades = 0, demolishes = 0, tnLost = 0 }
     local perTurn = 0
 
     while state.phase ~= "over" do
@@ -120,7 +131,10 @@ function Sim.play(seed, players)
             elseif e.kind == "build" then stats.builds = stats.builds + 1
             elseif e.kind == "claim" then stats.claims = stats.claims + 1
             elseif e.kind == "rebel_stop" then stats.rebelStops = stats.rebelStops + 1
-            elseif e.kind == "rebel_loss" then stats.losses = stats.losses + 1 end
+            elseif e.kind == "rebel_loss" then stats.losses = stats.losses + 1
+            elseif e.kind == "upgrade" then stats.upgrades = stats.upgrades + 1
+            elseif e.kind == "demolished" then stats.demolishes = stats.demolishes + 1
+            elseif e.kind == "strategic_lost" then stats.tnLost = stats.tnLost + 1 end
         end
 
         if cmd.type == "endTurn" then
@@ -153,7 +167,7 @@ end
 -- Chạy `count` ván, số người xoay vòng 2..4. Trả bảng thống kê gộp.
 function Sim.batch(count, firstSeed, onGame)
     local sum = { games = 0, sevens = 0, builds = 0, claims = 0, commands = 0, rebelStops = 0, losses = 0,
-                  score = 0, tiles = 0, winnerTiles = 0 }
+                  upgrades = 0, demolishes = 0, tnLost = 0, score = 0, tiles = 0, winnerTiles = 0 }
     for i = 0, count - 1 do
         local seed = (firstSeed or 1) + i
         local players = 2 + (i % 3)

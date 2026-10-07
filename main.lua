@@ -17,6 +17,7 @@ if simCount then
         local g = sum.games
         print(string.format("\n%d ván, không lỗi. Trung bình/ván: %.1f lần ra 7, %.1f công trình, %.1f lần chiếm ô, %.0f lệnh",
             g, sum.sevens / g, sum.builds / g, sum.claims / g, sum.commands / g))
+        print(string.format("Nâng cấp %.1f · dỡ %.1f · TN mất %.1f (mỗi ván)", sum.upgrades / g, sum.demolishes / g, sum.tnLost / g))
         print(string.format("Điểm trung bình/người: %.1f · ô thực hữu trung bình/người: %.1f · ô của người thắng: %.1f",
             sum.score / sum.players, sum.tiles / sum.players, sum.winnerTiles / g))
         io.stdout:flush()
