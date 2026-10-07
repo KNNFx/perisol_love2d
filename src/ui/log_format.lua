@@ -83,6 +83,11 @@ function Fmt.line(e)
     elseif k == "build" then
         return { text = string.format("%s xây %s C%d tại %s", P(e.pid), buildingName(e.id), e.level, at(e)),
                  pid = e.pid, tier = "medium" }
+    elseif k == "passive" then
+        local from = Buildings.byId[e.src] and Buildings.byId[e.src].name
+            or (Strategic.byId[e.src] and Strategic.byId[e.src].name) or tostring(e.src)
+        return { text = string.format("%s +%g %s thụ động từ %s", P(e.pid), e.amount, Fmt.res(e.res), from),
+                 pid = e.pid, tier = "small" }
     elseif k == "upgrade" then
         return { text = string.format("%s nâng %s lên C%d tại %s", P(e.pid), buildingName(e.id), e.level, at(e)),
                  pid = e.pid, tier = "medium" }

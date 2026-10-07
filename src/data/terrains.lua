@@ -1,9 +1,11 @@
 -- Địa hình DH-01..DH-12. Nguồn: docs/Perisol_Data.md, sheet "Địa hình".
 -- rarity: "common" (Phổ biến) | "uncommon" (Không phổ biến) | "rare" (Hiếm)
 -- sprite = key trong src/render/tileset.lua, nil = vẽ đa giác màu fallback.
--- effects (GDD §3.1, chỉ phần tác dụng với công trình cấp 1, D-013):
+-- effects (GDD §3.1; D-013 cho công trình cấp 1, D-014 mở rộng; luôn xét theo ô neo của công trình):
 --   buildDiscount = { [res] = n }  giảm chi phí xây (không xuống dưới 0)
 --   output = { [res] = -n | "none" }  chỉnh sản lượng mỗi viên khớp; "none" = không sản xuất loại đó
+--   bonus = { { building, minLevel, face, res, n } }  +n mỗi viên khớp cho công trình đó (cấp >= minLevel)
+--   passive = { { building, level, res, n } }  thu nhập thụ động mỗi lượt của chủ (công trình đúng cấp)
 
 local T = {}
 
@@ -13,7 +15,8 @@ T.list = {
       color = { 0.62, 0.78, 0.36 }, sprite = "plains" },
     { id = "DH-02", name = "Rừng",        en = "Forest",          rarity = "common",
       canHQ = true,  canSub = true,  canBuild = true,  canSpecial = true,  passable = true,
-      color = { 0.24, 0.52, 0.22 }, sprite = "forest" },
+      color = { 0.24, 0.52, 0.22 }, sprite = "forest",
+      effects = { passive = { { building = "B-02", level = 1, res = "science", n = 1 } } } },   -- Viện NC C1 +1 KH
     { id = "DH-03", name = "Núi",         en = "Mountain",        rarity = "common",
       canHQ = false, canSub = false, canBuild = false, canSpecial = true,  passable = false,
       color = { 0.55, 0.53, 0.52 }, sprite = "mountain" },
@@ -36,7 +39,8 @@ T.list = {
       color = { 0.36, 0.45, 0.34 }, sprite = nil },
     { id = "DH-09", name = "Đồi Cỏ",      en = "Grassland Hills", rarity = "uncommon",
       canHQ = true,  canSub = true,  canBuild = true,  canSpecial = true,  passable = true,
-      color = { 0.50, 0.70, 0.30 }, sprite = "hills" },
+      color = { 0.50, 0.70, 0.30 }, sprite = "hills",
+      effects = { bonus = { { building = "B-01", minLevel = 2, face = 3, res = "engineering", n = 1 } } } },   -- Trại KT C2+ +1 KT
     { id = "DH-10", name = "Khu Dân Cư",  en = "Settlement",      rarity = "rare",
       canHQ = false, canSub = false, canBuild = false, canSpecial = false, passable = true,
       color = { 0.62, 0.44, 0.34 }, sprite = "settlement" },

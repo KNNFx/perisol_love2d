@@ -192,23 +192,23 @@ Each phase ends with `test.bat` green, `lovec . --sim 100` clean, a UI check (sc
     - Demolish confirm popup that lists the TN to be lost.
     - Footprint outline in `game_layers`.
   - [x] `structures_spec` + `construction_spec` + updated production/game specs. Sim: `upgrade`/`demolish` weights, footprint-size invariant, `--sim` prints upgrade/demolish/TN-lost stats. Plain random play almost never affords an upgrade, so a separate resource-rich sim test covers it.
-- [ ] **C. Step 2 — TN bonuses, terrain effects, passives**
-  - [ ] Modifier `ctx.tiles`, with TN bonuses taken from every TN tile in the footprint.
-  - [ ] New bonuses:
+- [x] **C. Step 2 — TN bonuses, terrain effects, passives** — done 2026-10-07
+  - [x] Modifier `ctx.tiles`, with TN bonuses taken from every TN tile in the footprint.
+  - [x] New bonuses:
     - TN-12: both dice count when at least one matches.
     - TN-10: Market C1 produces as C3.
     - TN-08: C1 costs −1 KT.
-  - [ ] Terrain effects, read from the anchor tile:
+  - [x] Terrain effects, read from the anchor tile:
     - Hills: Mining Camp C2+ gets +1 KT per die.
     - Forest: Research C1 gets +1 KH passive.
-  - [ ] Per-round passives in `Upkeep.startTurn`:
+  - [x] Per-round passives in `Upkeep.startTurn`:
     - B-01.3 / B-02.3: +1.
     - B-03.3: +0.5 VH per adjacent territory tile.
     - B-04.3: +1 TN while the Rebel is on the map.
     - TN-02: +1 TN and +1 KH.
     - TN-09: +1 VH.
     - Halves accumulate in `player.carry`.
-  - [ ] `upkeep_spec` + production spec cases.
+  - [x] `passives_spec` (passives, TN on footprint, Ley/Harbor/Fertile/Hills) + a carry invariant in the sim. Passives live in `src/core/passives.lua`, registered as an Upkeep step after demolish completion.
 - [ ] **D. Step 4 — Expedition units**
   - [ ] `src/core/units.lua`: `state.units`, Dijkstra reachable/path using `Movement.stepCost`.
   - [ ] Commands:

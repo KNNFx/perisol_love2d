@@ -32,6 +32,11 @@ function Sim.invariants(state)
             end
         end
         if p.votes < 0 then return false, "P" .. pid .. " có phiếu âm" end
+        for res, v in pairs(p.carry) do   -- phần lẻ chưa cộng: luôn trong [0, 1) và là bội của 0.5
+            if type(v) ~= "number" or v < 0 or v >= 1 or (v * 2) ~= math.floor(v * 2) then
+                return false, string.format("P%d carry %s = %s", pid, res, tostring(v))
+            end
+        end
     end
 
     for k, pid in pairs(state.owner) do

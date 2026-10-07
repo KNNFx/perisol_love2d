@@ -62,7 +62,17 @@ S.productionBonus = {
     ["TN-08"] = { all = true, n = 1 },
 }
 
+-- Thu nhập thụ động mỗi lượt (D-014), cho CHỦ Ô thực hữu, không cần công trình:
+--   own:      TN nằm trên ô của chủ -> { res, n }
+--   adjacent: mỗi ô thực hữu của chủ kề ô có TN -> { res, n } (mỗi ô tính một lần)
+S.passive = {
+    ["TN-02"] = { own = { { res = "faith", n = 1 }, { res = "science", n = 1 } } },
+    ["TN-09"] = { adjacent = { { res = "culture", n = 1 } } },
+}
+
 S.LEY_NODE = "TN-12"
+S.HARBOR   = "TN-10"   -- Cảng Tự Nhiên: Khu Chợ C1 sản xuất như C3
+S.FERTILE  = "TN-08"   -- Đất Màu Mỡ: công trình C1 giảm 1 KT chi phí
 
 -- true nếu TN `id` được phép xuất hiện trên địa hình `terrainId`.
 function S.allowedOn(id, terrainId)

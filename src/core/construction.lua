@@ -34,6 +34,11 @@ function K.cost(state, id, level, anchorTile)
             if cost[k] then cost[k] = math.max(0, cost[k] - n) end
         end
     end
+    -- TN-08 Đất Màu Mỡ: công trình C1 trên ô này giảm 1 KT chi phí xây
+    if level == 1 and anchorTile and cost.engineering
+        and Structures.strategicAt(state, anchorTile) == Strategic.FERTILE then
+        cost.engineering = math.max(0, cost.engineering - 1)
+    end
     return cost
 end
 

@@ -6,7 +6,9 @@
 --   tiles    = số ô hex chiếm
 --   shape    = mô tả hình dạng (dùng ở M1.5 khi công trình nhiều ô)
 --   produces = { { face, res, n }, ... }          khi xúc xắc ra `face`, nhận n × (số viên khớp) `res`
---   passive  = mô tả hiệu ứng thụ động (chưa có logic, M1.5)
+--   passive  = mô tả hiệu ứng thụ động (chữ cho tooltip)
+--   yield    = thu nhập thụ động mỗi lượt của chủ (src/core/passives.lua): { res, n, when? }
+--              when = "rebel" (chỉ khi có Phiến Quân trên bản đồ) | "adjacent" (n × số ô thực hữu kề của chủ)
 --   terrains = { ["DH-xx"] = true | "pref" }      "pref" = ô ưu tiên (⭐, chưa có bonus ở M1, D-010)
 --
 -- Mặt xúc xắc: Khoa Học 1, Văn Hóa 2, Kỹ Thuật 3, Tín Ngưỡng 4, Vàng 5 (src/data/resources.lua).
@@ -32,6 +34,7 @@ B.list = {
             { cost = { engineering = 7, science = 4, gold = 6 }, tiles = 6, shape = "trapezoid",
               produces = { { ENG, R_ENG, 3 }, { SCI, R_ENG, 2 } },
               passive = "+1 KT thụ động mỗi vòng",
+              yield = { { res = R_ENG, n = 1 } },
               terrains = { ["DH-01"] = true, ["DH-02"] = true, ["DH-03"] = true, ["DH-05"] = true,
                            ["DH-06"] = true, ["DH-07"] = true, ["DH-09"] = true } },
         },
@@ -49,6 +52,7 @@ B.list = {
             { cost = { science = 7, engineering = 3, gold = 5 }, tiles = 6, shape = "cluster",
               produces = { { SCI, R_SCI, 3 }, { ENG, R_SCI, 2 } },
               passive = "+1 KH thụ động mỗi vòng",
+              yield = { { res = R_SCI, n = 1 } },
               terrains = { ["DH-01"] = true, ["DH-02"] = "pref", ["DH-05"] = true, ["DH-09"] = true } },
         },
     },
@@ -64,6 +68,7 @@ B.list = {
             { cost = { culture = 5, faith = 3, gold = 4 }, tiles = 4, shape = "rect",
               produces = { { CUL, R_CUL, 3 } },
               passive = "Ô lãnh thổ kề: +0.5 VH thụ động mỗi vòng",
+              yield = { { res = R_CUL, n = 0.5, when = "adjacent" } },
               terrains = { ["DH-01"] = true, ["DH-05"] = true, ["DH-09"] = true, ["DH-10"] = "pref" } },
         },
     },
@@ -80,6 +85,7 @@ B.list = {
             { cost = { faith = 5, culture = 3, gold = 3 }, tiles = 3, shape = "line3",
               produces = { { FAI, R_FAI, 3 } },
               passive = "+1 TN thụ động nếu Phiến Quân hiện diện",
+              yield = { { res = R_FAI, n = 1, when = "rebel" } },
               terrains = { ["DH-01"] = true, ["DH-02"] = "pref", ["DH-04"] = true, ["DH-08"] = true,
                            ["DH-09"] = true } },
         },

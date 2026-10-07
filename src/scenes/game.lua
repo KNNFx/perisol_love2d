@@ -730,7 +730,7 @@ function Scene:drawBuildingPanel(x, y, w)
     local bh, gap, pad = Theme.px(24), Theme.px(4), Theme.px(8)
     local fs = Theme.font(10)
 
-    local h = Theme.px(70) + 2 * (bh + gap) + (b.demolishing and Theme.px(14) or 0)
+    local h = Theme.px(70) + 2 * (bh + gap) + (b.demolishing and Theme.px(14) or 0) + (lv.passive and Theme.px(26) or 0)
     ui:panel(x, y, w, h, { borderColor = Theme.player[b.owner] })
     ui:label(string.format("%s  C%d", def.name, b.level), x + pad, y + Theme.px(5),
         { font = Theme.font(12, true), color = Theme.color.accent })
@@ -741,6 +741,10 @@ function Scene:drawBuildingPanel(x, y, w)
     ui:label(string.format("Chủ: P%d · chiếm %d ô\n%s", b.owner, #b.tiles, table.concat(prod, ", ")),
         x + pad, y + Theme.px(22), { font = fs, color = Theme.color.dim, width = w - 2 * pad })
     local by = y + Theme.px(66)
+    if lv.passive then
+        ui:label(lv.passive, x + pad, by, { font = fs, color = Theme.color.good, width = w - 2 * pad })
+        by = by + Theme.px(26)
+    end
     if b.demolishing then
         ui:label("Đang chờ dỡ (xong đầu lượt sau của chủ)", x + pad, by, { font = fs, color = Theme.color.bad })
         by = by + Theme.px(14)

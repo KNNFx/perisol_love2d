@@ -20,23 +20,43 @@ local P = {}
 P.modifiers = Modifiers.new()
 
 -- Stage "base": hiệu ứng địa hình lên sản lượng (GDD §3.1: Lãnh Nguyên Vàng −1, Sa Mạc không ra Tín Ngưỡng).
+-- Hiệu ứng địa hình luôn xét theo ô neo `ctx.tile` (D-014). Đồi Cỏ: Trại KT C2+ +1 KT mỗi viên khớp.
 P.modifiers:register("base", function(value, ctx)
     local fx = Terrains.byId[ctx.tile.terrain].effects
+    if fx and fx.bonus then
+        for _, bn in ipairs(fx.bonus) do
+            if bn.building == ctx.buildingId and ctx.level >= bn.minLevel and bn.face == ctx.face
+                and bn.res == ctx.res then
+                value = value + bn.n
+            end
+        end
+    end
     local o = fx and fx.output and fx.output[ctx.res]
     if o == "none" then return 0 end
     if o then return math.max(0, value + o) end
     return value
 end)
 
--- Stage "strategic": bonus ô của tài nguyên chiến lược (TN chưa bị mất, D-014).
+-- Stage "strategic": bonus của TN chưa bị mất (D-014) trên MỖI ô thuộc footprint (`ctx.tiles`).
 P.modifiers:register("strategic", function(value, ctx)
-    local tn = Structures.strategicAt(ctx.state, ctx.tile)
-    local b = tn and Strategic.productionBonus[tn]
-    if not b then return value end
-    if b.building and b.building ~= ctx.buildingId then return value end
-    if b.all or (b.face == ctx.face and b.res == ctx.res) then return value + b.n end
+    for _, t in ipairs(ctx.tiles or { ctx.tile }) do
+        local tn = Structures.strategicAt(ctx.state, t)
+        local b = tn and Strategic.productionBonus[tn]
+        if b and (not b.building or b.building == ctx.buildingId)
+            and (b.all or (b.face == ctx.face and b.res == ctx.res)) then
+            value = value + b.n
+        end
+    end
     return value
 end)
+
+-- Có TN `tn` (chưa mất) trên ô nào của footprint không.
+local function hasTN(state, tiles, tn)
+    for _, t in ipairs(tiles) do
+        if Structures.strategicAt(state, t) == tn then return true end
+    end
+    return false
+end
 
 -- Tính (không đổi state) danh sách sự kiện của một lần đổ.
 --   { kind = "seven" }
@@ -59,12 +79,18 @@ function P.compute(state, dice, activePid)
             if Rebel.isBlockaded(state, t) then blocked = true end
         end
         if not blocked and not b.demolishing then
-            local def = Buildings.level(b.id, b.level)
+            -- TN-10 Cảng Tự Nhiên: Khu Chợ C1 sản xuất như C3. TN-12 Địa Linh: có ít nhất 1 viên khớp
+            -- thì tính như cả 2 viên khớp (D-014).
+            local prodLevel = b.level
+            if b.id == "B-05" and b.level == 1 and hasTN(state, tiles, Strategic.HARBOR) then prodLevel = 3 end
+            local ley = hasTN(state, tiles, Strategic.LEY_NODE)
+            local def = Buildings.level(b.id, prodLevel)
             for _, entry in ipairs(def.produces) do
                 local face, res, n = entry[1], entry[2], entry[3]
                 local matching = Dice.count(dice, face)
+                if matching > 0 and ley then matching = 2 end
                 if matching > 0 then
-                    local ctx = { state = state, tile = tile, buildingId = b.id, level = b.level,
+                    local ctx = { state = state, tile = tile, tiles = tiles, buildingId = b.id, level = b.level,
                                   owner = b.owner, face = face, res = res, activePid = activePid }
                     local perDie = P.modifiers:apply(n, ctx)
                     if perDie > 0 then
