@@ -290,6 +290,28 @@ H.upgradeHQ = {
         pay(p.res, C.HQ_UPGRADE_COST[p.hqLevel + 1])
         Territory.upgradeHQ(state, pid)
         events[#events + 1] = { kind = "upgrade_hq", pid = pid, level = p.hqLevel, q = p.hq.q, r = p.hq.r }
+        if p.hqLevel >= 4 then Units.transformArmy(state, pid, events) end   -- HQ C4: Viễn Chinh thành Hiệp Sĩ
+    end,
+}
+
+H.upgradeSub = {
+    phase = "action",
+    check = function(state, cmd, pid)
+        local tile = state.map:get(cmd.q or 0, cmd.r or 0)
+        local ok, why = Territory.canUpgradeSub(state, pid, tile)
+        if not ok then return false, why end
+        local level = Territory.subAt(state, pid, tile).level + 1
+        if not canAfford(state.players[pid].res, C.SUB_UPGRADE_COST[level]) then
+            return false, "Không đủ tài nguyên nâng cấp"
+        end
+        return true
+    end,
+    apply = function(state, cmd, pid, events)
+        local tile = state.map:get(cmd.q, cmd.r)
+        local sub = Territory.subAt(state, pid, tile)
+        pay(state.players[pid].res, C.SUB_UPGRADE_COST[sub.level + 1])
+        local level = Territory.upgradeSub(state, pid, tile)
+        events[#events + 1] = { kind = "upgrade_sub", pid = pid, level = level, q = tile.q, r = tile.r }
     end,
 }
 
@@ -630,6 +652,12 @@ function Game.legal(state)
         end
         if Territory.canUpgradeHQ(state, actor) and canAfford(p.res, C.HQ_UPGRADE_COST[p.hqLevel + 1]) then
             out[#out + 1] = { type = "upgradeHQ", pid = actor }
+        end
+        for _, sub in ipairs(p.subs) do
+            local tile = state.map:get(sub.q, sub.r)
+            if Territory.canUpgradeSub(state, actor, tile) and canAfford(p.res, C.SUB_UPGRADE_COST[sub.level + 1]) then
+                out[#out + 1] = { type = "upgradeSub", pid = actor, q = sub.q, r = sub.r }
+            end
         end
         for _, u in ipairs(Units.ownedBy(state, actor)) do
             if canAfford(p.res, C.SUB_COST) and Units.checkFoundSub(state, actor, u) then

@@ -85,10 +85,26 @@ C.CLUSTER_RETAKE_STEP = 1                -- cướp ô trong cụm: phiếu củ
 C.RETAKE_MULTIPLIER   = 2                -- cướp ô thường: phiếu >= 2 × ngưỡng của mình
 
 -- Bán kính vùng ảnh hưởng theo cấp (GDD §5.4, §9.1): HQ C1 = 6 ô, C2 = 18 ô.
-C.INFLUENCE_RADIUS_HQ  = { 1, 2 }
-C.INFLUENCE_RADIUS_SUB = { 1, 2 }
-C.HQ_MAX_LEVEL_M1 = 2                    -- C3+ cần vật liệu phái sinh (M1.5)
-C.HQ_UPGRADE_COST = { [2] = { engineering = 4, science = 2, gold = 3 } }
+-- Từ C3 trở đi bán kính không tăng thêm (Data §9.1 chỉ nâng bán kính ở C2).
+C.INFLUENCE_RADIUS_HQ  = { 1, 2, 2, 2, 2 }
+C.INFLUENCE_RADIUS_SUB = { 1, 2, 2 }
+C.HQ_MAX_LEVEL  = 5
+C.SUB_MAX_LEVEL = 3
+-- Chi phí nâng lên cấp [n] (Data §9.1). C3+ cần vật liệu phái sinh (Hợp Kim, Thép) từ phase G.
+C.HQ_UPGRADE_COST = {
+    [2] = { engineering = 4, science = 2, gold = 3 },
+    [3] = { engineering = 6, alloy = 2, gold = 5 },
+    [4] = { engineering = 8, steel = 3, gold = 8 },
+    [5] = { engineering = 10, steel = 4, alloy = 4, gold = 12 },
+}
+C.SUB_UPGRADE_COST = {
+    [2] = { engineering = 4, gold = 3 },
+    [3] = { engineering = 6, steel = 2, gold = 5 },
+}
+C.HQ_C4_MIN_ROUND  = 11                  -- HQ C4: từ vòng 11 (tự đổi Viễn Chinh thành Hiệp Sĩ)
+C.SUB_C3_MIN_ROUND = 16                  -- Sub C3: từ vòng 16 (Đô Thị Vệ Tinh)
+C.HQ_C5_AURA_RADIUS = 2                  -- HQ C5: +1 sản lượng cho công trình "nội đô" trong bán kính này
+C.KNIGHT_RETREAT_COOLDOWN = 5            -- Hiệp Sĩ thua Trấn Áp thì rút về HQ, tối đa 1 lần mỗi 5 vòng (mỗi người chơi)
 C.SUB_COST = { faith = 3, gold = 3, engineering = 3 }
 C.SUB_MIN_DIST_OWN   = 2                 -- cách HQ/Sub của chính mình >= 2
 C.SUB_MIN_DIST_RIVAL = 3                 -- cách HQ/Sub của đối thủ >= 3

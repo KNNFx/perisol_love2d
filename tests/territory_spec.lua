@@ -48,7 +48,7 @@ describe("territory: HQ, vùng ảnh hưởng, ngưỡng", function()
         expect.truthy(Territory.inInfluence(s, 1, tileAtDistance(s, 1, 2)))
         expect.falsy(Territory.inInfluence(s, 1, tileAtDistance(s, 1, 3)))
         local ok, why = Territory.canUpgradeHQ(s, 1)
-        expect.falsy(ok); expect.eq(why, "Nhà Chính đã ở cấp tối đa của M1")
+        expect.falsy(ok); expect.eq(why, "Cần một Khu Chợ liền hoặc nối đường tới Nhà Chính")   -- C3 cần Khu Chợ nối HQ (phase F)
     end)
 
     it("ngưỡng 1 / 2 / 3 theo khoảng cách tới HQ (3+ giữ nguyên 3)", function()

@@ -314,6 +314,9 @@ function U.suppress(state, u, dir, pay)
     end
     u.acted, u.mp = true, 0
     local events = {}
+    local owner = state.players[pid]
+    local canRetreat = u.type == "knight" and owner.hq
+        and (owner.knightRetreatRound == nil or state.round - owner.knightRetreatRound >= C.KNIGHT_RETREAT_COOLDOWN)
     if success then
         local path = Rebel.pushPath(state, dir, C.SUPPRESS_PUSH_TILES)
         local from = { q = state.rebel.q, r = state.rebel.r }
@@ -326,11 +329,31 @@ function U.suppress(state, u, dir, pay)
     else
         events[#events + 1] = { kind = "suppress", pid = pid, uid = u.uid, ok = false, roll = roll, threshold = threshold,
                                 paid = false, q = u.q, r = u.r }
-        events[#events + 1] = { kind = "unit_destroyed", uid = u.uid, unit = u.type, pid = pid, q = u.q, r = u.r,
-                                reason = "suppress" }
-        state.units[u.uid] = nil
+        if canRetreat then   -- Hiệp Sĩ rút về HQ thay vì mất, tối đa 1 lần mỗi KNIGHT_RETREAT_COOLDOWN vòng (Data §5)
+            owner.knightRetreatRound = state.round
+            events[#events + 1] = { kind = "unit_retreat", pid = pid, uid = u.uid, unit = u.type,
+                                    from = { q = u.q, r = u.r }, q = owner.hq.q, r = owner.hq.r }
+            u.q, u.r = owner.hq.q, owner.hq.r
+        else
+            events[#events + 1] = { kind = "unit_destroyed", uid = u.uid, unit = u.type, pid = pid, q = u.q, r = u.r,
+                                    reason = "suppress" }
+            state.units[u.uid] = nil
+        end
     end
     return events
+end
+
+-- HQ C4+: mọi Viễn Chinh của `pid` tự nâng thành Hiệp Sĩ, giữ nguyên điểm di chuyển và trạng thái (Data §2).
+function U.transformArmy(state, pid, events)
+    local hq = state.players[pid]
+    if (hq.hqLevel or 1) < 4 then return end
+    for _, u in ipairs(U.ownedBy(state, pid)) do
+        if u.type == "expedition" then
+            u.type = "knight"
+            events[#events + 1] = { kind = "unit_transform", pid = pid, uid = u.uid, from = "expedition", to = "knight",
+                                    q = u.q, r = u.r }
+        end
+    end
 end
 
 -- ─── Trú Đóng (A-04) ────────────────────────────────────────────────────────
@@ -353,6 +376,7 @@ end
 -- Reset điểm di chuyển và hành động; Trú Đóng hết hiệu lực (ghi nhớ cho ngưỡng Trấn Áp); trả Vàng duy trì
 -- từ đơn vị thứ 2 trở đi, thiếu Vàng thì hủy đơn vị mới nhất (D-015).
 function U.startTurn(state, pid, events)
+    U.transformArmy(state, pid, events)
     -- upkeep chỉ tính đơn vị quân sự (quota "expedition"); Giao Thương chưa có upkeep (D-015)
     local army = {}
     for _, u in ipairs(U.ownedBy(state, pid)) do

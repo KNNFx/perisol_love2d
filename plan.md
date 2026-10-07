@@ -238,16 +238,16 @@ Each phase ends with `test.bat` green, `lovec . --sim 100` clean, a UI check (sc
     - TN-06 + own Market C2+ makes the bank rate 1:1.
   - [x] UI: road layer, trade proposal popup, reply popup behind a "pass the screen" cover.
   - [x] `roads_spec` (Trade unit, road building/movement, Stone upgrade, Rebel wear, route/fee, Market road rule, B-05.2 passive, propose/respond flow, save/load mid-prompt, bank 1:1, resource-rich sim). Sim: road/trade stats and road invariants. Dev: `--demo trade` / `--demo reply`.
-- [ ] **F. Step 3 — HQ C3–C5, Sub C2–C3**
-  - [ ] Costs in `constants.lua` (`HQ_UPGRADE_COST[3..5]`, `SUB_UPGRADE_COST[2..3]`, `HQ_MAX_LEVEL = 5`) + `upgradeSub`.
-  - [ ] Gates: HQ C3 needs a road-connected Market, HQ C4 round 11+, HQ C5 a Market C3, Sub C3 round 16+.
-  - [ ] Effects:
+- [x] **F. Step 3 — HQ C3–C5, Sub C2–C3** — done 2026-10-07 (rules in D-017)
+  - [x] Costs in `constants.lua` (`HQ_UPGRADE_COST[3..5]`, `SUB_UPGRADE_COST[2..3]`, `HQ_MAX_LEVEL = 5`) + `upgradeSub`.
+  - [x] Gates: HQ C3 needs a road-connected Market, HQ C4 round 11+, HQ C5 a Market C3, Sub C3 round 16+.
+  - [x] Effects:
     - HQ C3 unlocks Special buildings.
-    - HQ C4 turns Expeditions into Knights.
+    - HQ C4 turns Expeditions into Knights (6 steps, climb Mountains, retreat to HQ once per 5 rounds instead of dying).
     - HQ C5 adds a +1 production aura in the HQ influence zone.
-    - Sub C2 gets radius 2.
+    - HQ C5 adds a +1 production aura within radius 2 of the HQ (modifier stage `aura`). HQ C3 "unlocks Special buildings" is enforced in phase H.
     - Sub C3 makes its centre tile blockade-immune.
-  - [ ] Territory and units spec cases.
+  - [x] `hq_levels_spec` (gates, costs, Knight transform/retreat, C5 aura, Sub C2/C3, blockade immunity, resource-rich sim). UI: HQ button tooltip shows cost + gate, Sub panel (click your Sub), `--demo sub`. HQ C3+ costs need Hợp Kim/Thép from phase G.
 - [ ] **G. Step 6 — Derived D-01..D-05**
   - [ ] `src/data/derived.lua` following Data: materials are **added**, not "instead of" as in the GDD.
   - [ ] `buildDerived`:

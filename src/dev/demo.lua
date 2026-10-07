@@ -132,6 +132,18 @@ function Demo.reply(state)
     return { focus = best }
 end
 
+-- Khu Trực Thuộc C2 đang chọn (bảng nâng cấp) và một Hiệp Sĩ bên cạnh.
+function Demo.sub(state)
+    local best, pid, built = upgradeArena(state)
+    for _, b in ipairs(built) do Structures.remove(state, b.uid) end
+    local p = state.players[pid]
+    p.subs[#p.subs + 1] = { q = best.q, r = best.r, level = 2 }
+    p.hqLevel = 4
+    local k = require("src.core.units").spawn(state, pid, "knight", state.map:get(best.q + 1, best.r))
+    state.round = 17
+    return { focus = best, selectedSub = state.map:get(best.q, best.r), selectedUnit = nil, hover = state.map:get(best.q, best.r) }
+end
+
 -- Trả bảng gợi ý cho scene (selected / selectedUnit / mode / confirm / hover / focus) hoặc nil.
 function Demo.apply(state, name)
     local fn = Demo[name]

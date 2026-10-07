@@ -115,6 +115,15 @@ function Fmt.line(e)
                  pid = e.pid, tier = "medium" }
     elseif k == "trade_declined" then
         return { text = string.format("%s từ chối đề xuất của %s", P(e.to), P(e.pid)), pid = e.pid, tier = "small" }
+    elseif k == "upgrade_sub" then
+        return { text = string.format("%s nâng Khu Trực Thuộc tại %s lên cấp %d", P(e.pid), at(e), e.level),
+                 pid = e.pid, tier = "medium" }
+    elseif k == "unit_transform" then
+        return { text = string.format("%s: %s tại %s thành %s", P(e.pid), unitName(e.from), at(e), unitName(e.to)),
+                 pid = e.pid, tier = "medium" }
+    elseif k == "unit_retreat" then
+        return { text = string.format("Hiệp Sĩ của %s rút về Nhà Chính %s thay vì bị mất", P(e.pid), at(e)),
+                 pid = e.pid, tier = "large" }
     elseif k == "unit_garrison" then
         return { text = string.format("%s cho đơn vị trú đóng tại %s", P(e.pid), at(e)), pid = e.pid, tier = "small" }
     elseif k == "unit_disband" then

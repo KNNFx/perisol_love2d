@@ -319,6 +319,32 @@ Cụ thể hóa GDD §5.4, §9.2 và Data sheet Hạ tầng / Công trình. Mọ
 - **Tunable mới:** `UNIT_COST`, `ROAD_TERRAINS`, `ROAD_UPGRADE_COST`, `ROAD_STEP_REDUCTION`, `STONE_ROAD_START_BONUS`, `STONE_FEE_FACTOR`, `TN10_BONUS_MOVE`, `MARKET_ROUTE_BONUS_MAX`, `MARKET_C3_RADIUS`, `TN06_MARKET_RATE`.
 - **Chưa làm:** độ bền nhiều mức, sửa chữa và Đường Ray (hoãn cùng tầng công nghiệp, D-014); Hảo Cảm và trao đổi với Khu Dân Cư có Cảng/Chợ; cho không (đã loại).
 
+## D-017 — Nhà Chính C3–C5, Khu Trực Thuộc C2–C3, Hiệp Sĩ (M1.5 phase F) — 2026-10-07
+Theo Data §9.1 và sheet Đơn vị. Chi phí và mốc vòng ở `constants.lua`.
+- **Nhà Chính:**
+
+  | Cấp | Chi phí | Điều kiện | Hiệu ứng |
+  |---|---|---|---|
+  | C2 | 4 KT + 2 KH + 3 V | — | bán kính vùng ảnh hưởng 2 (18 ô) |
+  | C3 | 6 KT + 2 Hợp Kim + 5 V | có Khu Chợ liền hoặc nối đường tới Nhà Chính | mở khóa Công Trình Đặc Biệt (phase H) |
+  | C4 | 8 KT + 3 Thép + 8 V | từ vòng 11 | mọi Viễn Chinh thành Hiệp Sĩ |
+  | C5 | 10 KT + 4 Thép + 4 Hợp Kim + 12 V | có Khu Chợ cấp 3 | aura +1 sản lượng mỗi viên cho công trình "nội đô" |
+
+  - Data ghi C5 cần "Cảng/Chợ Cấp 3"; game chưa có Cảng nên chỉ tính Khu Chợ C3.
+  - Bán kính ảnh hưởng không tăng thêm sau C2 (Data chỉ nâng bán kính ở C2).
+  - **Chưa dùng được** C3–C5 cho tới phase G, vì Hợp Kim và Thép đến từ công trình Phái Sinh. Test và sim cấp vật liệu trực tiếp.
+- **"Nội đô" của HQ C5** = công trình có ô neo trong bán kính 2 quanh Nhà Chính (`HQ_C5_AURA_RADIUS`), chỉ của chủ Nhà Chính. Hiệu ứng là modifier stage `aura` +1 mỗi viên khớp cho mọi dòng sản xuất của công trình đó.
+- **Hiệp Sĩ (U-01K):**
+  - Từ HQ C4, mọi Viễn Chinh của chủ đổi thành Hiệp Sĩ ngay lúc nâng cấp và ở đầu mỗi lượt sau (Viễn Chinh mới mua cũng đổi ở lượt kế tiếp). Giữ điểm di chuyển và trạng thái; dùng chung quota với Viễn Chinh; Giao Thương không đổi.
+  - 6 bước, leo được Núi (tốn 2), ngưỡng Trấn Áp 3.
+  - Thua Trấn Áp thì **rút về Nhà Chính** thay vì mất, tối đa 1 lần mỗi 5 vòng cho mỗi người chơi (Data §5 viết "1 lần mỗi 5 vòng", không nói theo từng Hiệp Sĩ hay từng người). Lần thứ hai trong 5 vòng thì mất như thường.
+- **Khu Trực Thuộc:**
+  - C2: 4 KT + 3 V, bán kính 2. C3: 6 KT + 2 Thép + 5 V, từ vòng 16, trở thành Đô Thị Vệ Tinh.
+  - Lệnh `upgradeSub{q,r}`. UI: bấm vào ô Khu Trực Thuộc của mình để mở bảng nâng cấp.
+  - **Ô tâm của Sub C3 miễn nhiễm phong tỏa** (không bị loại khỏi vùng phong tỏa 7 ô của Phiến Quân; ô kề vẫn bị). Ô tâm là Sub nên không có công trình; ảnh hưởng thực tế là vùng ảnh hưởng và đặt phiếu quanh tâm.
+  - "Giảm ngưỡng Chi Phối ô xa" của Sub C2 (Data) vẫn chưa làm, vì không có con số (D-014 còn mở).
+- **Tunable mới:** `HQ_MAX_LEVEL`, `SUB_MAX_LEVEL`, `HQ_UPGRADE_COST[3..5]`, `SUB_UPGRADE_COST`, `HQ_C4_MIN_ROUND`, `SUB_C3_MIN_ROUND`, `HQ_C5_AURA_RADIUS`, `KNIGHT_RETREAT_COOLDOWN`. Bỏ `HQ_MAX_LEVEL_M1`.
+
 ## Xung đột tài liệu đã phát hiện (chọn theo Data)
 | Chủ đề | GDD §3.1 / §8 | Data | Chọn |
 |---|---|---|---|

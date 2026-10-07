@@ -27,7 +27,7 @@ function Rebel.blockade(state)
     if not rb or Rebel.isSuppressed(state) then return out end
     for _, h in ipairs(Hex.range(rb, 1)) do
         local t = state.map:get(h.q, h.r)
-        if t then out[#out + 1] = t end
+        if t and not Rebel.isImmuneCentre(state, t) then out[#out + 1] = t end
     end
     return out
 end
@@ -38,10 +38,21 @@ function Rebel.isSuppressed(state)
     return rb ~= nil and rb.suppressedRound == state.round
 end
 
+-- Ô tâm của Khu Trực Thuộc C3 (Đô Thị Vệ Tinh) miễn nhiễm phong tỏa (Data §9.1).
+function Rebel.isImmuneCentre(state, tile)
+    for _, p in ipairs(state.players) do
+        for _, s in ipairs(p.subs or {}) do
+            if (s.level or 1) >= 3 and s.q == tile.q and s.r == tile.r then return true end
+        end
+    end
+    return false
+end
+
 -- true nếu ô `tile` đang bị Phiến Quân phong tỏa.
 function Rebel.isBlockaded(state, tile)
     local rb = state.rebel
     return rb ~= nil and not Rebel.isSuppressed(state) and Hex.distance(rb, tile) <= 1
+        and not Rebel.isImmuneCentre(state, tile)
 end
 
 -- ─── Cấm dừng cạnh đơn vị Trú Đóng (A-04) ───────────────────────────────────

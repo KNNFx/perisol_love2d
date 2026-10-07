@@ -9,6 +9,7 @@ local Hex       = require("src.core.hex")
 local State     = require("src.core.state")
 local Rebel     = require("src.core.rebel")
 local Structures = require("src.core.structures")
+local Roads     = require("src.core.roads")
 local Terrains  = require("src.data.terrains")
 
 local T = {}
@@ -166,10 +167,38 @@ function T.placeHQ(state, pid, tile)
     state.owner[key(tile)] = pid
 end
 
+-- Khu Chợ (B-05, không chờ dỡ) của `pid` thỏa `test(building)`.
+local function marketWhere(state, pid, test)
+    for _, b in ipairs(Structures.list(state)) do
+        if b.owner == pid and b.id == "B-05" and not b.demolishing and test(b) then return true end
+    end
+    return false
+end
+
+-- Có Khu Chợ liền Nhà Chính hoặc nối đường tới Nhà Chính (điều kiện HQ C3, Data §9.1).
+function T.hasLinkedMarket(state, pid)
+    local hq = state.players[pid].hq
+    local hqTile = hq and state.map:get(hq.q, hq.r)
+    if not hqTile then return false end
+    return marketWhere(state, pid, function(b)
+        return Roads.route(state, Structures.tilesOf(state, b), { hqTile }) ~= nil
+    end)
+end
+
+-- Điều kiện nâng Nhà Chính lên cấp kế (chưa tính tiền). Trả ok, lý do.
+--   C3: có Khu Chợ nối với Nhà Chính. C4: từ vòng HQ_C4_MIN_ROUND. C5: có Khu Chợ C3.
 function T.canUpgradeHQ(state, pid)
     local p = state.players[pid]
     if not p.hq then return false, "Chưa đặt Nhà Chính" end
-    if (p.hqLevel or 1) >= C.HQ_MAX_LEVEL_M1 then return false, "Nhà Chính đã ở cấp tối đa của M1" end
+    local level = (p.hqLevel or 1) + 1
+    if level > C.HQ_MAX_LEVEL then return false, "Nhà Chính đã ở cấp tối đa" end
+    if level == 3 and not T.hasLinkedMarket(state, pid) then
+        return false, "Cần một Khu Chợ liền hoặc nối đường tới Nhà Chính"
+    elseif level == 4 and state.round < C.HQ_C4_MIN_ROUND then
+        return false, "Chỉ nâng lên C4 từ vòng " .. C.HQ_C4_MIN_ROUND
+    elseif level == 5 and not marketWhere(state, pid, function(b) return b.level >= 3 end) then
+        return false, "Cần sở hữu một Khu Chợ cấp 3"
+    end
     return true
 end
 
@@ -177,6 +206,36 @@ function T.upgradeHQ(state, pid)
     local p = state.players[pid]
     p.hqLevel = (p.hqLevel or 1) + 1
 end
+
+-- Khu Trực Thuộc của `pid` tại `tile` (bảng trong p.subs) hoặc nil.
+function T.subAt(state, pid, tile)
+    for _, s in ipairs(state.players[pid].subs or {}) do
+        if s.q == tile.q and s.r == tile.r then return s end
+    end
+    return nil
+end
+
+-- Điều kiện nâng Khu Trực Thuộc tại `tile` lên cấp kế (chưa tính tiền). C3: từ vòng SUB_C3_MIN_ROUND.
+function T.canUpgradeSub(state, pid, tile)
+    if not tile then return false, "Không có ô này" end
+    local sub = T.subAt(state, pid, tile)
+    if not sub then return false, "Không có Khu Trực Thuộc của bạn ở ô này" end
+    local level = (sub.level or 1) + 1
+    if level > C.SUB_MAX_LEVEL then return false, "Khu Trực Thuộc đã ở cấp tối đa" end
+    if level == 3 and state.round < C.SUB_C3_MIN_ROUND then
+        return false, "Chỉ nâng lên C3 từ vòng " .. C.SUB_C3_MIN_ROUND
+    end
+    return true
+end
+
+function T.upgradeSub(state, pid, tile)
+    local sub = T.subAt(state, pid, tile)
+    sub.level = (sub.level or 1) + 1
+    return sub.level
+end
+
+-- Ô tâm của Khu Trực Thuộc C3 (Đô Thị Vệ Tinh) miễn nhiễm phong tỏa (Data §9.1); logic ở Rebel.
+T.isImmuneCentre = Rebel.isImmuneCentre
 
 -- Có thể lập Khu Trực Thuộc của `pid` tại `tile` không (không tính tiền)? Trả ok, lý do.
 function T.canFoundSub(state, pid, tile)

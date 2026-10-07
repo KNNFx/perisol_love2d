@@ -6,6 +6,7 @@
 
 local C         = require("src.config.constants")
 local Dice      = require("src.core.dice")
+local Hex       = require("src.core.hex")
 local State     = require("src.core.state")
 local Modifiers = require("src.core.modifiers")
 local Rebel     = require("src.core.rebel")
@@ -46,6 +47,16 @@ P.modifiers:register("strategic", function(value, ctx)
             and (b.all or (b.face == ctx.face and b.res == ctx.res)) then
             value = value + b.n
         end
+    end
+    return value
+end)
+
+-- Stage "aura": HQ C5 cho +1 sản lượng mỗi viên cho công trình "nội đô" của chủ, tức ô neo trong bán kính
+-- HQ_C5_AURA_RADIUS quanh Nhà Chính (Data §9.1, D-016).
+P.modifiers:register("aura", function(value, ctx)
+    local p = ctx.state.players[ctx.owner]
+    if p and p.hq and (p.hqLevel or 1) >= 5 and Hex.distance(p.hq, ctx.tile) <= C.HQ_C5_AURA_RADIUS then
+        return value + 1
     end
     return value
 end)

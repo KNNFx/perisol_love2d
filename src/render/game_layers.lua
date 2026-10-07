@@ -181,7 +181,7 @@ function L.drawBuildings(state, opts)
     for pid, p in ipairs(state.players) do
         local anchors = {}
         if p.hq then anchors[#anchors + 1] = { at = p.hq, scale = 1, level = p.hqLevel } end
-        for _, sub in ipairs(p.subs or {}) do anchors[#anchors + 1] = { at = sub, scale = 0.7 } end
+        for _, sub in ipairs(p.subs or {}) do anchors[#anchors + 1] = { at = sub, scale = 0.7, level = sub.level } end
         for _, item in ipairs(anchors) do
             local cx, cy = tileCenter(item.at)
             local pc, s = PLAYER[pid], item.scale

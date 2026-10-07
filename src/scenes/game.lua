@@ -46,12 +46,26 @@ local QUICKSAVE = "quick"
 
 local function costText(cost)
     local parts = {}
-    for _, r in ipairs(Resources.core) do
-        local n = cost[r.key]
-        if n then parts[#parts + 1] = n .. " " .. r.abbr end
+    for _, group in ipairs({ Resources.core, Resources.materials }) do   -- vật liệu phái sinh (HK, TH...) cho HQ C3+
+        for _, r in ipairs(group) do
+            local n = cost[r.key]
+            if n then parts[#parts + 1] = n .. " " .. r.abbr end
+        end
     end
     return table.concat(parts, " + ")
 end
+
+-- Hiệu ứng của từng cấp Nhà Chính (cho tooltip nút nâng cấp), Data §9.1.
+local HQ_EFFECT = {
+    [2] = "Mở rộng vùng ảnh hưởng thêm 1 vòng (18 ô quanh Nhà Chính).",
+    [3] = "Mở khóa Công Trình Đặc Biệt. Cần Khu Chợ liền hoặc nối đường tới Nhà Chính.",
+    [4] = "Từ vòng " .. C.HQ_C4_MIN_ROUND .. ": mọi Viễn Chinh tự thành Hiệp Sĩ (6 bước, leo Núi).",
+    [5] = "Cần Khu Chợ cấp 3. Aura thủ đô: +1 sản lượng cho công trình trong bán kính " .. C.HQ_C5_AURA_RADIUS .. " ô.",
+}
+local SUB_EFFECT = {
+    [2] = "Mở rộng vùng ảnh hưởng thêm 1 vòng (18 ô quanh Khu Trực Thuộc).",
+    [3] = "Từ vòng " .. C.SUB_C3_MIN_ROUND .. ": Đô Thị Vệ Tinh, ô tâm miễn nhiễm phong tỏa.",
+}
 
 local function buildTip(b)
     local lv = b.levels[1]
@@ -98,7 +112,7 @@ function Scene:enter(opts)
     self.tween = Tween.new()
     self.mode, self.popup = nil, nil
     self.selected, self.confirm = nil, nil      -- uid công trình đang chọn; { kind, uid } popup xác nhận (dỡ / lập Sub)
-    self.selectedUnit = nil                     -- uid đơn vị đang chọn
+    self.selectedUnit, self.selectedSub = nil, nil   -- uid đơn vị đang chọn; ô Khu Trực Thuộc đang chọn
     self.trade = {}
     self.rollAnim = nil
     self.dieScale = { 1, 1 }
@@ -109,7 +123,7 @@ function Scene:enter(opts)
     self.hover = nil
     if demoHints then   -- dev: --demo upgrade / demolish dựng sẵn lựa chọn để chụp màn hình
         self.selected, self.mode, self.confirm, self.demoHover = demoHints.selected, demoHints.mode, demoHints.confirm, demoHints.hover
-        self.selectedUnit = demoHints.selectedUnit
+        self.selectedUnit, self.selectedSub = demoHints.selectedUnit, demoHints.selectedSub
         self.popup, self.propose, self.replyShown = demoHints.popup, demoHints.propose, demoHints.replyShown
     end
 
@@ -195,7 +209,8 @@ function Scene:onEvents(events)
             self:popValue(e.victim, e.res)
             self:popValue(e.roller, e.res)
         elseif k == "claim" or k == "build" or k == "place_hq" or k == "found_sub" or k == "upgrade_hq"
-            or k == "upgrade" or k == "demolished" then
+            or k == "upgrade" or k == "demolished" or k == "upgrade_sub" or k == "unit_transform"
+            or k == "unit_retreat" then
             self:pulseAt(e.q, e.r)
         elseif k == "unit_buy" or k == "unit_move" or k == "unit_garrison" then
             self:pulseAt(e.q, e.r)
@@ -232,7 +247,7 @@ function Scene:cmd(c)
     local ok, why = Game.check(self.state, c)
     if not ok then self:say(why or "Không thực hiện được") return false end
     self:onEvents(Game.apply(self.state, c))
-    if c.type == "endTurn" then self.selected, self.selectedUnit = nil, nil end
+    if c.type == "endTurn" then self.selected, self.selectedUnit, self.selectedSub = nil, nil, nil end
     return true
 end
 
@@ -744,10 +759,15 @@ function Scene:drawActions(x, y, w)
     local hqLevel = p and p.hqLevel or 1
     local upgradeOk = inAction and Game.check(state, { type = "upgradeHQ" })
     local upCost = C.HQ_UPGRADE_COST[hqLevel + 1]
-    ui:button("upgradehq", x, y, w, bh, upCost and ("Nâng Nhà Chính C" .. hqLevel + 1) or "Nhà Chính đã tối đa (M1)", {
-        enabled = upgradeOk and true or false, font = Theme.font(11, true),
-        tip = upCost and ("Nâng Nhà Chính lên cấp " .. hqLevel + 1 .. ": " .. costText(upCost)
-            .. ". Mở rộng vùng ảnh hưởng thêm 1 vòng (tổng 18 ô quanh Nhà Chính).") or nil,
+    local upTip
+    if upCost then
+        upTip = "Nâng Nhà Chính lên cấp " .. hqLevel + 1 .. ": " .. costText(upCost) .. ".\n" .. HQ_EFFECT[hqLevel + 1]
+        local okGate, whyGate = Territory.canUpgradeHQ(state, actor or 1)
+        if p and not okGate then upTip = upTip .. "\nChưa được: " .. whyGate
+        elseif p and not canAfford(p.res, upCost) then upTip = upTip .. "\n(Không đủ tài nguyên)" end
+    end
+    ui:button("upgradehq", x, y, w, bh, upCost and ("Nâng Nhà Chính C" .. hqLevel + 1) or "Nhà Chính đã tối đa", {
+        enabled = upgradeOk and true or false, font = Theme.font(11, true), tip = upTip,
         onClick = function() self:cmd({ type = "upgradeHQ" }) end,
     })
     y = y + bh + gap
@@ -764,7 +784,7 @@ function Scene:drawActions(x, y, w)
     for _, a in ipairs(p and Territory.anchors(state, actor) or {}) do anchorTiles[#anchorTiles + 1] = state.map:get(a.q, a.r) end
     ui:button("buyunit", x, y, half, bh, string.format("Viễn Chinh %d/%d", p and Units.quotaCount(state, actor, "expedition") or 0,
             Units.quotaMax("expedition")), {
-        enabled = canBuy("expedition", anchorTiles), focused = isMode("buyunit"), font = Theme.font(10, true),
+        enabled = canBuy("expedition", anchorTiles), focused = isMode("buyunit"), font = Theme.font(9, true),
         tip = "Viễn Chinh (" .. costText(C.EXPEDITION_COST) .. ") sinh ở Nhà Chính hoặc Khu Trực Thuộc, đi " .. C.EXPEDITION_BASE_MOVE
             .. " bước mỗi lượt từ lượt sau. Bấm vào đơn vị trên bản đồ để Lập Khu Trực Thuộc, Trấn Áp Phiến Quân, Trú Đóng.",
         onClick = function()
@@ -782,7 +802,7 @@ function Scene:drawActions(x, y, w)
     end
     ui:button("buytrade", x + half + Theme.px(4), y, half, bh, string.format("Giao Thương %d/%d",
             p and Units.quotaCount(state, actor, "trade") or 0, Units.quotaMax("trade")), {
-        enabled = canBuy("trade", tradeSpawns), focused = isMode("buytrade"), font = Theme.font(10, true),
+        enabled = canBuy("trade", tradeSpawns), focused = isMode("buytrade"), font = Theme.font(9, true),
         tip = "Giao Thương (" .. costText(C.UNIT_COST.trade) .. ") sinh ở Khu Chợ của bạn (chưa có chợ thì ở Nhà Chính), đi "
             .. C.TRADE_BASE_MOVE .. " bước ngay khi mua. Mỗi ô đi qua tự xây Đường Đất (" .. C.ROAD_COST_PER_TILE .. " V/ô).",
         onClick = function()
@@ -945,6 +965,40 @@ function Scene:drawBuildingPanel(x, y, w)
     ui:button("bp_dem", x + Theme.px(6), by, w - Theme.px(12), bh, "Dỡ bỏ", {
         enabled = inAction and not b.demolishing, font = Theme.font(10, true), tip = demTip,
         onClick = function() self.confirm = { kind = "demolish", uid = b.uid } end,
+    })
+end
+
+-- Bảng của Khu Trực Thuộc đang chọn (bấm vào ô Sub của mình): nâng cấp C2 / C3.
+function Scene:drawSubPanel(x, y, w)
+    local ui, state = self.ui, self.state
+    local tile = self.selectedSub
+    local actor = Game.actor(state)
+    local sub = tile and Territory.subAt(state, actor, tile)
+    if not sub then self.selectedSub = nil return end
+    local inAction = state.phase == "action" and not self.popup and not self.confirm
+    local bh, pad = Theme.px(24), Theme.px(8)
+    local fs = Theme.font(10)
+    local nextLevel = sub.level + 1
+    local cost = C.SUB_UPGRADE_COST[nextLevel]
+    local h = Theme.px(60) + bh + Theme.px(8)
+    ui:panel(x, y, w, h, { borderColor = Theme.player[actor] })
+    ui:label(string.format("Khu Trực Thuộc  C%d", sub.level), x + pad, y + Theme.px(5),
+        { font = Theme.font(12, true), color = Theme.color.accent })
+    local radius = C.INFLUENCE_RADIUS_SUB[math.min(sub.level, #C.INFLUENCE_RADIUS_SUB)]
+    ui:label(string.format("Vùng ảnh hưởng bán kính %d%s", radius, sub.level >= 3 and " · ô tâm miễn phong tỏa" or ""),
+        x + pad, y + Theme.px(24), { font = fs, color = Theme.color.dim, width = w - 2 * pad })
+    local tip, can = "Đã ở cấp tối đa", false
+    if cost then
+        local ok, why = Territory.canUpgradeSub(state, actor, tile)
+        tip = string.format("Nâng lên C%d: %s.\n%s", nextLevel, costText(cost), SUB_EFFECT[nextLevel])
+        if not ok then tip = tip .. "\nChưa được: " .. why
+        elseif not canAfford(state.players[actor].res, cost) then tip = tip .. "\n(Không đủ tài nguyên)"
+        else can = true end
+    end
+    ui:button("sp_up", x + Theme.px(6), y + Theme.px(52), w - Theme.px(12), bh,
+        cost and string.format("Nâng lên C%d (%s)", nextLevel, (costText(cost):gsub(" %+ ", "+"))) or "Cấp tối đa", {
+        enabled = inAction and can, font = Theme.font(10, true), tip = tip,
+        onClick = function() self:cmd({ type = "upgradeSub", q = tile.q, r = tile.r }) end,
     })
 end
 
@@ -1296,6 +1350,8 @@ function Scene:draw()
         self:drawBuildingPanel(W - panelW - bpW - 2 * pad, bpY, bpW)
     elseif self.selectedUnit then
         self:drawUnitPanel(W - panelW - bpW - 2 * pad, bpY, bpW)
+    elseif self.selectedSub then
+        self:drawSubPanel(W - panelW - bpW - 2 * pad, bpY, bpW)
     end
     local logW = Theme.px(310)
     self:drawLog(pad, H - logH - pad, logW, logH)
@@ -1363,7 +1419,8 @@ function Scene:keypressed(key)
         if self.confirm then self.confirm = nil
         elseif self.popup then self.popup = nil
         elseif self.mode then self.mode = nil
-        elseif self.selected or self.selectedUnit then self.selected, self.selectedUnit = nil, nil
+        elseif self.selected or self.selectedUnit or self.selectedSub then
+            self.selected, self.selectedUnit, self.selectedSub = nil, nil, nil
         else self.popup = "pause" end
         return
     end
@@ -1447,11 +1504,12 @@ function Scene:mousepressed(x, y, button)
         if #here > 0 then
             local nextIdx = 1
             for i, u in ipairs(here) do if u.uid == self.selectedUnit then nextIdx = i % #here + 1 end end
-            self.selectedUnit, self.selected = here[nextIdx].uid, nil
+            self.selectedUnit, self.selected, self.selectedSub = here[nextIdx].uid, nil, nil
         else
             local b = Structures.at(state, tile)
             self.selected = b and b.uid or nil
             self.selectedUnit = nil
+            self.selectedSub = (not b and actor and Territory.subAt(state, actor, tile)) and tile or nil
         end
     end
 end

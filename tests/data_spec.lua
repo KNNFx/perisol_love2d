@@ -92,6 +92,12 @@ describe("data: movement + constants M1", function()
             expect.truthy(Resources.byKey[res], res)
             expect.truthy(Terrains.byId[terrain], terrain)
         end
-        expect.eq(#C.INFLUENCE_RADIUS_HQ, C.HQ_MAX_LEVEL_M1)
+        expect.eq(#C.INFLUENCE_RADIUS_HQ, C.HQ_MAX_LEVEL)
+        expect.eq(#C.INFLUENCE_RADIUS_SUB, C.SUB_MAX_LEVEL)
+        for _, group in ipairs({ C.HQ_UPGRADE_COST, C.SUB_UPGRADE_COST }) do
+            for _, cost in pairs(group) do
+                for k in pairs(cost) do expect.truthy(Resources.byKey[k], k) end
+            end
+        end
     end)
 end)
