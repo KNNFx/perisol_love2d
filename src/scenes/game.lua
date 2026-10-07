@@ -102,6 +102,15 @@ function Scene:enter(opts)
     local play = tonumber(Cli.option("--play"))
     if play and not opts.state then Sim.advance(self.state, play) end
     local demo = Cli.option("--demo")           -- dev: thế cờ dựng sẵn (src/dev/demo.lua)
+    -- dev: `--give gold=20,alloy=5` cộng tài nguyên cho mọi người chơi (không đi qua lệnh, không vào history)
+    local give = Cli.option("--give")
+    if give and not opts.state then
+        for res, n in give:gmatch("(%a+)=(%d+)") do
+            for _, p in ipairs(self.state.players) do
+                if p.res[res] then p.res[res] = p.res[res] + tonumber(n) end
+            end
+        end
+    end
     local demoHints = demo and not opts.state and require("src.dev.demo").apply(self.state, demo) or nil
     local untilPhase = Cli.option("--until")   -- dev: tự chơi từng lệnh tới khi vào pha này
     if untilPhase and not opts.state then

@@ -6,7 +6,7 @@
 **Current status (updated 2026-10-07):**
 - **M0 complete (2026-10-04):** git repo, `conf.lua`/`main.lua`, hex math, seeded mapgen, camera/render sandbox, 29 headless tests (see the P1 checklist).
 - **M1 implemented (2026-10-06):** see the P2 checklist. Playtest #1 is still pending.
-- **M1.5 planned (2026-10-07):** owner decisions are in D-014, and the phased checklist A–I is in P3. Next: P3 phase A.
+- **M1.5 implemented (2026-10-07):** phases A–H and most of I are done (rules in D-014..D-019); the industrial layer (step 8) is deferred. Open: playtests for M1 and M1.5, and the owner's call on the open items listed at the end of D-014..D-019. Next: M2 Cards (P4).
 - *(Original scan 2026-10-04: no code, no tests and no git repo existed.)*
 - Design docs are rich and mostly complete: GDD v1.2, Data tables, Buildings v1.0, and 80 cards in Cards v1.2.
 - Art: one test sheet, `Image/HexaTiles_Test_V001.png`. It holds pixel-art hex tiles (forest, plains, desert, river/water, mountain, snow, settlements, roads) and is not yet sliced into individual sprites.
@@ -274,12 +274,12 @@ Each phase ends with `test.bat` green, `lovec . --sim 100` clean, a UI check (sc
   - [x] Stubbed until M2/M3 (listed in D-019, not yet logged in game): Tech discount, Edict surcharge/immunity, Exhibition, Niết Bàn, character-skill discount, the "Long Mạch radius" of S-04 / TN-12.
   - [x] UI: "Công trình Đặc Biệt" popup (status + cost + Build), placement ghost with Q to cycle, aura ring when a Special is selected, building panel with +1/+2 upgrade and Pháo, peek label + Broadcast toggle on the dice panel, cancel-7 and push-Rebel popups behind a pass-the-screen cover, "Bảo Tàng" column in the results screen. Dev: `--demo special` / `--demo specialpopup`.
   - [x] `specials_spec` (data, build rules, upgrades, each aura/ability, prompts, save/load, resource-rich sim) + `tests/strip.lua` shared helper. Sim: build/upgrade/strike weights, stats for Specials and cancelled 7s.
-- [ ] **I. Wrap-up**
-  - [ ] `--scenario NAME` (`src/dev/scenarios.lua`) builds test positions for each system. It uses a dev-only `Dev.give` that is not recorded in `history`.
-  - [ ] Sim biased toward C3 / Derived / Special, plus new stats in `--sim`.
-  - [ ] Replay determinism test. Save/load mid-game with units, roads and Derived buildings.
-  - [ ] Settle the open D-014 proposals with the owner and record them. Update CLAUDE.md.
-  - [ ] A manual 2-player hot-seat game through the real UI.
+- [x] **I. Wrap-up** — done 2026-10-07, except the two items marked open
+  - [x] Dev tooling: `--demo <name>` (canned positions: loss, upgrade, demolish, unit, suppress, trade, reply, derived, sub, special, specialpopup) replaces the planned `--scenario`, and `--give res=n,...` adds resources at start. Neither goes through `history`.
+  - [x] Sim: `--sim N --rich` tops up resources and materials after every turn so random games reach C3 / Derived / trade; new stats in `--sim` for every M1.5 system. (Specials still need HQ C3, so they are covered by `specials_spec`, not the sim.)
+  - [x] Replay determinism and mid-game save/load (`tests/m15_integration_spec.lua`): 12 sim games replay to an identical state; save, load and continue gives an identical state for 12 checkpoints with units and roads. Real-game states only: test helpers that edit the map (`tests/arena.lua`, `tests/strip.lua`) cannot be saved because the map is regenerated from the seed.
+  - [ ] Settle the open proposals of D-014..D-019 with the owner and record the answers. *Open:* needs the owner (the list is at the end of each decision).
+  - [x] CLAUDE.md updated. Two full games (2 players, seed 11, 43 turns; 4 players, seed 23, 83 turns) driven through the real UI with `lovec.exe . --newgame --drive N` reach the results screen with no errors. *Open:* a human hot-seat playtest.
 
 **Deferred on purpose:**
 - Step 8 (industrial layer).
@@ -335,11 +335,12 @@ Each phase ends with `test.bat` green, `lovec . --sim 100` clean, a UI check (sc
 
 - **M0:** `love .` → random valid map renders; R regenerates; `test.bat` passes the hex math tests. ✅ Done 2026-10-04.
 - **M1:** play a full 20-round, 2-player hot-seat game to a score screen with no errors. The headless random-move simulation runs 100 seeded games without crashing.
-- **M1.5–M3:** each new system has unit tests plus a debug scenario (cheat console) to exercise it, and a full game is replayed after each.
+- **M1.5:** ✅ done 2026-10-07. 255 tests pass, `--sim 100` and `--sim 30 --rich` run clean with every invariant checked each turn, 12 sim games replay identically, save/load mid-game continues identically, and 2- and 4-player games driven through the real UI reach the results screen. Human playtest still open.
+- **M2–M3:** each new system has unit tests plus a debug scenario (`--demo`, `--give`) to exercise it, and a full game is replayed after each.
 - **Playtest gate** after M1 and after M3: collect feedback and tune `constants.lua`.
 
 ## Immediate next steps (updated 2026-10-07)
 
-1. P3 phase A: buildings keyed by uid + `structures.lua`, materials in `res`, `Hex.rotate`, `lostStrategic`, `upkeep.lua`, the `prompt` phase, save v3 + migration. No rule change, so the existing tests and `--sim 100` must stay green.
-2. P3 phase B: C2/C3 upgrade in place with footprints and Q rotation; demolish (TN lost, D-014).
-3. Playtest #1 for M1 (P2 checklist) can run in parallel. Its tuning only touches `constants.lua`.
+1. Owner review of the open items at the end of D-014..D-019 (shapes, S-04 blockade and Long Mạch radius, Tín Phiếu rules, Sub C2 threshold, and so on).
+2. Playtest #1 (M1, P2 checklist) and playtest #2 (M1.5: roads, trade, Derived, Specials). Tuning only touches `constants.lua` and `src/data/*.lua`.
+3. Start P4 (M2 Cards): card data, effect registry and event bus. The M1.5 hooks it will use are the `prompt` phase (reaction Edicts), `Upkeep` steps, the modifier stages `character`/`tech`, and the stubs listed in D-019.

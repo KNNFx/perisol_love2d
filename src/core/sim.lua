@@ -144,7 +144,12 @@ local function chooseCommand(prng, state, legal, perTurn)
 end
 
 -- Chơi trọn một ván. Trả state, stats. Báo lỗi nếu lệnh hợp lệ bị từ chối hoặc vi phạm bất biến.
-function Sim.play(seed, players)
+-- opts.rich: sau mỗi lượt nạp đầy tài nguyên và vật liệu (trừ Tín Phiếu) để ván ngẫu nhiên chạm tới Nhà Chính C3+, Phái Sinh,
+-- Đặc Biệt, trao đổi...; dùng để bắt crash ở các hệ thống ít khi xuất hiện trong ván ngẫu nhiên thường (`--sim N --rich`).
+local RICH_FLOOR = 25
+
+function Sim.play(seed, players, opts)
+    opts = opts or {}
     local state = Game.new({ seed = seed, players = players })
     local prng = Rng.new("sim:" .. tostring(seed) .. ":" .. players)
     local stats = { sevens = 0, builds = 0, claims = 0, commands = 0, rebelStops = 0, losses = 0,
@@ -192,6 +197,13 @@ function Sim.play(seed, players)
 
         if cmd.type == "endTurn" then
             perTurn = 0
+            if opts.rich then
+                for _, p in ipairs(state.players) do
+                    for k, v in pairs(p.res) do
+                        if k ~= "bond" and v < RICH_FLOOR then p.res[k] = RICH_FLOOR end
+                    end
+                end
+            end
             local good, msg = Sim.invariants(state)
             assert(good, "vi phạm bất biến (seed " .. tostring(seed) .. ", vòng " .. state.round .. "): " .. tostring(msg))
         end
@@ -218,7 +230,7 @@ function Sim.advance(state, n, seed)
 end
 
 -- Chạy `count` ván, số người xoay vòng 2..4. Trả bảng thống kê gộp.
-function Sim.batch(count, firstSeed, onGame)
+function Sim.batch(count, firstSeed, onGame, opts)
     local sum = { games = 0, sevens = 0, builds = 0, claims = 0, commands = 0, rebelStops = 0, losses = 0,
                   upgrades = 0, demolishes = 0, tnLost = 0, unitsBought = 0, unitMoves = 0, suppressWins = 0,
                   suppressLosses = 0, unitsLost = 0, subsFounded = 0, roadsBuilt = 0, roadUpgrades = 0,
@@ -226,7 +238,7 @@ function Sim.batch(count, firstSeed, onGame)
     for i = 0, count - 1 do
         local seed = (firstSeed or 1) + i
         local players = 2 + (i % 3)
-        local state, stats = Sim.play(seed, players)
+        local state, stats = Sim.play(seed, players, opts)
         local ranking = Game.ranking(state)
         sum.games = sum.games + 1
         for k, v in pairs(stats) do sum[k] = sum[k] + v end
