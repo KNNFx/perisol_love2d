@@ -143,6 +143,13 @@ function Fmt.line(e)
         end
         return { text = string.format("%s Trấn Áp thất bại (đổ %d / cần %d)", P(e.pid), e.roll, e.threshold),
                  pid = e.pid, tier = "large" }
+    elseif k == "derived_built" then
+        return { text = string.format("%s lập %s tại %s", P(e.pid), buildingName(e.id), at(e)), pid = e.pid, tier = "medium" }
+    elseif k == "derived_lost" then
+        return { text = string.format("%s của %s không còn (mất công trình liên quan)", buildingName(e.id), P(e.pid)),
+                 pid = e.pid, tier = "medium" }
+    elseif k == "bond_redeemed" then
+        return { text = string.format("%s đổi %d Tín Phiếu lấy %d V", P(e.pid), e.n, e.gold), pid = e.pid, tier = "small" }
     elseif k == "passive" then
         local from = Buildings.byId[e.src] and Buildings.byId[e.src].name
             or (Strategic.byId[e.src] and Strategic.byId[e.src].name) or tostring(e.src)

@@ -345,6 +345,29 @@ Theo Data §9.1 và sheet Đơn vị. Chi phí và mốc vòng ở `constants.lu
   - "Giảm ngưỡng Chi Phối ô xa" của Sub C2 (Data) vẫn chưa làm, vì không có con số (D-014 còn mở).
 - **Tunable mới:** `HQ_MAX_LEVEL`, `SUB_MAX_LEVEL`, `HQ_UPGRADE_COST[3..5]`, `SUB_UPGRADE_COST`, `HQ_C4_MIN_ROUND`, `SUB_C3_MIN_ROUND`, `HQ_C5_AURA_RADIUS`, `KNIGHT_RETREAT_COOLDOWN`. Bỏ `HQ_MAX_LEVEL_M1`.
 
+## D-018 — Công trình Phái Sinh D-01..D-05 (M1.5 phase G) — 2026-10-07
+Theo Data sheet "Công trình" (chuẩn); chỗ Data và GDD §8.2 khác nhau xem bảng xung đột bên dưới. Dữ liệu ở `src/data/derived.lua`, luật ở `src/core/derived.lua`.
+- **Lập:** lệnh `buildDerived{id, a, b, q, r}` trả chi phí của loại đó. `a` = uid công trình **chủ**, `b` = uid đối tác (D-05: did của Xưởng In Ấn), `q,r` = ô riêng cho D-03 / D-05. Mỗi công trình chủ chỉ có một Phái Sinh mỗi loại.
+
+  | ID | Chủ (cấp tối thiểu) | Đối tác | Khoảng cách | Ô riêng | Chi phí | Sản xuất |
+  |---|---|---|---|---|---|---|
+  | D-01 Phòng TN Vật Liệu | Trại KT C2 | Viện NC C2 | ≤ 2 | — | 3 KT + 2 KH + 2 V | +1 Hợp Kim mỗi viên KT hoặc KH; +1 mỗi 3 lượt; TN-05 trên ô chủ +1 mỗi lượt |
+  | D-02 Xưởng In Ấn | Nhà VH C1 | Trại KT C2 | ≤ 1 | — | 2 VH + 2 KT + 1 V | +1 Giấy mỗi viên VH hoặc KT; +1 mỗi lượt nếu hai công trình nối bằng đường |
+  | D-03 Xưởng Luyện Kim | Trại KT C3 | Đền Thờ C2 | **0 (liền kề)** | 1 ô kề Trại KT | 4 KT + 2 TN + 3 V | +1 Thép mỗi viên KT; +1 mỗi 4 lượt |
+  | D-04 Xưởng Dệt Lụa | Nhà VH C2 | Đền Thờ C2 | ≤ 1 | — | 3 VH + 2 TN + 2 V | +1 Lụa mỗi viên VH hoặc TN; +1 mỗi lượt kề Khu Dân Cư; +1 nữa kề Đầm Lầy/Sông |
+  | D-05 Nhà Ngân Hàng | Khu Chợ C2 | D-02 đang hoạt động | ô riêng cách chủ ≤ 2 | 1 ô | 5 V + 2 VH + 2 KT | +1 Tín Phiếu mỗi viên Vàng (tối đa 5); lãi 0.5 V mỗi Tín Phiếu mỗi lượt |
+
+- **Khoảng cách** = số ô trống giữa hai footprint (liền kề = 0). 0 ô luôn nối được; 1–2 ô cần một tuyến đường liên tục (`Roads.route`); từ 3 ô trở lên không thể dù có đường (GDD §8.2). Mỗi loại còn có mức tối đa riêng như bảng; D-03 phải liền kề và không dùng đường.
+- **Hoạt động** tính lại mỗi lần cần dùng: hai công trình còn đúng loại và đủ cấp, chưa chờ dỡ, còn nối nhau, không công trình nào bị phong tỏa. Đường bị Phiến Quân phá thì Phái Sinh tạm ngừng và hoạt động lại khi có đường. Khi công trình chủ, đối tác hoặc ô riêng biến mất thì instance bị xóa ở đầu lượt chủ (và ô riêng bị gỡ cùng).
+- **Vật liệu cộng thêm, không thay thế:** theo Data, vật liệu được **cộng thêm** khi ra mặt khớp, không "thay cho tài nguyên gốc" (GDD §8.2). Long Mạch chia sẻ như công trình Cơ Bản: ai đổ cũng được, người nhận là chủ Phái Sinh. Vật liệu nằm trong `player.res`, không tính điểm cuối ván (D-014).
+- **Thụ động theo chu kỳ:** bộ đếm `timer` của instance chạy mỗi lượt của chủ, chỉ khi đang hoạt động. Phần lẻ (lãi Tín Phiếu) dồn vào `player.carry` như D-014.
+- **Tín Phiếu:**
+  - GDD cho "chuyển 1–2 Vàng thành Tín Phiếu" và Data cho "Tín Phiếu khi ra Vàng" nhưng không có số; đây là cách hiểu: mỗi viên Vàng cộng 1 Tín Phiếu (ngoài Vàng của công trình khác), trần `BOND_MAX` = 5.
+  - Lệnh `redeemBond{n}` đổi mỗi Tín Phiếu lấy `BOND_REDEEM_GOLD` (2) V, cần D-05 đang hoạt động. Cách "hoãn chi trả đến cuối vòng sau" của GDD được bỏ để đơn giản.
+- **Chưa làm:** bonus "Rừng Cổ Thụ" của Xưởng In Ấn (Nhà VH không đặt được trên Rừng), "Quặng LT tỷ lệ 1:1", "Chuồng Ngựa". Các dòng "Cảng/Ngân hàng trao đổi theo tỉ lệ" cho Khu Dân Cư hoãn như D-014.
+- **Save:** `state.derived`, `state.nextDerivedUid`. Save v3 tạo trước phase này được bù mặc định khi nạp (`Game.load`).
+- **Tunable mới:** `DERIVED_MAX_GAP`, `BOND_MAX`, `BOND_INTEREST`, `BOND_REDEEM_GOLD`, `TN05_ALLOY_BONUS`.
+
 ## Xung đột tài liệu đã phát hiện (chọn theo Data)
 | Chủ đề | GDD §3.1 / §8 | Data | Chọn |
 |---|---|---|---|

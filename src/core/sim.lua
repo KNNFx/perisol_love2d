@@ -16,8 +16,9 @@ local MAX_COMMANDS_PER_TURN = 40
 local MAX_TOTAL_COMMANDS    = 100000
 
 -- Trọng số chọn loại lệnh trong pha action (kiểu lệnh nào có thì mới được chọn).
-local TYPE_WEIGHT = { build = 6, buyTile = 4, placeVote = 3, foundSub = 2, upgradeHQ = 2, trade = 1,
-                         upgrade = 12, buyUnit = 3, moveUnit = 4, suppress = 3, garrison = 1 }
+local TYPE_WEIGHT = { build = 6, buyTile = 4, placeVote = 3, foundSub = 2, trade = 1,
+                         upgrade = 12, buyUnit = 3, moveUnit = 4, suppress = 3, garrison = 1, buildDerived = 8, redeemBond = 2,
+                         upgradeHQ = 6, upgradeSub = 6 }
 local P_END_TURN  = 0.12
 local P_DEMOLISH  = 0.01   -- xác suất mỗi lệnh action chọn dỡ công trình hoặc giải thể đơn vị
 
@@ -76,6 +77,15 @@ function Sim.invariants(state)
         local q, r = k:match("^(-?%d+),(-?%d+)$")
         if not q or not state.map:get(tonumber(q), tonumber(r)) then return false, "đường ngoài bản đồ " .. tostring(k) end
         if road.level ~= 1 and road.level ~= 2 then return false, "đường " .. k .. " có cấp " .. tostring(road.level) end
+    end
+
+    for did, inst in pairs(state.derived) do
+        if inst.did ~= did or not state.players[inst.owner] then return false, "Phái Sinh " .. tostring(did) .. " không hợp lệ" end
+        if not state.buildings[inst.a] then return false, "Phái Sinh " .. did .. " mất công trình chủ" end
+        if inst.site and not state.buildings[inst.site] then return false, "Phái Sinh " .. did .. " mất ô riêng" end
+    end
+    for pid, p in ipairs(state.players) do
+        if p.res.bond > C.BOND_MAX then return false, "P" .. pid .. " vượt " .. C.BOND_MAX .. " Tín Phiếu" end
     end
 
     local perQuota = {}
@@ -138,7 +148,7 @@ function Sim.play(seed, players)
     local stats = { sevens = 0, builds = 0, claims = 0, commands = 0, rebelStops = 0, losses = 0,
                     upgrades = 0, demolishes = 0, tnLost = 0, unitsBought = 0, unitMoves = 0, suppressWins = 0,
                     suppressLosses = 0, unitsLost = 0, subsFounded = 0, roadsBuilt = 0, roadUpgrades = 0,
-                    tradesProposed = 0, tradesAccepted = 0 }
+                    tradesProposed = 0, tradesAccepted = 0, derivedBuilt = 0 }
     local perTurn = 0
 
     while state.phase ~= "over" do
@@ -167,6 +177,7 @@ function Sim.play(seed, players)
                 stats.unitMoves = stats.unitMoves + 1
                 stats.roadsBuilt = stats.roadsBuilt + (e.roads or 0)
             elseif e.kind == "road_upgrade" then stats.roadUpgrades = stats.roadUpgrades + 1
+            elseif e.kind == "derived_built" then stats.derivedBuilt = stats.derivedBuilt + 1
             elseif e.kind == "trade_proposed" then stats.tradesProposed = stats.tradesProposed + 1
             elseif e.kind == "trade_accepted" then stats.tradesAccepted = stats.tradesAccepted + 1
             elseif e.kind == "suppress" then
@@ -207,7 +218,7 @@ function Sim.batch(count, firstSeed, onGame)
     local sum = { games = 0, sevens = 0, builds = 0, claims = 0, commands = 0, rebelStops = 0, losses = 0,
                   upgrades = 0, demolishes = 0, tnLost = 0, unitsBought = 0, unitMoves = 0, suppressWins = 0,
                   suppressLosses = 0, unitsLost = 0, subsFounded = 0, roadsBuilt = 0, roadUpgrades = 0,
-                  tradesProposed = 0, tradesAccepted = 0, score = 0, tiles = 0, winnerTiles = 0 }
+                  tradesProposed = 0, tradesAccepted = 0, derivedBuilt = 0, score = 0, tiles = 0, winnerTiles = 0 }
     for i = 0, count - 1 do
         local seed = (firstSeed or 1) + i
         local players = 2 + (i % 3)

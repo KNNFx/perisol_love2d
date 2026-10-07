@@ -29,6 +29,6 @@ return function(seed, players)
         s.owner[State.key(t)] = pid
         s.votes[State.key(t)] = { [pid] = 9 }
     end
-    for k in pairs(s.players[pid].res) do s.players[pid].res[k] = 99 end
+    for k in pairs(s.players[pid].res) do s.players[pid].res[k] = (k == "bond") and 0 or 99 end   -- Tín Phiếu tối đa 5
     return s, pid, best
 end

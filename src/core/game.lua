@@ -26,6 +26,8 @@ local Construction = require("src.core.construction")
 local Units        = require("src.core.units")      -- bước upkeep đơn vị đăng ký ở đây
 local Roads        = require("src.core.roads")
 local Trade        = require("src.core.trade")
+local Derived      = require("src.core.derived")
+local DerivedData  = require("src.data.derived")
 local Passives    = require("src.core.passives")   -- đăng ký bước upkeep thu nhập thụ động (sau bước dỡ)
 local Upkeep      = require("src.core.upkeep")
 local Territory   = require("src.core.territory")
@@ -312,6 +314,46 @@ H.upgradeSub = {
         pay(state.players[pid].res, C.SUB_UPGRADE_COST[sub.level + 1])
         local level = Territory.upgradeSub(state, pid, tile)
         events[#events + 1] = { kind = "upgrade_sub", pid = pid, level = level, q = tile.q, r = tile.r }
+    end,
+}
+
+-- Lập công trình Phái Sinh (D-018): a = uid công trình chủ, b = uid đối tác (D-05: did của Xưởng In Ấn),
+-- q,r = ô riêng cho D-03 / D-05.
+H.buildDerived = {
+    phase = "action",
+    check = function(state, cmd, pid)
+        local def = Derived.def(cmd.id)
+        if not def then return false, "Công trình Phái Sinh không tồn tại" end
+        local tile = cmd.q and state.map:get(cmd.q, cmd.r) or nil
+        local ok, why = Derived.checkBuild(state, pid, cmd.id, { a = cmd.a, b = cmd.b, tile = tile })
+        if not ok then return false, why end
+        if not canAfford(state.players[pid].res, def.cost) then return false, "Không đủ tài nguyên" end
+        return true
+    end,
+    apply = function(state, cmd, pid, events)
+        local def = Derived.def(cmd.id)
+        pay(state.players[pid].res, def.cost)
+        local tile = cmd.q and state.map:get(cmd.q, cmd.r) or nil
+        local inst = Derived.build(state, pid, cmd.id, { a = cmd.a, b = cmd.b, tile = tile })
+        local at = Structures.tilesOf(state, state.buildings[inst.a])[1]
+        events[#events + 1] = { kind = "derived_built", pid = pid, id = cmd.id, did = inst.did, q = at.q, r = at.r }
+    end,
+}
+
+-- Đổi Tín Phiếu lấy Vàng (D-05 đang hoạt động).
+H.redeemBond = {
+    phase = "action",
+    check = function(state, cmd, pid)
+        if type(cmd.n) ~= "number" or cmd.n < 1 or cmd.n ~= math.floor(cmd.n) then return false, "Số Tín Phiếu không hợp lệ" end
+        if state.players[pid].res.bond < cmd.n then return false, "Không đủ Tín Phiếu" end
+        if not Derived.hasBank(state, pid) then return false, "Cần Nhà Ngân Hàng đang hoạt động" end
+        return true
+    end,
+    apply = function(state, cmd, pid, events)
+        local res = state.players[pid].res
+        res.bond = res.bond - cmd.n
+        res.gold = res.gold + cmd.n * C.BOND_REDEEM_GOLD
+        events[#events + 1] = { kind = "bond_redeemed", pid = pid, n = cmd.n, gold = cmd.n * C.BOND_REDEEM_GOLD }
     end,
 }
 
@@ -736,6 +778,27 @@ function Game.legal(state)
                 end
             end
         end
+        -- Phái Sinh: mỗi công trình chủ đủ cấp x loại x đối tác x (ô riêng)
+        for _, b in ipairs(Structures.list(state)) do
+            if b.owner == actor and not b.demolishing then
+                for _, def in ipairs(DerivedData.list) do
+                    if def.host[1] == b.id and b.level >= def.host[2] and canAfford(p.res, def.cost) then
+                        local partners = Derived.partnerCandidates(state, actor, def.id, b.uid)
+                        local sites = def.site and Derived.siteCandidates(state, actor, def.id, b.uid) or { false }
+                        for _, other in ipairs(def.dep and partners or (def.partner and partners or { false })) do
+                            for _, t in ipairs(sites) do
+                                local cmd = { type = "buildDerived", pid = actor, id = def.id, a = b.uid, b = other or nil,
+                                              q = t and t.q or nil, r = t and t.r or nil }
+                                if Game.check(state, cmd) then out[#out + 1] = cmd end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+        if p.res.bond >= 1 and Derived.hasBank(state, actor) then
+            out[#out + 1] = { type = "redeemBond", pid = actor, n = p.res.bond }
+        end
         for _, b in ipairs(Structures.list(state)) do
             if b.owner == actor and not b.demolishing then
                 local cost = upgradeCost(state, b)
@@ -828,6 +891,10 @@ function Game.load(str)
     local ok, map = pcall(Mapgen.generate, { seed = s.seed, players = n })
     if not ok then return nil, "không dựng lại được bản đồ: " .. tostring(map) end
     s.map = map
+    -- trường thêm sau khi v3 ra đời (save v3 cũ của các phase trước): bù mặc định
+    s.derived = s.derived or {}
+    s.nextDerivedUid = s.nextDerivedUid or 1
+    s.nextUnitUid = s.nextUnitUid or 1
     return State.restoreRng(s)
 end
 

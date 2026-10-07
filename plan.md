@@ -248,14 +248,14 @@ Each phase ends with `test.bat` green, `lovec . --sim 100` clean, a UI check (sc
     - HQ C5 adds a +1 production aura within radius 2 of the HQ (modifier stage `aura`). HQ C3 "unlocks Special buildings" is enforced in phase H.
     - Sub C3 makes its centre tile blockade-immune.
   - [x] `hq_levels_spec` (gates, costs, Knight transform/retreat, C5 aura, Sub C2/C3, blockade immunity, resource-rich sim). UI: HQ button tooltip shows cost + gate, Sub panel (click your Sub), `--demo sub`. HQ C3+ costs need Hợp Kim/Thép from phase G.
-- [ ] **G. Step 6 — Derived D-01..D-05**
-  - [ ] `src/data/derived.lua` following Data: materials are **added**, not "instead of" as in the GDD.
-  - [ ] `buildDerived`:
+- [x] **G. Step 6 — Derived D-01..D-05** — done 2026-10-07 (rules in D-018)
+  - [x] `src/data/derived.lua` following Data: materials are **added**, not "instead of" as in the GDD.
+  - [x] `buildDerived`:
     - D-01, D-02 and D-04 attach to a host building. D-03 and D-05 take 1 tile.
     - Gap 0 / 1–2 tiles with a road / 3+ impossible, plus each type's own maximum.
-  - [ ] "Active" status recomputed at production time (a broken road pauses it). Periodic passives. D-05 bonds (max 5, 0.5 V interest each).
-  - [ ] UI: "Lập Phái Sinh" context action, partner highlight, materials row in the player panel.
-  - [ ] `derived_spec`.
+  - [x] "Active" status recomputed at production time (a broken road pauses it). Periodic passives. D-05 bonds (max 5, 0.5 V interest each).
+  - [x] UI: building panel shows each Derived's status (active / paused + reason) and "Lập <name>" buttons (D-03 and D-05 pick a tile in a new `derivedsite` mode), "Đổi Tín Phiếu" on the bank, materials line in the player card (cards are 10px taller). Dev: `--demo derived`.
+  - [x] `derived_spec` (data, D-01..D-05 rules and production, gaps with/without road, blockade, cleanup, periodic passives, bonds and redeem, save/load incl. old saves, resource-rich sim). Sim: build/redeem weights, derived invariants, bond cap.
 - [ ] **H. Step 7 — Special S-01..S-05**
   - [ ] `src/data/specials.lua`: footprints, terrains (Data building sheet), radius prerequisites, material costs, +1/+2 upgrades. TN-01/02/07/11 modifiers.
   - [ ] `buildSpecial`, `upgradeSpecial`. Auras are modifiers that read `state`.

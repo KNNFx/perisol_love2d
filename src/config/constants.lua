@@ -143,7 +143,14 @@ C.MARKET_ROUTE_BONUS_MAX = 3        -- B-05 C2: +0.5 V mỗi vòng cho mỗi tuy
 C.MARKET_C3_RADIUS       = 2        -- B-05 C3: giao thương không cần đường trong bán kính này
 C.TN06_MARKET_RATE       = 1        -- TN-06 + Khu Chợ C2+: đổi ngân hàng 1:1
 
-C.SAVE_VERSION       = 3               -- version file save (D-011, v3 = D-014)
+-- Công trình Phái Sinh (phase G, D-018)
+C.DERIVED_MAX_GAP        = 2        -- 3 ô trống trở lên: không thể kết hợp dù có đường (GDD §8.2)
+C.BOND_MAX               = 5        -- D-05: tối đa 5 Tín Phiếu cùng lúc
+C.BOND_INTEREST          = 0.5      -- Vàng lãi mỗi Tín Phiếu mỗi vòng
+C.BOND_REDEEM_GOLD       = 2        -- đổi 1 Tín Phiếu lấy 2 Vàng
+C.TN05_ALLOY_BONUS       = 1        -- TN-05 trên ô chủ của D-01: +1 Hợp Kim mỗi vòng
+
+C.SAVE_VERSION       = 3              -- version file save (D-011, v3 = D-014)
 
 -- ─── Render ────────────────────────────────────────────────────────────────
 -- Sprite hex pointy-top 32×32; lát gạch bước ngang 32, bước dọc 24.

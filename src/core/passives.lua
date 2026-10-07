@@ -11,6 +11,7 @@
 local C          = require("src.config.constants")
 local Hex        = require("src.core.hex")
 local Roads      = require("src.core.roads")
+local Derived    = require("src.core.derived")
 local Rebel      = require("src.core.rebel")
 local Structures = require("src.core.structures")
 local Upkeep     = require("src.core.upkeep")
@@ -99,7 +100,12 @@ end
 -- Áp dụng: cộng vào carry, phần nguyên chuyển sang tài nguyên. Trả events { kind = "passive", ... }.
 function Passives.step(state, pid, events)
     local p = state.players[pid]
-    for _, g in ipairs(Passives.compute(state, pid)) do
+    for _, inst in ipairs(Derived.cleanup(state, pid)) do   -- Phái Sinh mất chủ / đối tác / ô riêng thì bị xóa
+        events[#events + 1] = { kind = "derived_lost", pid = pid, id = inst.id }
+    end
+    local gains = Passives.compute(state, pid)
+    for _, g in ipairs(Derived.tick(state, pid)) do gains[#gains + 1] = g end   -- thụ động Phái Sinh (chu kỳ, lãi)
+    for _, g in ipairs(gains) do
         p.carry[g.res] = (p.carry[g.res] or 0) + g.amount
         events[#events + 1] = { kind = "passive", pid = pid, src = g.src, res = g.res, amount = g.amount, q = g.q, r = g.r }
     end

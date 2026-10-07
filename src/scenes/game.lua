@@ -19,6 +19,8 @@ local Structures  = require("src.core.structures")
 local Construction = require("src.core.construction")
 local Units       = require("src.core.units")
 local Roads       = require("src.core.roads")
+local Derived     = require("src.core.derived")
+local DerivedData = require("src.data.derived")
 local Trade       = require("src.core.trade")
 local Hex         = require("src.core.hex")
 local Camera      = require("src.render.camera")
@@ -371,6 +373,14 @@ function Scene:computeTargets()
             end
         end
         ghostCheck = function(t) return Game.check(state, { type = "buyUnit", unit = "trade", q = t.q, r = t.r }) end
+    elseif state.phase == "action" and self.mode and self.mode.kind == "derivedsite" then
+        local m = self.mode
+        for _, t in ipairs(Derived.siteCandidates(state, actor, m.id, m.a)) do
+            items[#items + 1] = { tile = t, color = { 0.55, 0.85, 1 }, alpha = 0.3 }
+        end
+        ghostCheck = function(t)
+            return Game.check(state, { type = "buildDerived", id = m.id, a = m.a, b = m.b, q = t.q, r = t.r })
+        end
     elseif state.phase == "action" and self.mode and self.mode.kind == "road" then
         for _, t in ipairs(Roads.list(state)) do
             if Game.roadUpgradeCheck(state, actor, t) then items[#items + 1] = { tile = t, color = { 0.85, 0.85, 0.95 }, alpha = 0.3 } end
@@ -574,6 +584,8 @@ function Scene:hintText()
             return "Chọn Khu Chợ (hoặc Nhà Chính nếu chưa có chợ) để sinh Giao Thương (Esc để hủy)"
         elseif self.mode and self.mode.kind == "road" then
             return "Chọn ô Đường Đất sáng để nâng lên Lát Đá (Esc để hủy)"
+        elseif self.mode and self.mode.kind == "derivedsite" then
+            return "Chọn ô sáng để đặt " .. Buildings.byId[self.mode.id].name .. " (Esc để hủy)"
         elseif self.mode and self.mode.kind == "suppress" then
             return string.format("Chọn ô kề Phiến Quân để định hướng đẩy (%s) — Esc để hủy",
                 self.mode.pay and "trả TN, chắc thắng" or "đổ xúc xắc")
@@ -615,7 +627,7 @@ end
 
 function Scene:drawPlayers(x, y, w)
     local ui, state = self.ui, self.state
-    local cardH, gap = Theme.px(66), Theme.px(5)
+    local cardH, gap = Theme.px(76), Theme.px(5)
     local actor = Game.actor(state)
     local scores = Scoring.score(state)
     local fb, fs, fn = Theme.font(12, true), Theme.font(9), Theme.font(13, true)
@@ -660,6 +672,15 @@ function Scene:drawPlayers(x, y, w)
         love.graphics.pop()
         ui:label(string.format("Ô %d · Điểm %d", scores[pid].tileCount, scores[pid].total),
             x, cy + Theme.px(48), { font = fs, color = Theme.color.dim, width = w - Theme.px(6), align = "right" })
+
+        -- vật liệu phái sinh (chỉ hiện loại đang có) và Tín Phiếu
+        local mats = {}
+        for _, r in ipairs(Resources.materials) do
+            if p.res[r.key] > 0 then mats[#mats + 1] = r.abbr .. " " .. p.res[r.key] end
+        end
+        if #mats > 0 then
+            ui:label(table.concat(mats, "  "), x + Theme.px(10), cy + Theme.px(60), { font = fs, color = Theme.color.accent })
+        end
     end
 end
 
@@ -920,7 +941,20 @@ function Scene:drawBuildingPanel(x, y, w)
     local bh, gap, pad = Theme.px(24), Theme.px(4), Theme.px(8)
     local fs = Theme.font(10)
 
-    local h = Theme.px(70) + 2 * (bh + gap) + (b.demolishing and Theme.px(14) or 0) + (lv.passive and Theme.px(26) or 0)
+    -- Phái Sinh: dòng trạng thái các Phái Sinh gắn với công trình này + nút lập mới (D-018)
+    local dInfo, dDefs = {}, {}
+    for _, inst in ipairs(Derived.list(state, b.owner)) do
+        if inst.a == b.uid or inst.b == b.uid or inst.site == b.uid then
+            local active, _, why = Derived.evaluate(state, inst)
+            dInfo[#dInfo + 1] = { name = Buildings.byId[inst.id].name, active = active, why = why }
+        end
+    end
+    for _, dd in ipairs(DerivedData.list) do
+        if dd.host[1] == b.id and b.level >= dd.host[2] and not b.demolishing then dDefs[#dDefs + 1] = dd end
+    end
+    local isBank = b.id == "D-05"
+    local extraH = #dInfo * Theme.px(13) + #dDefs * (bh + gap) + (isBank and 2 * (bh + gap) or 0)
+    local h = Theme.px(70) + 2 * (bh + gap) + (b.demolishing and Theme.px(14) or 0) + (lv.passive and Theme.px(26) or 0) + extraH
     ui:panel(x, y, w, h, { borderColor = Theme.player[b.owner] })
     ui:label(string.format("%s  C%d", def.name, b.level), x + pad, y + Theme.px(5),
         { font = Theme.font(12, true), color = Theme.color.accent })
@@ -938,6 +972,50 @@ function Scene:drawBuildingPanel(x, y, w)
     if b.demolishing then
         ui:label("Đang chờ dỡ (xong đầu lượt sau của chủ)", x + pad, by, { font = fs, color = Theme.color.bad })
         by = by + Theme.px(14)
+    end
+
+    for _, di in ipairs(dInfo) do
+        ui:label(di.name .. (di.active and ": hoạt động" or (": ngừng, " .. tostring(di.why))), x + pad, by,
+            { font = fs, color = di.active and Theme.color.good or Theme.color.bad, width = w - 2 * pad })
+        by = by + Theme.px(13)
+    end
+    for _, dd in ipairs(dDefs) do
+        local starts = {}
+        local partners = Derived.partnerCandidates(state, b.owner, dd.id, b.uid)
+        local sites = dd.site and Derived.siteCandidates(state, b.owner, dd.id, b.uid) or { false }
+        local can, why = false, nil
+        if mine and #partners > 0 and #sites > 0 then
+            can = canAfford(state.players[actor].res, dd.cost)
+            if not can then why = "Không đủ tài nguyên" end
+        elseif mine then
+            why = #partners == 0 and "Chưa có đối tác đủ cấp, đủ gần (liền kề hoặc nối đường)" or "Không có ô trống hợp lệ"
+        end
+        local tip = string.format("%s (%s)\n%s%s", dd.name, costText(dd.cost), dd.note, why and ("\nChưa được: " .. why) or "")
+        ui:button("bp_d" .. dd.id, x + Theme.px(6), by, w - Theme.px(12), bh,
+            string.format("Lập %s", dd.name), {
+            enabled = inAction and can, font = Theme.font(10, true), tip = tip,
+            onClick = function()
+                if dd.site then
+                    self.mode = { kind = "derivedsite", id = dd.id, a = b.uid, b = partners[1] }
+                else
+                    self:cmd({ type = "buildDerived", id = dd.id, a = b.uid, b = partners[1] })
+                end
+            end,
+        })
+        by = by + bh + gap
+    end
+    if isBank then   -- đổi Tín Phiếu lấy Vàng
+        local have = state.players[b.owner].res.bond
+        ui:button("bp_bond1", x + Theme.px(6), by, w - Theme.px(12), bh, "Đổi 1 Tín Phiếu lấy 2 V", {
+            enabled = inAction and have >= 1, font = Theme.font(10, true), tip = "Cần Nhà Ngân Hàng đang hoạt động.",
+            onClick = function() self:cmd({ type = "redeemBond", n = 1 }) end,
+        })
+        by = by + bh + gap
+        ui:button("bp_bondall", x + Theme.px(6), by, w - Theme.px(12), bh, "Đổi tất cả (" .. have .. ")", {
+            enabled = inAction and have >= 1, font = Theme.font(10, true),
+            onClick = function() self:cmd({ type = "redeemBond", n = have }) end,
+        })
+        by = by + bh + gap
     end
 
     local nextDef = def.levels[b.level + 1]
@@ -1474,6 +1552,9 @@ function Scene:mousepressed(x, y, button)
             if self:cmd({ type = "buyUnit", unit = "expedition", q = tile.q, r = tile.r }) then self.mode = nil end
         elseif self.mode.kind == "buytrade" then
             if self:cmd({ type = "buyUnit", unit = "trade", q = tile.q, r = tile.r }) then self.mode = nil end
+        elseif self.mode.kind == "derivedsite" then
+            local m = self.mode
+            if self:cmd({ type = "buildDerived", id = m.id, a = m.a, b = m.b, q = tile.q, r = tile.r }) then self.mode = nil end
         elseif self.mode.kind == "road" then
             self:cmd({ type = "upgradeRoad", q = tile.q, r = tile.r })
         elseif self.mode.kind == "suppress" then

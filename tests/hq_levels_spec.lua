@@ -227,7 +227,7 @@ describe("Khu Trực Thuộc C2-C3", function()
         local p = s.players[pid]
         p.subs[#p.subs + 1] = { q = c.q, r = c.r, level = 1 }
         s.round = round or 1
-        for k in pairs(p.res) do p.res[k] = 20 end
+        for k in pairs(p.res) do p.res[k] = (k == "bond") and 0 or 20 end
         return s, pid, c, p
     end
 
@@ -291,7 +291,7 @@ describe("Khu Trực Thuộc C2-C3", function()
         for _ = 1, 150 do
             Sim.advance(s, 10, 15)
             for p = 1, 2 do
-                for k, v in pairs(s.players[p].res) do if v < 30 then s.players[p].res[k] = 30 end end
+                for k, v in pairs(s.players[p].res) do if v < 30 and k ~= "bond" then s.players[p].res[k] = 30 end end
             end
             local ok, why = Sim.invariants(s)
             expect.truthy(ok, why)

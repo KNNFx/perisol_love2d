@@ -55,7 +55,7 @@ local function upgradeArena(state)
         state.owner[State.key(t)] = pid
         state.votes[State.key(t)] = { [pid] = 9 }
     end
-    for k in pairs(state.players[pid].res) do state.players[pid].res[k] = 20 end
+    for k in pairs(state.players[pid].res) do state.players[pid].res[k] = (k == "bond") and 0 or 20 end
     local a = Structures.place(state, { id = "B-01", level = 1, owner = pid }, { best })
     local ring = state.map:neighbors(best)
     local b = Structures.place(state, { id = "B-03", level = 1, owner = pid }, { state.map:get(best.q - 2, best.r + 1) or ring[4] })
@@ -113,7 +113,7 @@ local function tradeArena(state)
     for _, d in ipairs({ { 1, 0 }, { 2, 0 } }) do Roads.build(state, state.map:get(best.q + d[1], best.r + d[2])) end
     state.roads[State.key(state.map:get(best.q + 2, best.r))].level = 2
     state.rebel = { q = -99, r = -99 }
-    for k in pairs(state.players[other].res) do state.players[other].res[k] = 6 end
+    for k in pairs(state.players[other].res) do state.players[other].res[k] = (k == "bond") and 0 or 6 end
     return best, pid, other
 end
 
@@ -130,6 +130,24 @@ function Demo.reply(state)
     local best, pid, other = tradeArena(state)
     Game.apply(state, { type = "proposeTrade", to = other, give = { science = 2 }, get = { culture = 3 } })
     return { focus = best }
+end
+
+-- Trại Khai Thác C2 + Viện NC C2 liền kề, đủ vật liệu: bảng công trình có nút lập Phái Sinh; thêm vật liệu cho người chơi.
+function Demo.derived(state)
+    local best, pid, built = upgradeArena(state)
+    for _, b in ipairs(built) do Structures.remove(state, b.uid) end
+    local function claim(t) state.owner[State.key(t)] = pid; state.votes[State.key(t)] = { [pid] = 9 } end
+    local function tiles(list)
+        local out = {}
+        for i, o in ipairs(list) do out[i] = state.map:get(best.q + o[1], best.r + o[2]); claim(out[i]) end
+        return out
+    end
+    local kt = Structures.place(state, { id = "B-01", level = 2, owner = pid }, tiles({ { 0, 0 }, { 1, 0 }, { 0, 1 } }))
+    Structures.place(state, { id = "B-02", level = 2, owner = pid }, tiles({ { 2, -1 }, { 3, -1 }, { 2, 0 } }))
+    local res = state.players[pid].res
+    res.alloy, res.steel, res.paper = 3, 2, 1
+    state.rebel = { q = -99, r = -99 }
+    return { focus = best, selected = kt.uid }
 end
 
 -- Khu Trực Thuộc C2 đang chọn (bảng nâng cấp) và một Hiệp Sĩ bên cạnh.

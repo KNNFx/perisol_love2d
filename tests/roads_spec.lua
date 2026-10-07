@@ -263,7 +263,7 @@ describe("trade: giữa người chơi", function()
         farRebel(s)
         local oc, other = twoMarkets(s, pid, c, 2, 0)
         Roads.build(s, off(s, c, 1, 0))
-        for k in pairs(s.players[other].res) do s.players[other].res[k] = 20 end
+        for k in pairs(s.players[other].res) do s.players[other].res[k] = (k == "bond") and 0 or 20 end
         return s, pid, other, c, oc
     end
 
@@ -402,7 +402,7 @@ describe("roads: mô phỏng có tài nguyên dồi dào", function()
         for _ = 1, 150 do
             Sim.advance(s, 10, 14)
             for p = 1, 2 do
-                for k, v in pairs(s.players[p].res) do if v < 30 then s.players[p].res[k] = 30 end end
+                for k, v in pairs(s.players[p].res) do if v < 30 and k ~= "bond" then s.players[p].res[k] = 30 end end
             end
             local ok, why = Sim.invariants(s)
             expect.truthy(ok, why)

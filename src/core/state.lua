@@ -40,6 +40,7 @@ function State.new(map, playerCount, seed)
         players = players,
         owner = {}, votes = {}, buildings = {}, occupied = {}, nextUid = 1, lostStrategic = {},
         units = {}, nextUnitUid = 1, roads = {},
+        derived = {}, nextDerivedUid = 1,   -- công trình Phái Sinh (src/core/derived.lua)
         rebel = nil, dice = nil, log = {},
     }
 end

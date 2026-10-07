@@ -259,7 +259,7 @@ describe("construction: mô phỏng có tài nguyên dồi dào", function()
         for _ = 1, 80 do
             Sim.advance(s, 12, 8)
             for p = 1, 2 do
-                for k, v in pairs(s.players[p].res) do if v < 30 then s.players[p].res[k] = 30 end end
+                for k, v in pairs(s.players[p].res) do if v < 30 and k ~= "bond" then s.players[p].res[k] = 30 end end
             end
             local ok, why = Sim.invariants(s)
             expect.truthy(ok, why)

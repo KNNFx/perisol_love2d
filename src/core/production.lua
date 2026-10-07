@@ -7,6 +7,7 @@
 local C         = require("src.config.constants")
 local Dice      = require("src.core.dice")
 local Hex       = require("src.core.hex")
+local Derived   = require("src.core.derived")
 local State     = require("src.core.state")
 local Modifiers = require("src.core.modifiers")
 local Rebel     = require("src.core.rebel")
@@ -114,6 +115,7 @@ function P.compute(state, dice, activePid)
             end
         end
     end
+    for _, e in ipairs(Derived.produce(state, dice, activePid)) do events[#events + 1] = e end   -- vật liệu Phái Sinh
     return events
 end
 
@@ -123,6 +125,7 @@ function P.apply(state, events)
         if e.kind == "produce" then
             local res = state.players[e.pid].res
             res[e.res] = res[e.res] + e.amount
+            if e.res == "bond" then res.bond = math.min(res.bond, C.BOND_MAX) end   -- tối đa 5 Tín Phiếu
         elseif e.kind == "votes" then
             state.players[e.pid].votes = state.players[e.pid].votes + e.amount
         end
