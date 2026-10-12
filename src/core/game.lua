@@ -469,9 +469,8 @@ Game.prompts.pushrebel = {
         end
         local target = choice == "push" and p.target or choice
         local q, r = target:match("^(-?%d+),(-?%d+)$")
-        local from = { q = state.rebel.q, r = state.rebel.r }
         Wallet.pay(state.players[p.pid].res, { faith = p.cost })
-        state.rebel.q, state.rebel.r = tonumber(q), tonumber(r)
+        local from = Rebel.moveTo(state, tonumber(q), tonumber(r))
         events[#events + 1] = { kind = "rebel_pushed", pid = p.pid, from = from, q = tonumber(q), r = tonumber(r), cost = p.cost }
         resolution(state, events)
     end,
@@ -587,7 +586,7 @@ H.upgradeRoad = {
     check = function(state, cmd, pid) return roadUpgradeCheck(state, pid, state.map:get(cmd.q or 0, cmd.r or 0)) end,
     apply = function(state, cmd, pid, events)
         Wallet.pay(state.players[pid].res, Game.price(state, pid, "road"))
-        state.roads[cmd.q .. "," .. cmd.r].level = 2
+        Roads.upgrade(state, state.map:get(cmd.q, cmd.r))
         events[#events + 1] = { kind = "road_upgrade", pid = pid, q = cmd.q, r = cmd.r }
     end,
 }
@@ -784,6 +783,7 @@ H.endTurn = {
 -- ─── API ────────────────────────────────────────────────────────────────────
 
 function Game.check(state, cmd)
+    if type(cmd) ~= "table" then return false, "Lệnh phải là một bảng" end
     local h = H[cmd.type]
     if not h then return false, "Lệnh không tồn tại" end
     if state.phase == "over" then return false, "Ván đã kết thúc" end
@@ -1031,7 +1031,7 @@ local MIGRATIONS = {
                                  tiles = { k }, anchor = k, rot = 0 }
             s.occupied[k] = uid
         end
-        s.lostStrategic, s.units, s.roads = s.lostStrategic or {}, s.units or {}, s.roads or {}
+        s.lostStrategic, s.units, s.roads = s.lostStrategic or {}, s.units or {}, s.roads or {}   -- units:ok roads:ok migration
         for _, p in ipairs(s.players or {}) do
             for _, r in ipairs(Resources.materials) do p.res[r.key] = p.res[r.key] or 0 end   -- wallet:ok migration
             p.carry = p.carry or {}
@@ -1077,7 +1077,7 @@ function Game.load(str)
     -- trường thêm sau khi v3 ra đời (save v3 cũ của các phase trước): bù mặc định
     s.derived = s.derived or {}
     s.nextDerivedUid = s.nextDerivedUid or 1
-    s.nextUnitUid = s.nextUnitUid or 1
+    s.nextUnitUid = s.nextUnitUid or 1   -- units:ok migration
     return State.restoreRng(s)
 end
 

@@ -71,6 +71,8 @@ function K.checkFootprint(state, pid, b, q, r, rot)
     local newDef = Buildings.level(b.id, b.level + 1)
     if not newDef then return false, "Đã ở cấp tối đa" end
 
+    if type(q) ~= "number" or type(r) ~= "number" then return false, "Tọa độ không hợp lệ" end
+    if type(rot) ~= "number" or rot % 1 ~= 0 then return false, "Hướng xoay không hợp lệ" end   -- NaN, vô cực, số lẻ đều bị loại
     local cells = Shapes.footprint(newDef.shape, q, r, rot)
     local newTiles, inNew = {}, {}
     for i, c in ipairs(cells) do

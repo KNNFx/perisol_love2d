@@ -183,6 +183,7 @@ function U.checkMove(state, pid, u, q, r, reach)
     if u.owner ~= pid then return false, "Không phải đơn vị của bạn" end
     if u.acted then return false, "Đơn vị đã dùng hành động trong lượt này" end
     if u.mp <= 0 then return false, "Hết điểm di chuyển" end
+    if type(q) ~= "number" or type(r) ~= "number" then return false, "Tọa độ không hợp lệ" end
     if u.q == q and u.r == r then return false, "Đơn vị đang đứng ở ô này" end
     local path, cost = U.pathTo(state, u, q, r, reach)
     if not cost then return false, "Không đi tới được ô này với điểm di chuyển còn lại" end
@@ -344,9 +345,8 @@ function U.suppress(state, u, dir, pay)
         and (owner.knightRetreatRound == nil or state.round - owner.knightRetreatRound >= C.KNIGHT_RETREAT_COOLDOWN)
     if success then
         local path = Rebel.pushPath(state, dir, C.SUPPRESS_PUSH_TILES)
-        local from = { q = state.rebel.q, r = state.rebel.r }
         local to = path[#path]
-        state.rebel.q, state.rebel.r = to.q, to.r
+        local from = Rebel.moveTo(state, to.q, to.r)
         state.rebel.suppressedRound = state.round
         Wallet.gain(state.players[pid].res, "faith", C.SUPPRESS_REWARD_FAITH)
         events[#events + 1] = { kind = "suppress", pid = pid, uid = u.uid, ok = true, roll = roll, threshold = threshold,
@@ -362,7 +362,7 @@ function U.suppress(state, u, dir, pay)
         else
             events[#events + 1] = { kind = "unit_destroyed", uid = u.uid, unit = u.type, pid = pid, q = u.q, r = u.r,
                                     reason = "suppress" }
-            state.units[u.uid] = nil
+            U.remove(state, u.uid)
         end
     end
     return events
@@ -413,7 +413,7 @@ function U.startTurn(state, pid, events)
         local u = table.remove(army)
         events[#events + 1] = { kind = "unit_destroyed", uid = u.uid, unit = u.type, pid = pid, q = u.q, r = u.r,
                                 reason = "upkeep" }
-        state.units[u.uid] = nil
+        U.remove(state, u.uid)
         due = math.max(0, #army - 1) * C.EXPEDITION_UPKEEP_GOLD
     end
     if due > 0 then

@@ -20,7 +20,7 @@ check: layer test ## Cong truoc commit: lop + spec (gom golden hash) + smoke sim
 	$(LUA) tools/sim.lua 10 > /dev/null
 	$(LUA) tools/cover.lua
 
-layer: ## src/core khong goi love.* (bo qua comment) va chi Wallet duoc ghi .res
+layer: ## src/core khong goi love.*; chi Wallet ghi .res, chi Rebel ghi vi tri Phien Quan, chi Roads ghi roads, chi Units them/xoa units
 	@bad=$$(for f in src/core/*.lua; do sed 's/--.*$$//' $$f | grep -nE '(^|[^A-Za-z0-9_])love\.' | sed "s|^|$$f:|"; done); \
 	if [ -n "$$bad" ]; then echo "FAIL: src/core goi love.*:"; echo "$$bad"; exit 1; fi; \
 	echo "layer: src/core khong goi love.*"
@@ -28,6 +28,18 @@ layer: ## src/core khong goi love.* (bo qua comment) va chi Wallet duoc ghi .res
 	  grep -nE '(^|[^A-Za-z0-9_])res(\[[^]]*\]|\.[A-Za-z_]+) *=[^=]' $$f | grep -v 'wallet:ok' | sed "s|^|$$f:|"; done); \
 	if [ -n "$$bad" ]; then echo "FAIL: src/core ghi .res ngoai src/core/wallet.lua (dung Wallet.pay/gain/take; ngoai le danh dau 'wallet:ok'):"; echo "$$bad"; exit 1; fi; \
 	echo "layer: moi lan ghi .res trong src/core di qua Wallet"
+	@bad=$$(for f in src/core/*.lua; do case $$f in src/core/rebel.lua|src/core/state.lua) continue;; esac; \
+	  grep -nE '\.rebel *(\.(q|r))?( *, *[A-Za-z_.]*rebel\.(q|r))? *(,[^=()]*)?=[^=]' $$f | grep -v 'rebel:ok' | sed "s|^|$$f:|"; done); \
+	if [ -n "$$bad" ]; then echo "FAIL: src/core ghi vi tri Phien Quan ngoai src/core/rebel.lua (dung Rebel.moveTo; ngoai le danh dau 'rebel:ok'):"; echo "$$bad"; exit 1; fi; \
+	echo "layer: vi tri Phien Quan chi ghi o rebel.lua"
+	@bad=$$(for f in src/core/*.lua; do case $$f in src/core/roads.lua|src/core/state.lua) continue;; esac; \
+	  grep -nE '\.roads(\[[^]]*\](\.[A-Za-z_]+)?)? *(,[^=()]*)?=[^=]' $$f | grep -v 'roads:ok' | sed "s|^|$$f:|"; done); \
+	if [ -n "$$bad" ]; then echo "FAIL: src/core ghi state.roads ngoai src/core/roads.lua (dung Roads.build/upgrade/damage*; ngoai le danh dau 'roads:ok'):"; echo "$$bad"; exit 1; fi; \
+	echo "layer: state.roads chi ghi o roads.lua"
+	@bad=$$(for f in src/core/*.lua; do case $$f in src/core/units.lua|src/core/state.lua) continue;; esac; \
+	  grep -nE '\.units(\[[^]]*\])? *(,[^=()]*)?=[^=]|\.nextUnitUid *=[^=]|table\.remove\([^)]*units' $$f | grep -v 'units:ok' | sed "s|^|$$f:|"; done); \
+	if [ -n "$$bad" ]; then echo "FAIL: src/core them/xoa state.units ngoai src/core/units.lua (dung Units.spawn/remove; ngoai le danh dau 'units:ok'):"; echo "$$bad"; exit 1; fi; \
+	echo "layer: state.units chi them/xoa o units.lua"
 
 test: ## Spec bang luajit thuan (ca can LOVE duoc bo qua co khai bao)
 	$(LUA) tools/test.lua

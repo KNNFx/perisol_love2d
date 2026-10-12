@@ -22,6 +22,8 @@ function Map.new(cols, rows)
 end
 
 function Map:get(q, r)
+    local tq, tr = type(q), type(r)   -- chuỗi số vẫn được nhận (khóa "q,r" tách bằng match); nil, bảng, boolean thì không có ô
+    if (tq ~= "number" and tq ~= "string") or (tr ~= "number" and tr ~= "string") then return nil end
     return self.tiles[q .. "," .. r]
 end
 

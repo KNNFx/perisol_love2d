@@ -57,10 +57,10 @@ describe("wallet: contract tài nguyên", function()
         expect.eq(Wallet.take(res, "gold", 1), 0)
     end)
 
-    it("sau MỖI lệnh của 10 ván sim (6 thường + 4 rich) không tài nguyên nào âm/lẻ và Tín Phiếu <= trần", function()
+    it("sau MỖI lệnh của 10 ván sim (9 thường + 1 rich) không tài nguyên nào âm/lẻ và Tín Phiếu <= trần", function()
         local keys, cmds = allKeys(), 0
         for i = 1, 10 do
-            local rich = i > 6
+            local rich = i > 9   -- ván rich chậm (~6 giây); quét rộng hơn thuộc về make sweep RICH=1
             local players = 2 + i % 3
             Sim.play((rich and 920 or 900) + i, players, { rich = rich, onCommand = function(state, cmd)
                 cmds = cmds + 1

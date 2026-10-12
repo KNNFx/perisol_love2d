@@ -116,6 +116,15 @@ end
 
 -- ─── Di chuyển ──────────────────────────────────────────────────────────────
 
+-- Nơi DUY NHẤT ghi vị trí Phiến Quân (bước đi, đẩy của Thiên Đình, Trấn Áp, sau này thẻ dời Phiến Quân).
+-- Không phát event: mỗi nơi gọi có event riêng (rebel_step, rebel_pushed, suppress). Trả vị trí cũ { q, r }.
+function Rebel.moveTo(state, q, r)
+    local rb = state.rebel
+    local from = { q = rb.q, r = rb.r }
+    rb.q, rb.r = q, r
+    return from
+end
+
 function Rebel.stage(state)
     local rb = state.rebel
     return rb and rb.pending and rb.pending.stage or nil
@@ -218,7 +227,7 @@ function Rebel.step(state, q, r)
     local cost = Movement.stepCost("rebel", target.terrain, state.round)
     local from = { q = rb.q, r = rb.r }
     rb.pending.points = rb.pending.points - cost
-    rb.q, rb.r = target.q, target.r
+    Rebel.moveTo(state, target.q, target.r)
     rb.pending.visited = rb.pending.visited or {}
     rb.pending.visited[State.key(target)] = true
     local events = { { kind = "rebel_step", from = from, to = { q = target.q, r = target.r },
@@ -256,6 +265,7 @@ end
 
 -- Phiến Quân dừng. Trả events. Có thể để lại pending.stage = "loss" nếu chủ phải chọn loại.
 function Rebel.stop(state)
+    local Units = require("src.core.units")   -- nạp muộn: units.lua đã require rebel.lua (tránh vòng); chỉ để gọi Units.remove
     local rb = state.rebel
     local roller = rb.pending and rb.pending.roller
     local tile = state.map:get(rb.q, rb.r)
@@ -278,7 +288,7 @@ function Rebel.stop(state)
         local u = state.units[uid]
         events[#events + 1] = { kind = "unit_destroyed", uid = uid, unit = u.type, pid = u.owner,
                                 q = u.q, r = u.r, reason = "rebel" }
-        state.units[uid] = nil
+        Units.remove(state, uid)
     end
 
     local owner = ownerAt(state, tile)

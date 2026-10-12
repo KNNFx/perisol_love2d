@@ -25,6 +25,9 @@ function R.canBuildOn(tile) return C.ROAD_TERRAINS[tile.terrain] == true end
 
 function R.build(state, tile) state.roads[key(tile)] = { level = 1 } end
 
+-- Nâng Đường Đất lên Lát Đá (đã qua kiểm tra ở game.lua). Cùng R.build / R.damage* là nơi duy nhất ghi state.roads.
+function R.upgrade(state, tile) state.roads[key(tile)].level = 2 end
+
 -- Phiến Quân đi qua (không dừng): Đường Đất bị xóa, Lát Đá miễn nhiễm (Data §6.2). Trả true nếu có đổi.
 function R.damagePass(state, tile)
     local r = state.roads[key(tile)]
