@@ -394,6 +394,14 @@ Dữ liệu ở `src/data/specials.lua`, aura ở `src/core/aura.lua`, luật �
 - **Chưa làm, để M2/M3 hoặc chờ chốt:** giảm giá Công Nghệ (S-01), phụ phí và miễn nhiễm Sắc Lệnh, "Triển Lãm" (S-03), "Niết Bàn" và giảm chi phí kỹ năng nhân vật (S-05), bonus TN-02/TN-07/TN-11 cho Đặc Biệt, "Pháp Sư"…
 - **Tunable mới:** nằm trong `src/data/specials.lua` (`STRIKE_COOLDOWN`, `STRIKE_RADIUS`, `BROADCAST_COOLDOWN`, `SCORE_SETTLEMENT_RADIUS`, bảng cấp) và `Specials.MIN_HQ_LEVEL`.
 
+## D-020 — Ô chiếm nhờ TN-06 sau khi TN mất — 2026-10-12
+- **Tình huống:** ô có TN-06 được chiếm với ngưỡng Chi Phối giảm; về sau công trình phủ ô bị dỡ, TN mất (D-014) và ngưỡng của ô tăng lại, nên số phiếu của chủ thấp hơn ngưỡng mới. Mô phỏng seed 5006 (2 người, `rich`) gặp đúng ca này.
+- **Chốt (chủ dự án):** chủ **giữ ô**. Ngưỡng chỉ xét tại thời điểm chiếm; mất TN không xét lại quyền sở hữu.- **Hệ quả cho code:** bất biến "phiếu ≥ ngưỡng" trong `Sim.invariants` được nới cho ô từng mất TN (`state.lostStrategic`); không đổi hành vi game.
+
+## D-021 — Thứ tự việc đầu lượt — 2026-10-12
+- **Chốt (chủ dự án):** hoàn tất dỡ → thu nhập thụ động (kèm dọn và đếm nhịp Phái Sinh) → upkeep đơn vị. Thu nhập của lượt đó trả được upkeep của chính lượt đó.
+- **Khác trước:** code M1.5 chạy dỡ → upkeep đơn vị → thụ động, do thứ tự `require` ngầm định. Từ nay thứ tự khai tường minh một chỗ và có spec canh giữ.
+
 ## Xung đột tài liệu đã phát hiện (chọn theo Data)
 | Chủ đề | GDD §3.1 / §8 | Data | Chọn |
 |---|---|---|---|

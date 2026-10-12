@@ -86,9 +86,9 @@ Chặn một phần Giai đoạn 2. Giai đoạn 1 và 3 không cần chờ.
 | D-021 | Thứ tự việc đầu lượt | Dỡ → thu nhập thụ động (kèm Phái Sinh) → upkeep đơn vị, để thu nhập lượt đó trả được upkeep |
 | — | Windows còn là máy dev không? | Makefile là nguồn chính; `.bat` giữ làm shim một dòng |
 
-- [ ] Chốt D-020 và ghi vào `docs/Decisions.md`
-- [ ] Chốt D-021 và ghi vào `docs/Decisions.md`
-- [ ] Chốt vai trò của Windows
+- [x] Chốt D-020 và ghi vào `docs/Decisions.md` — giữ ô
+- [x] Chốt D-021 và ghi vào `docs/Decisions.md` — dỡ → thụ động → upkeep
+- [x] Chốt vai trò của Windows — `.bat` giữ làm shim
 
 ---
 
