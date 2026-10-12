@@ -74,7 +74,7 @@ describe("passives: công trình cấp cao", function()
     it("Đền Thờ C3: +1 TN chỉ khi có Phiến Quân trên bản đồ", function()
         local s, pid, c = arena()
         placeShaped(s, pid, "B-04", 3, c.q, c.r)
-        s.rebel = nil
+        s.rebel = false
         expect.eq(total(Passives.compute(s, pid), "faith"), 0)
         farRebel(s)
         expect.eq(total(Passives.compute(s, pid), "faith"), 1)

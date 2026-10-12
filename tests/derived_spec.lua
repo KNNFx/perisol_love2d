@@ -15,6 +15,7 @@ local DerivedData  = require("src.data.derived")
 local key = State.key
 
 local strip = require("tests.strip")
+local reload = require("tests.reload")
 
 local function at(s, c, dq, dr) return s.map:get(c.q + dq, c.r + dr) end
 
@@ -317,7 +318,7 @@ describe("derived: lưu / nạp và mô phỏng", function()
         local site = at(s, c, 0, -1)
         Game.apply(s, { type = "buildDerived", id = "D-03", a = kt.uid, b = tem.uid, q = site.q, r = site.r })
         Upkeep.startTurn(s, pid)
-        local s2 = assert(Game.load(Game.save(s)))
+        local s2 = reload(s)   -- thế cờ dựng tay không qua được kiểm tra của Game.load
         local inst
         for _, i in pairs(s2.derived) do inst = i end
         expect.eq(inst.id, "D-03"); expect.eq(inst.timer, 1); expect.truthy(Derived.isActive(s2, inst))
@@ -325,10 +326,11 @@ describe("derived: lưu / nạp và mô phỏng", function()
         expect.eq(Structures.at(s2, site).id, "D-03")
     end)
 
-    it("save cũ thiếu derived/nextDerivedUid được bù mặc định khi nạp", function()
-        local s = strip(9)
+    it("save v3 sớm thiếu derived/nextDerivedUid được migration v3 -> v4 bù mặc định khi nạp", function()
+        local s = Game.new({ seed = 9, players = 2 })
         local Serialize = require("src.core.serialize")
         local data = assert(Serialize.load(Game.save(s)))
+        data.version = 3
         data.state.derived, data.state.nextDerivedUid, data.state.nextUnitUid = nil, nil, nil
         local s2 = assert(Game.load(Serialize.dump(data)))
         expect.eq(next(s2.derived), nil); expect.eq(s2.nextDerivedUid, 1); expect.eq(s2.nextUnitUid, 1)

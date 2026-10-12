@@ -39,6 +39,8 @@ local Buildings   = require("src.data.buildings")
 local Terrains    = require("src.data.terrains")
 local Resources   = require("src.data.resources")
 local Wallet      = require("src.core.wallet")
+-- Phải đứng CUỐI danh sách: invariants.lua kéo theo units.lua, mà thứ tự require quyết định thứ tự đăng ký Upkeep (D-021).
+local Invariants  = require("src.core.invariants")
 
 local Game = {}
 local key = State.key
@@ -79,7 +81,6 @@ function Game.new(opts)
     local players = opts.players
     local map = Mapgen.generate({ seed = opts.seed, players = players })
     local state = State.new(map, players, opts.seed)
-    state.setupIdx, state.takenStarts, state.history = 1, {}, {}
     for pid = 1, players do
         for k, v in pairs(C.STARTING_RESOURCES) do state.players[pid].res[k] = v end   -- wallet:ok khởi tạo ván
     end
@@ -441,7 +442,7 @@ Game.prompts.cancel7 = {
     check = function() return true end,
     apply = function(state, p, choice, events)
         if choice == "cancel" then
-            state.players[p.pid].cancel7Used = (state.players[p.pid].cancel7Used or 0) + 1
+            state.players[p.pid].cancel7Used = state.players[p.pid].cancel7Used + 1
             Wallet.gain(state.players[p.roller].res, "faith", 1)
             events[#events + 1] = { kind = "seven_cancelled", pid = p.pid, roller = p.roller }
             resolution(state, events)
@@ -755,7 +756,7 @@ H.respond = {
     end,
     apply = function(state, cmd, pid, events)
         local p = state.prompt
-        state.prompt = nil
+        state.prompt = false
         state.phase = p.resume
         Game.prompts[p.kind].apply(state, p, cmd.choice, events)
     end,
@@ -1003,13 +1004,25 @@ end
 Game.score   = Scoring.score
 Game.ranking = Scoring.ranking
 
-local PHASES = { setup_hq = true, roll = true, rebel_move = true, rebel_loss = true, prompt = true,
-                 action = true, over = true }
-
--- Migration: MIGRATIONS[v] đưa dữ liệu version v lên v+1 (chưa cần ở version 1).
+-- Migration: MIGRATIONS[v] đưa dữ liệu version v lên v+1. Mỗi lần đổi hình dạng state = tăng C.SAVE_VERSION + thêm một bước ở đây
+-- (và khai trường mới trong State.new). Chỉ migration mới được vá trường thiếu; Game.load không vá gì ngoài việc chạy chuỗi này.
+-- Save fixture của từng version nằm ở tests/fixtures/saves (tests/save_spec.lua).
 local MIGRATIONS = {
-    -- v1 -> v2 (D-013): thêm cấp HQ/Sub. Save cũ có 6 ô nhà đã là thực hữu nên vẫn hợp lệ.
+    -- v1 -> v2 (D-013): thêm cấp HQ/Sub. Save cũ có 6 ô nhà đã là thực hữu nên vẫn hợp lệ; nhưng v2 đòi mọi ô thực hữu ngoài ô
+    -- HQ/Sub phải có phiếu >= ngưỡng (Sim.invariants), còn 6 ô nhà của v1 chưa từng có phiếu. Ô nhà kề HQ (ngưỡng 1) nên điền 1
+    -- phiếu cho chủ ô; chỉ điền cho ô thực hữu chưa có phiếu nào của chủ, nên ô đã mua bằng phiếu giữ nguyên.
     [1] = function(data)
+        local st = data.state
+        local hqKey = {}
+        for pid, p in ipairs(st.players or {}) do
+            if p.hq then hqKey[p.hq.q .. "," .. p.hq.r] = true end
+        end
+        for k, pid in pairs(st.owner or {}) do
+            if not hqKey[k] then
+                st.votes[k] = st.votes[k] or {}
+                if (st.votes[k][pid] or 0) == 0 then st.votes[k][pid] = 1 end
+            end
+        end
         for _, p in ipairs(data.state.players or {}) do
             p.hqLevel = p.hqLevel or 1
             for _, sub in ipairs(p.subs or {}) do sub.level = sub.level or 1 end
@@ -1039,6 +1052,25 @@ local MIGRATIONS = {
         data.version = 3
         return data
     end,
+    -- v3 -> v4 (M2b-1): State.new khai đủ trường. "v3" từng có nhiều hình dạng (save v3 sớm thiếu derived / nextDerivedUid /
+    -- nextUnitUid; các cờ theo người chơi và rebel / dice / prompt sinh lười, nil trong file). Mọi thứ thiếu được điền giá trị trống
+    -- đúng như State.new: false cho "chưa có", 0 cho bộ đếm. Không đổi luật: cờ false và nil cùng nghĩa "chưa từng".
+    [3] = function(data)
+        local s = data.state
+        s.derived, s.nextDerivedUid, s.nextUnitUid = s.derived or {}, s.nextDerivedUid or 1, s.nextUnitUid or 1   -- units:ok migration
+        for _, k in ipairs({ "rebel", "dice", "prompt" }) do
+            if s[k] == nil then s[k] = false end
+        end
+        for _, p in ipairs(s.players or {}) do
+            if p.hq == nil then p.hq = false end
+            for _, k in ipairs({ "strikeRound", "broadcastRound", "knightRetreatRound" }) do
+                if p[k] == nil then p[k] = false end
+            end
+            if p.cancel7Used == nil then p.cancel7Used = 0 end
+        end
+        data.version = 4
+        return data
+    end,
 }
 
 -- Chuỗi save: dữ liệu thuần có `version`, KHÔNG gồm bản đồ (sinh lại từ seed + số người).
@@ -1046,39 +1078,33 @@ function Game.save(state)
     return Serialize.dump({ version = C.SAVE_VERSION, state = State.snapshot(state) })
 end
 
--- Nạp từ chuỗi. Trả state hoặc nil, lỗi. Kiểm tra hợp lệ trước khi dùng.
+-- Nạp từ chuỗi. Trả state, hoặc nil, lý do (dữ liệu hỏng không bao giờ ném lỗi hay trả state méo): đọc, chạy chuỗi
+-- migration lên C.SAVE_VERSION, kiểm tra hình dạng, dựng lại bản đồ từ (seed, players), rồi kiểm tra bất biến.
 function Game.load(str)
     local data, err = Serialize.load(str)
     if not data then return nil, "không đọc được file save: " .. tostring(err) end
     if type(data) ~= "table" or type(data.version) ~= "number" then return nil, "file save thiếu version" end
     if data.version > C.SAVE_VERSION then return nil, "file save từ phiên bản mới hơn" end
+    if type(data.state) ~= "table" then return nil, "file save thiếu state" end
     while data.version < C.SAVE_VERSION do
         local migrate = MIGRATIONS[data.version]
         if not migrate then return nil, "không có migration từ version " .. data.version end
-        data = migrate(data)
+        local ok, res = pcall(migrate, data)
+        if not ok then return nil, "migration từ version " .. data.version .. " lỗi: " .. tostring(res) end
+        data = res
     end
 
     local s = data.state
-    if type(s) ~= "table" or type(s.players) ~= "table" or not PHASES[s.phase] then
-        return nil, "dữ liệu save không hợp lệ"
-    end
-    local n = s.playerCount
-    if type(n) ~= "number" or n < 1 or n > 4 or #s.players ~= n or type(s.rng) ~= "table" then
-        return nil, "dữ liệu save không hợp lệ (người chơi)"
-    end
-    for _, t in ipairs({ "owner", "votes", "buildings", "occupied", "lostStrategic", "units", "roads",
-                         "log", "history", "order" }) do
-        if type(s[t]) ~= "table" then return nil, "dữ liệu save thiếu " .. t end
-    end
-
-    local ok, map = pcall(Mapgen.generate, { seed = s.seed, players = n })
+    local good, why = Invariants.shape(s)
+    if not good then return nil, "dữ liệu save không hợp lệ: " .. tostring(why) end
+    local ok, map = pcall(Mapgen.generate, { seed = s.seed, players = s.playerCount })
     if not ok then return nil, "không dựng lại được bản đồ: " .. tostring(map) end
     s.map = map
-    -- trường thêm sau khi v3 ra đời (save v3 cũ của các phase trước): bù mặc định
-    s.derived = s.derived or {}
-    s.nextDerivedUid = s.nextDerivedUid or 1
-    s.nextUnitUid = s.nextUnitUid or 1   -- units:ok migration
-    return State.restoreRng(s)
+    State.restoreRng(s)
+    local checked, valid, msg = pcall(Invariants.check, s)
+    if not checked then return nil, "dữ liệu save không hợp lệ: " .. tostring(valid) end
+    if not valid then return nil, "dữ liệu save vi phạm bất biến: " .. tostring(msg) end
+    return s
 end
 
 -- Chơi lại từ đầu bằng danh sách lệnh (state.history). Trả state.

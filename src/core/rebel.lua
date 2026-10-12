@@ -37,7 +37,7 @@ end
 -- Trấn Áp thành công hủy phong tỏa trong cả vòng đó (Data §5).
 function Rebel.isSuppressed(state)
     local rb = state.rebel
-    return rb ~= nil and rb.suppressedRound == state.round
+    return rb and rb.suppressedRound == state.round
 end
 
 -- Ô tâm của Khu Trực Thuộc C3 (Đô Thị Vệ Tinh) miễn nhiễm phong tỏa (Data §9.1).
@@ -53,7 +53,7 @@ end
 -- true nếu ô `tile` đang bị Phiến Quân phong tỏa.
 function Rebel.isBlockaded(state, tile)
     local rb = state.rebel
-    return rb ~= nil and not Rebel.isSuppressed(state) and Hex.distance(rb, tile) <= 1
+    return rb and not Rebel.isSuppressed(state) and Hex.distance(rb, tile) <= 1
         and not Rebel.isImmuneCentre(state, tile)
 end
 

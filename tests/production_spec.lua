@@ -85,7 +85,7 @@ describe("production: Long Mạch", function()
         local t = put(40, "B-01", 1, 2)
         s.rebel = { q = t.q, r = t.r }
         expect.eq(sum(Production.compute(s, { 3, 1 }, 1), 2), 0)
-        s.rebel = nil
+        s.rebel = false
         expect.eq(sum(Production.compute(s, { 3, 1 }, 1), 2), 1)
     end)
 end)

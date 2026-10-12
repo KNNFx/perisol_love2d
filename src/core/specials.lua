@@ -60,7 +60,7 @@ function S.checkBuild(state, pid, id, q, r, rot)
     local def = Data.byId[id]
     if not def then return false, "Công trình Đặc Biệt không tồn tại" end
     local p = state.players[pid]
-    if (p.hqLevel or 1) < S.MIN_HQ_LEVEL then return false, "Cần Nhà Chính cấp " .. S.MIN_HQ_LEVEL .. " để xây Công Trình Đặc Biệt" end
+    if p.hqLevel < S.MIN_HQ_LEVEL then return false, "Cần Nhà Chính cấp " .. S.MIN_HQ_LEVEL .. " để xây Công Trình Đặc Biệt" end
     if S.owned(state, pid, id) then return false, "Bạn đã có " .. def.name end
 
     local tiles = {}
@@ -106,7 +106,7 @@ end
 -- Trạng thái cho UI: có xây được `id` ở đâu đó không, hoặc lý do chưa được (không tính tài nguyên). Trả ok, lý do.
 function S.status(state, pid, id)
     local def = Data.byId[id]
-    if (state.players[pid].hqLevel or 1) < S.MIN_HQ_LEVEL then return false, "Cần Nhà Chính cấp " .. S.MIN_HQ_LEVEL end
+    if state.players[pid].hqLevel < S.MIN_HQ_LEVEL then return false, "Cần Nhà Chính cấp " .. S.MIN_HQ_LEVEL end
     if S.owned(state, pid, id) then return false, "Đã có" end
     local Buildings = require("src.data.buildings")
     for _, req in ipairs(def.prereq) do
@@ -131,7 +131,7 @@ end
 function S.placements(state, pid, id)
     local def = Data.byId[id]
     local out, seen = {}, {}
-    if not def or (state.players[pid].hqLevel or 1) < S.MIN_HQ_LEVEL or S.owned(state, pid, id) then return out end
+    if not def or state.players[pid].hqLevel < S.MIN_HQ_LEVEL or S.owned(state, pid, id) then return out end
     local rots = (def.shape == "hex7") and 1 or 6
     for _, origin in ipairs(Territory.ownedTiles(state, pid)) do
         for rot = 0, rots - 1 do
@@ -257,7 +257,7 @@ end
 function S.cancel7Left(state, pid)
     local b = S.owned(state, pid, "S-05")
     if not b or b.demolishing then return 0 end   -- Phiến Quân kề không vô hiệu hóa việc hủy 7
-    return math.max(0, (Aura.levelDef(b).cancel7 or 0) - (state.players[pid].cancel7Used or 0))
+    return math.max(0, (Aura.levelDef(b).cancel7 or 0) - state.players[pid].cancel7Used)
 end
 
 -- Người chơi có thể hủy tổng 7 (theo thứ tự pid), đưa roller lên đầu nếu roller có.

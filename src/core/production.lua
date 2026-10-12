@@ -60,7 +60,7 @@ end)
 P.modifiers:register("aura", function(value, ctx)
     local state = ctx.state
     local p = state.players[ctx.owner]
-    if p and p.hq and (p.hqLevel or 1) >= 5 and Hex.distance(p.hq, ctx.tile) <= C.HQ_C5_AURA_RADIUS then
+    if p and p.hq and p.hqLevel >= 5 and Hex.distance(p.hq, ctx.tile) <= C.HQ_C5_AURA_RADIUS then
         value = value + 1
     end
     -- S-01 Tháp Thiên Văn: công trình của chủ trong aura +1 mỗi viên KH (D-019)

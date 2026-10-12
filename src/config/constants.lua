@@ -150,7 +150,7 @@ C.BOND_INTEREST          = 0.5      -- Vàng lãi mỗi Tín Phiếu mỗi vòng
 C.BOND_REDEEM_GOLD       = 2        -- đổi 1 Tín Phiếu lấy 2 Vàng
 C.TN05_ALLOY_BONUS       = 1        -- TN-05 trên ô chủ của D-01: +1 Hợp Kim mỗi vòng
 
-C.SAVE_VERSION       = 3              -- version file save (D-011, v3 = D-014)
+C.SAVE_VERSION       = 4              -- version file save (D-011, v3 = D-014, v4 = State khai đủ trường, M2b-1)
 
 -- ─── Render ────────────────────────────────────────────────────────────────
 -- Sprite hex pointy-top 32×32; lát gạch bước ngang 32, bước dọc 24.

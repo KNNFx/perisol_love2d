@@ -505,7 +505,7 @@ describe("specials: S-05 Thiên Đình", function()
         expect.eq(s.phase, "prompt")
         Game.apply(s, { type = "respond", choice = "allow" })
         expect.truthy(s.phase == "rebel_move" or s.phase == "action")
-        expect.eq(s.players[pid].cancel7Used, nil)
+        expect.eq(s.players[pid].cancel7Used, 0)
     end)
 
     it("PQ dừng trong aura: chủ trả 2 TN để đẩy ra ngoài (ngẫu nhiên ở cấp xây, tự chọn ở +1); từ chối thì thôi", function()

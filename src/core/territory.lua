@@ -37,7 +37,7 @@ function T.anchors(state, pid)
     local p = state.players[pid]
     local out = {}
     if p.hq then
-        local lv = math.min(p.hqLevel or 1, #C.INFLUENCE_RADIUS_HQ)
+        local lv = math.min(p.hqLevel, #C.INFLUENCE_RADIUS_HQ)
         out[#out + 1] = { q = p.hq.q, r = p.hq.r, radius = C.INFLUENCE_RADIUS_HQ[lv], kind = "hq" }
     end
     for _, s in ipairs(p.subs or {}) do
@@ -194,7 +194,7 @@ end
 function T.canUpgradeHQ(state, pid)
     local p = state.players[pid]
     if not p.hq then return false, "Chưa đặt Nhà Chính" end
-    local level = (p.hqLevel or 1) + 1
+    local level = p.hqLevel + 1
     if level > C.HQ_MAX_LEVEL then return false, "Nhà Chính đã ở cấp tối đa" end
     if level == 3 and not T.hasLinkedMarket(state, pid) then
         return false, "Cần một Khu Chợ liền hoặc nối đường tới Nhà Chính"
@@ -208,7 +208,7 @@ end
 
 function T.upgradeHQ(state, pid)
     local p = state.players[pid]
-    p.hqLevel = (p.hqLevel or 1) + 1
+    p.hqLevel = p.hqLevel + 1
 end
 
 -- Khu Trực Thuộc của `pid` tại `tile` (bảng trong p.subs) hoặc nil.
@@ -266,7 +266,6 @@ end
 
 function T.addSub(state, pid, tile)
     local p = state.players[pid]
-    p.subs = p.subs or {}
     p.subs[#p.subs + 1] = { q = tile.q, r = tile.r, level = 1 }
 end
 

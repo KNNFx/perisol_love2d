@@ -1,14 +1,11 @@
 -- Mô phỏng ván chơi bằng người chơi ngẫu nhiên (có thiên hướng) — bắt crash / vòng lặp vô hạn và
 -- kiểm tra bất biến. Thuần Lua, không gọi love.*. Dùng trong tests/sim_spec.lua và tools/*.lua (`make sim`, `make sweep`, `make repro`).
 
-local C         = require("src.config.constants")
-local Game      = require("src.core.game")
-local Rng       = require("src.core.rng")
-local State     = require("src.core.state")
-local Territory = require("src.core.territory")
-local Units     = require("src.core.units")
-local Buildings = require("src.data.buildings")
-local Resources = require("src.data.resources")
+local C          = require("src.config.constants")
+local Game       = require("src.core.game")
+local Invariants = require("src.core.invariants")
+local Rng        = require("src.core.rng")
+local State      = require("src.core.state")
 
 local Sim = {}
 
@@ -22,105 +19,7 @@ local TYPE_WEIGHT = { build = 6, buyTile = 4, placeVote = 3, foundSub = 2, trade
 local P_END_TURN  = 0.12
 local P_DEMOLISH  = 0.01   -- xác suất mỗi lệnh action chọn dỡ công trình hoặc giải thể đơn vị
 
--- Kiểm tra bất biến của state. Trả true hoặc false, mô tả lỗi.
-function Sim.invariants(state)
-    for pid, p in ipairs(state.players) do
-        for _, group in ipairs({ Resources.core, Resources.materials }) do
-            for _, r in ipairs(group) do
-                local v = p.res[r.key]
-                if type(v) ~= "number" or v < 0 or v ~= math.floor(v) then
-                    return false, string.format("P%d %s = %s", pid, r.key, tostring(v))
-                end
-            end
-        end
-        if p.votes < 0 then return false, "P" .. pid .. " có phiếu âm" end
-        for res, v in pairs(p.carry) do   -- phần lẻ chưa cộng: luôn trong [0, 1) và là bội của 0.5
-            if type(v) ~= "number" or v < 0 or v >= 1 or (v * 2) ~= math.floor(v * 2) then
-                return false, string.format("P%d carry %s = %s", pid, res, tostring(v))
-            end
-        end
-    end
-
-    for k, pid in pairs(state.owner) do
-        if not state.players[pid] then return false, "chủ ô " .. k .. " không hợp lệ" end
-    end
-
-    local seen = 0
-    for uid, b in pairs(state.buildings) do
-        if b.uid ~= uid then return false, "uid công trình lệch " .. tostring(uid) end
-        local def = Buildings.level(b.id, b.level)
-        if not def or #b.tiles ~= def.tiles then
-            return false, string.format("công trình %d (%s C%d) có %d ô, cần %d", uid, b.id, b.level, #b.tiles,
-                def and def.tiles or -1)
-        end
-        for i, k in ipairs(b.tiles) do
-            seen = seen + 1
-            if state.occupied[k] ~= uid then return false, "occupied lệch tại " .. k end
-            if state.owner[k] ~= b.owner then return false, "công trình " .. k .. " không nằm trên ô của chủ" end
-            local tile = state.map:get(k:match("^(-?%d+),(-?%d+)$"))
-            if not tile then return false, "công trình ngoài bản đồ " .. k end
-            -- Đặc Biệt: chỉ ô trung tâm bị ràng buộc theo danh sách địa hình (các ô còn lại xem Specials.checkBuild)
-            local special = b.id:sub(1, 2) == "S-"
-            if (not special or i == 1) and not Buildings.allowedOn(b.id, b.level, tile.terrain) then
-                return false, "công trình " .. k .. " trên địa hình không hợp lệ " .. tile.terrain
-            end
-            for pid in ipairs(state.players) do
-                for _, a in ipairs(Territory.anchors(state, pid)) do
-                    if a.q == tile.q and a.r == tile.r then return false, "công trình đè lên HQ " .. k end
-                end
-            end
-        end
-    end
-    local occ = 0
-    for _ in pairs(state.occupied) do occ = occ + 1 end
-    if occ ~= seen then return false, "occupied có ô thừa" end
-
-    for k, road in pairs(state.roads) do
-        local q, r = k:match("^(-?%d+),(-?%d+)$")
-        if not q or not state.map:get(tonumber(q), tonumber(r)) then return false, "đường ngoài bản đồ " .. tostring(k) end
-        if road.level ~= 1 and road.level ~= 2 then return false, "đường " .. k .. " có cấp " .. tostring(road.level) end
-    end
-
-    for did, inst in pairs(state.derived) do
-        if inst.did ~= did or not state.players[inst.owner] then return false, "Phái Sinh " .. tostring(did) .. " không hợp lệ" end
-        if not state.buildings[inst.a] then return false, "Phái Sinh " .. did .. " mất công trình chủ" end
-        if inst.site and not state.buildings[inst.site] then return false, "Phái Sinh " .. did .. " mất ô riêng" end
-    end
-    for pid, p in ipairs(state.players) do
-        if p.res.bond > C.BOND_MAX then return false, "P" .. pid .. " vượt " .. C.BOND_MAX .. " Tín Phiếu" end
-    end
-
-    local perQuota = {}
-    for uid, u in pairs(state.units) do
-        if u.uid ~= uid then return false, "uid đơn vị lệch " .. tostring(uid) end
-        if not state.players[u.owner] then return false, "đơn vị " .. uid .. " có chủ không hợp lệ" end
-        if not state.map:get(u.q, u.r) then return false, "đơn vị " .. uid .. " ngoài bản đồ" end
-        if type(u.mp) ~= "number" or u.mp < 0 then return false, "đơn vị " .. uid .. " có mp " .. tostring(u.mp) end
-        local def = Units.TYPES[u.type]
-        if not def then return false, "loại đơn vị lạ " .. tostring(u.type) end
-        local k = u.owner .. ":" .. def.quota
-        perQuota[k] = (perQuota[k] or 0) + 1
-        if perQuota[k] > Units.quotaMax(def.quota) then return false, "vượt quota đơn vị của P" .. u.owner end
-    end
-
-    -- ô không phải HQ/Sub chỉ có chủ khi chủ đủ phiếu theo ngưỡng
-    for k, pid in pairs(state.owner) do
-        local q, r = k:match("^(-?%d+),(-?%d+)$")
-        local tile = state.map:get(tonumber(q), tonumber(r))
-        if not Territory.isAnchorTile(state, tile) then
-            local have = Territory.votesOn(state, tile, pid)
-            local need = Territory.threshold(state, pid, tile)
-            if have < need then
-                return false, string.format("ô %s của P%d có %d phiếu < ngưỡng %d", k, pid, have, need)
-            end
-        end
-    end
-
-    if state.phase == "over" and state.round ~= C.ROUNDS_PER_GAME + 1 then
-        return false, "ván kết thúc sai vòng " .. state.round
-    end
-    return true
-end
+Sim.invariants = Invariants.check   -- giữ tên cũ cho spec và tools; bản thật ở src/core/invariants.lua
 
 local function chooseCommand(prng, state, legal, perTurn)
     if state.phase ~= "action" then return prng:pick(legal) end
@@ -147,6 +46,7 @@ end
 -- opts.rich: sau mỗi lượt nạp đầy tài nguyên và vật liệu (trừ Tín Phiếu) để ván ngẫu nhiên chạm tới Nhà Chính C3+, Phái Sinh,
 -- Đặc Biệt, trao đổi...; dùng để bắt crash ở các hệ thống ít khi xuất hiện trong ván ngẫu nhiên thường (`make sim-rich`).
 -- opts.trace: bảng do người gọi cấp; Sim.play điền {state, topups} để dựng bản repro kể cả khi ván lỗi giữa chừng.
+
 -- topups[n] = danh sách {pid, key, value} đã nạp ngay sau lệnh thứ n của history (luôn là endTurn).
 local RICH_FLOOR = 25
 

@@ -280,7 +280,7 @@ describe("Khu Trực Thuộc C2-C3", function()
         expect.truthy(Rebel.isBlockaded(s, off(s, c, 1, 0)))
         expect.eq(#Rebel.blockade(s), 6)
         -- công trình đặt ngay ô tâm Sub không có (ô tâm là Sub), nhưng ô kề vẫn mất sản xuất
-        s.rebel = nil
+        s.rebel = false
         farRebel(s)
     end)
 

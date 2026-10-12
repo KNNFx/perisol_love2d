@@ -8,7 +8,7 @@ local M = {}
 local SPECS = {
     "construction", "core_utils", "data", "derived", "game", "hex", "hq_levels", "m15_integration", "mapgen",
     "passives", "production", "rebel", "rng", "roads", "sim", "specials", "structures", "territory", "ui",
-    "units", "wallet", "fuzz", "golden",
+    "units", "wallet", "fuzz", "golden", "state", "save",
 }
 M.SPECS = SPECS
 

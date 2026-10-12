@@ -12,6 +12,7 @@ local Trade        = require("src.core.trade")
 local Units        = require("src.core.units")
 local Upkeep       = require("src.core.upkeep")
 local arena        = require("tests.arena")
+local reload       = require("tests.reload")
 
 local key = State.key
 
@@ -370,7 +371,7 @@ describe("trade: giữa người chơi", function()
         end
         expect.truthy(n > 0)
         Game.apply(s, { type = "proposeTrade", to = other, give = { science = 1 }, get = { culture = 1 } })
-        local s2 = assert(Game.load(Game.save(s)))
+        local s2 = reload(s)   -- thế cờ dựng tay không qua được kiểm tra của Game.load
         expect.eq(s2.phase, "prompt"); expect.eq(s2.prompt.kind, "trade"); expect.eq(Game.actor(s2), other)
         Game.apply(s2, { type = "respond", choice = "accept" })
         expect.eq(s2.phase, "action")

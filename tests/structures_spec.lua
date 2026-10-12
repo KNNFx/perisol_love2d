@@ -6,6 +6,7 @@ local Sim        = require("src.core.sim")
 local State      = require("src.core.state")
 local Structures = require("src.core.structures")
 local Upkeep     = require("src.core.upkeep")
+local reload     = require("tests.reload")
 
 local function newGame(seed, players)
     local s = Game.new({ seed = seed, players = players })
@@ -135,7 +136,7 @@ describe("upkeep + prompt", function()
         Game.prompts.test_ask = nil
         expect.eq(seen, "no")
         expect.eq(s.phase, "action")
-        expect.eq(s.prompt, nil)
+        expect.eq(s.prompt, false)
     end)
 
     it("kind chưa đăng ký bị từ chối", function()
@@ -150,7 +151,7 @@ describe("save v3", function()
         local t = s.map.list[12]
         Structures.place(s, { id = "B-01", level = 2, owner = 1 }, { t, s.map.list[13] })
         s.lostStrategic["3,3"] = true
-        local s2 = assert(Game.load(Game.save(s)))
+        local s2 = reload(s)   -- công trình C2 hai ô đặt tay không qua được kiểm tra của Game.load
         expect.eq(Structures.at(s2, t).level, 2)
         expect.eq(#Structures.at(s2, t).tiles, 2)
         expect.eq(s2.nextUid, s.nextUid)
@@ -188,6 +189,6 @@ describe("save v3", function()
         expect.eq(s2.players[1].res.steel, 0)
         expect.eq(next(s2.lostStrategic), nil)
         expect.truthy(Sim.invariants(s2))
-        expect.eq(C.SAVE_VERSION, 3)
+        expect.eq(C.SAVE_VERSION, 4)
     end)
 end)

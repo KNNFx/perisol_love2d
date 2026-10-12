@@ -108,7 +108,7 @@ describe("construction: nâng cấp tại chỗ", function()
         s.rebel = { q = extra.q, r = extra.r }
         ok, why = Game.check(s, cmd)
         expect.falsy(ok); expect.eq(why, "Có ô đang bị Phiến Quân phong tỏa")
-        s.rebel = nil
+        s.rebel = false
 
         -- thiếu tiền
         s.players[pid].res.engineering = 3
@@ -155,7 +155,7 @@ describe("construction: sản xuất theo footprint", function()
         end
         expect.truthy(s.rebel and Hex.distance(s.rebel, center) == 2)
         expect.eq(eng(), 0)
-        s.rebel = nil
+        s.rebel = false
         expect.eq(eng(), 2)
     end)
 

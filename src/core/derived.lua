@@ -218,7 +218,7 @@ function D.build(state, pid, id, sel)
         local site = Structures.place(state, { id = id, level = 1, owner = pid }, { sel.tile })
         cand.site = site.uid
     end
-    local did = state.nextDerivedUid or 1
+    local did = state.nextDerivedUid
     state.nextDerivedUid = did + 1
     cand.did, cand.timer = did, 0
     state.derived[did] = cand

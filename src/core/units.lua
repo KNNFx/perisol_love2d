@@ -260,7 +260,7 @@ end
 
 -- Sinh đơn vị mới. Viễn Chinh không hành động ngay khi sinh (Data §2): mp = 0. Giao Thương đi ngay với đủ bước.
 function U.spawn(state, pid, unitType, tile)
-    local uid = state.nextUnitUid or 1
+    local uid = state.nextUnitUid
     state.nextUnitUid = uid + 1
     local u = { uid = uid, type = unitType, owner = pid, q = tile.q, r = tile.r, mp = 0, acted = false,
                 garrison = false, recentGarrison = false }
@@ -342,7 +342,7 @@ function U.suppress(state, u, dir, pay)
     local events = {}
     local owner = state.players[pid]
     local canRetreat = u.type == "knight" and owner.hq
-        and (owner.knightRetreatRound == nil or state.round - owner.knightRetreatRound >= C.KNIGHT_RETREAT_COOLDOWN)
+        and (not owner.knightRetreatRound or state.round - owner.knightRetreatRound >= C.KNIGHT_RETREAT_COOLDOWN)
     if success then
         local path = Rebel.pushPath(state, dir, C.SUPPRESS_PUSH_TILES)
         local to = path[#path]
@@ -371,7 +371,7 @@ end
 -- HQ C4+: mọi Viễn Chinh của `pid` tự nâng thành Hiệp Sĩ, giữ nguyên điểm di chuyển và trạng thái (Data §2).
 function U.transformArmy(state, pid, events)
     local hq = state.players[pid]
-    if (hq.hqLevel or 1) < 4 then return end
+    if hq.hqLevel < 4 then return end
     for _, u in ipairs(U.ownedBy(state, pid)) do
         if u.type == "expedition" then
             u.type = "knight"
