@@ -43,7 +43,7 @@ end
 -- Ô tâm của Khu Trực Thuộc C3 (Đô Thị Vệ Tinh) miễn nhiễm phong tỏa (Data §9.1).
 function Rebel.isImmuneCentre(state, tile)
     for _, p in ipairs(state.players) do
-        for _, s in ipairs(p.subs or {}) do
+        for _, s in ipairs(p.subs) do
             if (s.level or 1) >= 3 and s.q == tile.q and s.r == tile.r then return true end
         end
     end
@@ -248,7 +248,7 @@ local function ownerAt(state, tile)
     if b then return b.owner end
     for pid, p in ipairs(state.players) do
         if p.hq and p.hq.q == tile.q and p.hq.r == tile.r then return pid end
-        for _, s in ipairs(p.subs or {}) do
+        for _, s in ipairs(p.subs) do
             if s.q == tile.q and s.r == tile.r then return pid end
         end
     end

@@ -15,6 +15,7 @@ local Rebel      = require("src.core.rebel")
 local Roads      = require("src.core.roads")
 local Structures = require("src.core.structures")
 local Resources  = require("src.data.resources")
+local Strategic  = require("src.data.strategic")
 
 local T = {}
 
@@ -23,11 +24,7 @@ for _, r in ipairs(Resources.core) do CORE[r.key] = true end
 
 -- Khu Chợ (B-05) của `pid`: không chờ dỡ. Theo thứ tự uid.
 function T.markets(state, pid)
-    local out = {}
-    for _, b in ipairs(Structures.list(state)) do
-        if b.owner == pid and b.id == "B-05" and not b.demolishing then out[#out + 1] = b end
-    end
-    return out
+    return Structures.marketsOf(state, pid)
 end
 
 local function blocked(state, tiles)
@@ -65,7 +62,7 @@ function T.route(state, a, b)
                     local cand
                     local r = Roads.route(state, ta, tb)
                     if r then cand = { fee = T.fee(r.length, r.stone, r.harbor), length = r.length } end
-                    if (ma.level >= 3 or mb.level >= 3) and minDistance(ta, tb) <= C.MARKET_C3_RADIUS then
+                    if (ma.level >= C.MARKET_C3_LEVEL or mb.level >= C.MARKET_C3_LEVEL) and minDistance(ta, tb) <= C.MARKET_C3_RADIUS then
                         local gap = math.max(0, minDistance(ta, tb) - 1)
                         if not cand or gap * C.TRADE_FEE_PER_TILE < cand.fee then
                             cand = { fee = gap * C.TRADE_FEE_PER_TILE, length = gap }
@@ -136,7 +133,7 @@ function T.bankRate(state, pid)
     for _, m in ipairs(T.markets(state, pid)) do
         if m.level >= 2 then
             for _, tile in ipairs(Structures.tilesOf(state, m)) do
-                if Structures.strategicAt(state, tile) == "TN-06" then return C.TN06_MARKET_RATE end
+                if Structures.strategicAt(state, tile) == Strategic.ALLUVIAL_GOLD then return C.TN06_MARKET_RATE end
             end
         end
     end

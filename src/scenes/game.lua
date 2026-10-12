@@ -41,8 +41,10 @@ local Scene = {}
 
 local PHASE_NAME = {
     setup_hq = "Đặt Nhà Chính", roll = "Sản xuất", rebel_move = "Phiến Quân",
-    rebel_loss = "Phiến Quân", prompt = "Trao đổi", action = "Hành động", over = "Kết thúc",
+    rebel_loss = "Phiến Quân", action = "Hành động", over = "Kết thúc",
 }
+-- Pha prompt gọi tên theo loại lời nhắc (Game.prompts).
+local PROMPT_NAME = { trade = "Trao đổi", cancel7 = "Hủy tổng 7", pushrebel = "Đẩy Phiến Quân" }
 local FACE_COLOR_HEX = { 0.45, 0.47, 0.52 }
 local LOG_MAX = 200
 local QUICKSAVE = "quick"
@@ -664,8 +666,10 @@ function Scene:drawTopBar(W)
     ui:label("Perisol", Theme.px(10), (h - f:getHeight()) / 2, { font = f, color = Theme.color.accent })
 
     local round = math.min(state.round, C.ROUNDS_PER_GAME)
+    local phase = PHASE_NAME[state.phase] or ""
+    if state.phase == "prompt" and state.prompt then phase = PROMPT_NAME[state.prompt.kind] or phase end
     local text = string.format("Vòng %d/%d   ·   Lượt: %s   ·   %s", round, C.ROUNDS_PER_GAME,
-        actor and Theme.playerName(actor) or "-", PHASE_NAME[state.phase] or "")
+        actor and Theme.playerName(actor) or "-", phase)
     ui:label(text, 0, (h - f:getHeight()) / 2, { font = f, width = W, align = "center" })
     if actor then
         local tw = f:getWidth(text)
@@ -985,7 +989,7 @@ function Scene:drawInfo(x, y, w, h)
     local parts = { string.format("(%d,%d) %s", t.q, t.r, def.name) }
     local tn = Structures.strategicAt(state, t)
     if tn then parts[#parts + 1] = Strategic.byId[tn].name end
-    local k = t.q .. "," .. t.r
+    local k = Hex.key(t)
     local owner = state.owner[k]
     parts[#parts + 1] = owner and ("Chủ: P" .. owner) or "Chưa có chủ"
     local v = state.votes[k]

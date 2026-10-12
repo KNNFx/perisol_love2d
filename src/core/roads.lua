@@ -17,7 +17,7 @@ function R.get(state, tile) return state.roads[key(tile)] end
 function R.has(state, tile) return state.roads[key(tile)] ~= nil end
 function R.isStone(state, tile)
     local r = state.roads[key(tile)]
-    return r ~= nil and r.level >= 2
+    return r ~= nil and r.level >= C.ROAD_STONE_LEVEL
 end
 
 -- Địa hình của `tile` cho xây đường được không (GDD §9.2).
@@ -39,7 +39,7 @@ end
 function R.damageStop(state, tile)
     local r = state.roads[key(tile)]
     if not r then return false end
-    if r.level >= 2 then r.level = 1 else state.roads[key(tile)] = nil end
+    if r.level >= C.ROAD_STONE_LEVEL then r.level = 1 else state.roads[key(tile)] = nil end
     return true
 end
 
@@ -80,7 +80,7 @@ function R.route(state, tilesA, tilesB)
     local function finish(lastKey)
         local path, k = {}, lastKey
         while k do
-            table.insert(path, 1, state.map:get(k:match("^(-?%d+),(-?%d+)$")))
+            table.insert(path, 1, state.map:get(State.unkey(k)))
             k = parent[k]
         end
         local stone, harbor = #path > 0, false
@@ -106,7 +106,7 @@ function R.route(state, tilesA, tilesB)
     while head <= #queue do
         local k = queue[head]
         head = head + 1
-        local tile = state.map:get(k:match("^(-?%d+),(-?%d+)$"))
+        local tile = state.map:get(State.unkey(k))
         for _, nb in ipairs(state.map:neighbors(tile)) do
             local nk = key(nb)
             if inB[nk] then return finish(k) end

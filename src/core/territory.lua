@@ -12,13 +12,14 @@ local Structures = require("src.core.structures")
 local Roads     = require("src.core.roads")
 local Aura      = require("src.core.aura")
 local Terrains  = require("src.data.terrains")
+local Strategic = require("src.data.strategic")
 
 local T = {}
 
 local key = State.key
 
 -- TN-06 Vàng Sa Khoáng: giảm ngưỡng Chi Phối 1 (D-006).
-local TN_THRESHOLD_BONUS = "TN-06"
+local TN_THRESHOLD_BONUS = Strategic.ALLUVIAL_GOLD
 
 -- ─── Mốc (HQ / Sub) và vùng ảnh hưởng ───────────────────────────────────────
 
@@ -40,7 +41,7 @@ function T.anchors(state, pid)
         local lv = math.min(p.hqLevel, #C.INFLUENCE_RADIUS_HQ)
         out[#out + 1] = { q = p.hq.q, r = p.hq.r, radius = C.INFLUENCE_RADIUS_HQ[lv], kind = "hq" }
     end
-    for _, s in ipairs(p.subs or {}) do
+    for _, s in ipairs(p.subs) do
         local lv = math.min(s.level or 1, #C.INFLUENCE_RADIUS_SUB)
         out[#out + 1] = { q = s.q, r = s.r, radius = C.INFLUENCE_RADIUS_SUB[lv], kind = "sub" }
     end
@@ -185,8 +186,8 @@ end
 
 -- Khu Chợ (B-05, không chờ dỡ) của `pid` thỏa `test(building)`.
 local function marketWhere(state, pid, test)
-    for _, b in ipairs(Structures.list(state)) do
-        if b.owner == pid and b.id == "B-05" and not b.demolishing and test(b) then return true end
+    for _, b in ipairs(Structures.marketsOf(state, pid)) do
+        if test(b) then return true end
     end
     return false
 end
@@ -212,7 +213,7 @@ function T.canUpgradeHQ(state, pid)
         return false, "Cần một Khu Chợ liền hoặc nối đường tới Nhà Chính"
     elseif level == 4 and state.round < C.HQ_C4_MIN_ROUND then
         return false, "Chỉ nâng lên C4 từ vòng " .. C.HQ_C4_MIN_ROUND
-    elseif level == 5 and not marketWhere(state, pid, function(b) return b.level >= 3 end) then
+    elseif level == 5 and not marketWhere(state, pid, function(b) return b.level >= C.MARKET_C3_LEVEL end) then
         return false, "Cần sở hữu một Khu Chợ cấp 3"
     end
     return true
@@ -225,7 +226,7 @@ end
 
 -- Khu Trực Thuộc của `pid` tại `tile` (bảng trong p.subs) hoặc nil.
 function T.subAt(state, pid, tile)
-    for _, s in ipairs(state.players[pid].subs or {}) do
+    for _, s in ipairs(state.players[pid].subs) do
         if s.q == tile.q and s.r == tile.r then return s end
     end
     return nil
@@ -238,7 +239,7 @@ function T.canUpgradeSub(state, pid, tile)
     if not sub then return false, "Không có Khu Trực Thuộc của bạn ở ô này" end
     local level = (sub.level or 1) + 1
     if level > C.SUB_MAX_LEVEL then return false, "Khu Trực Thuộc đã ở cấp tối đa" end
-    if level == 3 and state.round < C.SUB_C3_MIN_ROUND then
+    if level == C.SUB_C3_LEVEL and state.round < C.SUB_C3_MIN_ROUND then
         return false, "Chỉ nâng lên C3 từ vòng " .. C.SUB_C3_MIN_ROUND
     end
     return true

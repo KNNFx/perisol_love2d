@@ -1,17 +1,22 @@
--- Luật chơi M1: máy trạng thái ván + lệnh (command). Thuần Lua, không gọi love.*.
--- Mọi thay đổi trạng thái đi qua Game.check / Game.apply (D-011), nên UI, mô phỏng test, AI (P6)
--- và multiplayer (P7) dùng chung một API.
+-- Luật chơi: máy trạng thái ván + lệnh (command). Thuần Lua, không gọi love.*.
+-- Mọi thay đổi trạng thái đi qua Game.check / Game.apply (D-011), nên UI, mô phỏng test, AI
+-- và multiplayer dùng chung một API.
 --
---   Game.new{seed, players}   -> state (phase "setup_hq")
---   Game.actor(state)         -> pid phải ra lệnh (nil khi ván kết thúc)
---   Game.check(state, cmd)    -> ok, lý do (tiếng Việt, cho tooltip)
---   Game.apply(state, cmd)    -> events (cho log/UI); lệnh sai thì báo lỗi
---   Game.legal(state)         -> danh sách lệnh hợp lệ của Game.actor (cho sim/AI/nút)
+--   Game.new{seed, players}        -> state (phase "setup_hq")
+--   Game.actor(state)              -> pid phải ra lệnh (nil khi ván kết thúc)
+--   Game.check(state, cmd)         -> ok, lý do (tiếng Việt, cho tooltip)
+--   Game.apply(state, cmd)         -> events (cho log/UI); lệnh sai thì báo lỗi
+--   Game.legal(state)              -> danh sách lệnh hợp lệ của Game.actor (cho sim/AI/nút)
+--   Game.price(state, pid, kind, a, b) -> giá duy nhất của mọi thứ mua/nâng (lệnh, UI, legal đều dùng)
 --
--- Pha: setup_hq -> [roll -> (rebel_move -> rebel_loss?) -> action] x lượt x 20 vòng -> over
--- Lệnh: placeHQ{start} · roll · rebelStep{q,r} · chooseLoss{res} · trade{give,get} · placeVote{q,r} ·
---       buyTile{q,r} · upgradeHQ · foundSub{q,r} · build{id,q,r} · upgrade{uid,q,r,rot} · demolish{uid} ·
---       respond{choice} (phase prompt) · endTurn
+-- Pha: setup_hq -> [roll -> (rebel_move -> rebel_loss?) -> action] x lượt x 20 vòng -> over.
+--   Đầu lượt chạy Upkeep (src/core/upkeep.lua) trước khi đổ xúc xắc.
+--   Pha prompt: hỏi người khác giữa lượt (Game.openPrompt, trả lời bằng respond, registry Game.prompts).
+-- Lệnh (H[type] = { phase, check, apply }): placeHQ · roll · rebelStep · chooseLoss · trade · buyTile ·
+--   upgradeHQ · upgradeSub · buildSpecial · upgradeSpecial · fortressStrike · buildDerived · redeemBond ·
+--   foundSub · buyUnit · moveUnit · upgradeRoad · proposeTrade · suppress · garrison · disband · placeVote ·
+--   build · upgrade · demolish · respond · endTurn
+-- Tài nguyên đi qua Wallet (pay / gain), không ghi thẳng vào bảng res.
 
 local C           = require("src.config.constants")
 local Dice        = require("src.core.dice")
@@ -42,6 +47,8 @@ local Wallet      = require("src.core.wallet")
 local Invariants  = require("src.core.invariants")
 
 local Game = {}
+-- Registry lời nhắc của pha prompt: Game.prompts[kind] = { check, apply } (xem Game.openPrompt).
+Game.prompts = {}
 local key = State.key
 
 local CORE = {}
@@ -367,7 +374,7 @@ H.upgradeHQ = {
         Wallet.pay(p.res, Game.price(state, pid, "hq"))
         Territory.upgradeHQ(state, pid)
         events[#events + 1] = { kind = "upgrade_hq", pid = pid, level = p.hqLevel, q = p.hq.q, r = p.hq.r }
-        if p.hqLevel >= 4 then Units.transformArmy(state, pid, events) end   -- HQ C4: Viễn Chinh thành Hiệp Sĩ
+        if p.hqLevel >= C.HQ_KNIGHT_LEVEL then Units.transformArmy(state, pid, events) end   -- HQ C4: Viễn Chinh thành Hiệp Sĩ
     end,
 }
 
@@ -436,13 +443,12 @@ H.fortressStrike = {
 }
 
 -- Hủy tổng 7 (S-05): hỏi lần lượt các chủ Thiên Đình còn lượt hủy. Hủy: người đổ nhận 1 TN, Phiến Quân không đi.
-Game.prompts = Game.prompts or {}
 Game.prompts.cancel7 = {
     check = function() return true end,
     apply = function(state, p, choice, events)
         if choice == "cancel" then
             state.players[p.pid].cancel7Used = state.players[p.pid].cancel7Used + 1
-            Wallet.gain(state.players[p.roller].res, "faith", 1)
+            Wallet.gain(state.players[p.roller].res, "faith", C.SEVEN_CANCEL_FAITH)
             events[#events + 1] = { kind = "seven_cancelled", pid = p.pid, roller = p.roller }
             resolution(state, events)
         elseif #p.rest > 0 then
@@ -468,10 +474,10 @@ Game.prompts.pushrebel = {
             return
         end
         local target = choice == "push" and p.target or choice
-        local q, r = target:match("^(-?%d+),(-?%d+)$")
+        local q, r = Hex.unkey(target)
         Wallet.pay(state.players[p.pid].res, { faith = p.cost })
-        local from = Rebel.moveTo(state, tonumber(q), tonumber(r))
-        events[#events + 1] = { kind = "rebel_pushed", pid = p.pid, from = from, q = tonumber(q), r = tonumber(r), cost = p.cost }
+        local from = Rebel.moveTo(state, q, r)
+        events[#events + 1] = { kind = "rebel_pushed", pid = p.pid, from = from, q = q, r = r, cost = p.cost }
         resolution(state, events)
     end,
 }
@@ -571,7 +577,7 @@ local function roadUpgradeCheck(state, pid, tile)
     if not tile then return false, "Không có ô này" end
     local road = Roads.get(state, tile)
     if not road then return false, "Ô này chưa có đường" end
-    if road.level >= 2 then return false, "Đường đã là Lát Đá" end
+    if road.level >= C.ROAD_STONE_LEVEL then return false, "Đường đã là Lát Đá" end
     if state.owner[key(tile)] ~= pid and not Territory.inInfluence(state, pid, tile) then
         return false, "Chỉ nâng đường trong lãnh thổ hoặc vùng ảnh hưởng của bạn"
     end
@@ -606,7 +612,6 @@ H.proposeTrade = {
     end,
 }
 
-Game.prompts = Game.prompts or {}
 Game.prompts.trade = {
     check = function(state, p, choice)
         if choice == "accept" then
@@ -732,7 +737,6 @@ H.demolish = {
 -- state.prompt = { kind, pid, options = { choice... }, resume = "action", ... dữ liệu riêng của kind }
 -- Mỗi kind đăng ký vào Game.prompts: { check(state, prompt, choice) -> ok, lý do,
 --                                      apply(state, prompt, choice, events) }.
-Game.prompts = Game.prompts or {}
 
 -- Mở lời nhắc: phase chuyển sang "prompt" cho người trả lời. `resume` là phase quay về sau khi trả lời.
 function Game.openPrompt(state, prompt)
@@ -1014,7 +1018,7 @@ local MIGRATIONS = {
         local st = data.state
         local hqKey = {}
         for pid, p in ipairs(st.players or {}) do
-            if p.hq then hqKey[p.hq.q .. "," .. p.hq.r] = true end
+            if p.hq then hqKey[Hex.key(p.hq)] = true end
         end
         for k, pid in pairs(st.owner or {}) do
             if not hqKey[k] then

@@ -12,7 +12,17 @@ Hex.DIRECTIONS = {
 }
 
 function Hex.new(q, r) return { q = q, r = r } end
-function Hex.key(h) return h.q .. "," .. h.r end
+
+-- Khóa ô "q,r" dùng làm key bảng (owner, votes, tiles, ...). Đây là nơi duy nhất ghép và tách chuỗi này.
+function Hex.keyQR(q, r) return q .. "," .. r end
+function Hex.key(h) return Hex.keyQR(h.q, h.r) end
+-- Tách khóa thành q, r dạng number; khóa sai định dạng trả nil.
+function Hex.unkey(k)
+    local q, r = k:match("^(-?%d+),(-?%d+)$")
+    if not q then return nil end
+    return tonumber(q), tonumber(r)
+end
+
 function Hex.equals(a, b) return a.q == b.q and a.r == b.r end
 function Hex.add(a, b) return { q = a.q + b.q, r = a.r + b.r } end
 function Hex.sub(a, b) return { q = a.q - b.q, r = a.r - b.r } end

@@ -15,6 +15,7 @@ local State      = require("src.core.state")
 local Structures = require("src.core.structures")
 local Territory  = require("src.core.territory")
 local Derived    = require("src.data.derived")
+local Strategic  = require("src.data.strategic")
 
 local D = {}
 
@@ -295,7 +296,7 @@ function D.tick(state, pid)
             end
             if inst.id == "D-01" then
                 for _, t in ipairs(aTiles) do
-                    if Structures.strategicAt(state, t) == "TN-05" then add("alloy", C.TN05_ALLOY_BONUS) break end
+                    if Structures.strategicAt(state, t) == Strategic.OPEN_ORE then add("alloy", C.TN05_ALLOY_BONUS) break end
                 end
             elseif inst.id == "D-02" then
                 if usedRoad then add("paper", 1) end

@@ -29,10 +29,13 @@
 
 local Rng       = require("src.core.rng")
 local Resources = require("src.data.resources")
+local Hex       = require("src.core.hex")
 
 local State = {}
 
-function State.key(tile) return tile.q .. "," .. tile.r end
+-- Khóa ô: alias của Hex (nguồn duy nhất của định dạng "q,r").
+State.key   = Hex.key
+State.unkey = Hex.unkey
 
 -- State rỗng cho `playerCount` người; tài nguyên = 0 (Game.new phát tài nguyên khởi đầu).
 function State.new(map, playerCount, seed)

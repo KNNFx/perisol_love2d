@@ -9,6 +9,7 @@ local Territory = require("src.core.territory")
 local Units     = require("src.core.units")
 local Buildings = require("src.data.buildings")
 local Resources = require("src.data.resources")
+local State     = require("src.core.state")
 
 local Invariants = {}
 
@@ -111,7 +112,7 @@ function Invariants.check(state)
             seen = seen + 1
             if state.occupied[k] ~= uid then return false, "occupied lệch tại " .. k end
             if state.owner[k] ~= b.owner then return false, "công trình " .. k .. " không nằm trên ô của chủ" end
-            local tile = state.map:get(k:match("^(-?%d+),(-?%d+)$"))
+            local tile = state.map:get(State.unkey(k))
             if not tile then return false, "công trình ngoài bản đồ " .. k end
             -- Đặc Biệt: chỉ ô trung tâm bị ràng buộc theo danh sách địa hình (các ô còn lại xem Specials.checkBuild)
             local special = b.id:sub(1, 2) == "S-"
@@ -130,8 +131,8 @@ function Invariants.check(state)
     if occ ~= seen then return false, "occupied có ô thừa" end
 
     for k, road in pairs(state.roads) do
-        local q, r = k:match("^(-?%d+),(-?%d+)$")
-        if not q or not state.map:get(tonumber(q), tonumber(r)) then return false, "đường ngoài bản đồ " .. tostring(k) end
+        local q, r = State.unkey(k)
+        if not q or not state.map:get(q, r) then return false, "đường ngoài bản đồ " .. tostring(k) end
         if road.level ~= 1 and road.level ~= 2 then return false, "đường " .. k .. " có cấp " .. tostring(road.level) end
     end
 
@@ -159,8 +160,7 @@ function Invariants.check(state)
 
     -- ô không phải HQ/Sub chỉ có chủ khi chủ đủ phiếu theo ngưỡng
     for k, pid in pairs(state.owner) do
-        local q, r = k:match("^(-?%d+),(-?%d+)$")
-        local tile = state.map:get(tonumber(q), tonumber(r))
+        local tile = state.map:get(State.unkey(k))
         if not Territory.isAnchorTile(state, tile) then
             local have = Territory.votesOn(state, tile, pid)
             local need = Territory.threshold(state, pid, tile)

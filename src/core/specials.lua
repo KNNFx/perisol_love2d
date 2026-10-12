@@ -16,6 +16,7 @@ local Structures = require("src.core.structures")
 local Territory  = require("src.core.territory")
 local Movement   = require("src.data.movement")
 local Shapes     = require("src.data.shapes")
+local Strategic  = require("src.data.strategic")
 local Data       = require("src.data.specials")
 local Terrains   = require("src.data.terrains")
 
@@ -74,7 +75,7 @@ function S.checkBuild(state, pid, id, q, r, rot)
         return false, "Địa hình " .. Terrains.byId[centre.terrain].name .. " không xây được " .. def.name
     end
     if def.graniteOnMountain and (centre.terrain == "DH-03" or centre.terrain == "DH-12")
-        and Structures.strategicAt(state, centre) ~= "TN-01" then
+        and Structures.strategicAt(state, centre) ~= Strategic.GRANITE then
         return false, "Xây trên Núi cần ô có Đá Granite"
     end
     for _, t in ipairs(tiles) do

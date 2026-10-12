@@ -15,8 +15,7 @@ function A.levelDef(b) return Specials.byId[b.id].levels[b.level] end
 
 -- Ô trung tâm của công trình.
 function A.centre(state, b)
-    local q, r = b.anchor:match("^(-?%d+),(-?%d+)$")
-    return state.map:get(tonumber(q), tonumber(r))
+    return state.map:get(Hex.unkey(b.anchor))
 end
 
 -- Bán kính aura hiện tại.

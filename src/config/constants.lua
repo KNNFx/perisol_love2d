@@ -90,6 +90,13 @@ C.INFLUENCE_RADIUS_HQ  = { 1, 2, 2, 2, 2 }
 C.INFLUENCE_RADIUS_SUB = { 1, 2, 2 }
 C.HQ_MAX_LEVEL  = 5
 C.SUB_MAX_LEVEL = 3
+-- Ngưỡng cấp mở tính năng (dùng thay cho số trần rải rác trong core)
+C.HQ_KNIGHT_LEVEL    = 4     -- HQ C4: Viễn Chinh đổi thành Hiệp Sĩ
+C.HQ_AURA_LEVEL      = 5     -- HQ C5: aura +1 sản lượng nội đô
+C.SUB_C3_LEVEL       = 3     -- Sub C3: Đô Thị Vệ Tinh
+C.MARKET_C3_LEVEL    = 3     -- Khu Chợ C3: giao thương không cần đường; điều kiện HQ C5
+C.ROAD_STONE_LEVEL   = 2     -- Đường Lát Đá
+C.SEVEN_CANCEL_FAITH = 1     -- hủy tổng 7 (S-05): người đổ nhận thêm Tín Ngưỡng
 -- Chi phí nâng lên cấp [n] (Data §9.1). C3+ cần vật liệu phái sinh (Hợp Kim, Thép) từ phase G.
 C.HQ_UPGRADE_COST = {
     [2] = { engineering = 4, science = 2, gold = 3 },

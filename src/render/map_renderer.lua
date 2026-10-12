@@ -97,7 +97,7 @@ function R.drawMarkers(map, opts)
             love.graphics.polygon("line", cx, cy - 5, cx + 4, cy, cx, cy + 5, cx - 4, cy)
         end
 
-        if tile.strategic and not (opts.lostStrategic and opts.lostStrategic[tile.q .. "," .. tile.r]) then
+        if tile.strategic and not (opts.lostStrategic and opts.lostStrategic[Hex.key(tile)]) then
             local tn = Strategic.byId[tile.strategic]
             local col = RARITY_COLOR[tn.rarity]
             local sx, sy = cx + 8, cy + 7

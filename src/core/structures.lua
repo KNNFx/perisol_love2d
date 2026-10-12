@@ -28,8 +28,7 @@ end
 function S.tilesOf(state, b)
     local out = {}
     for _, k in ipairs(b.tiles) do
-        local q, r = k:match("^(-?%d+),(-?%d+)$")
-        out[#out + 1] = state.map:get(tonumber(q), tonumber(r))
+        out[#out + 1] = state.map:get(State.unkey(k))
     end
     return out
 end
@@ -79,6 +78,18 @@ function S.list(state)
     local out = {}
     for _, b in pairs(state.buildings) do out[#out + 1] = b end
     table.sort(out, function(a, c) return a.uid < c.uid end)
+    return out
+end
+
+-- Khu Chợ (B-05) của `pid`, không chờ dỡ.
+function S.isMarket(b, pid) return b.owner == pid and b.id == "B-05" and not b.demolishing end
+
+-- Các Khu Chợ của `pid` theo thứ tự uid.
+function S.marketsOf(state, pid)
+    local out = {}
+    for _, b in ipairs(S.list(state)) do
+        if S.isMarket(b, pid) then out[#out + 1] = b end
+    end
     return out
 end
 

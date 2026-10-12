@@ -70,9 +70,19 @@ S.passive = {
     ["TN-09"] = { adjacent = { { res = "culture", n = 1 } } },
 }
 
-S.LEY_NODE = "TN-12"
-S.HARBOR   = "TN-10"   -- Cảng Tự Nhiên: Khu Chợ C1 sản xuất như C3
-S.FERTILE  = "TN-08"   -- Đất Màu Mỡ: công trình C1 giảm 1 KT chi phí
+-- Hằng tên cho 12 TN: core dùng hằng này, không dùng chuỗi "TN-xx".
+S.GRANITE        = "TN-01"
+S.ANCIENT_FOREST = "TN-02"
+S.FISHING        = "TN-03"
+S.HORSE          = "TN-04"
+S.OPEN_ORE       = "TN-05"
+S.ALLUVIAL_GOLD  = "TN-06"
+S.SACRED_STONE   = "TN-07"
+S.FERTILE        = "TN-08"   -- Đất Màu Mỡ: công trình C1 giảm 1 KT chi phí
+S.HOT_SPRING     = "TN-09"
+S.HARBOR         = "TN-10"   -- Cảng Tự Nhiên: Khu Chợ C1 sản xuất như C3
+S.WIND           = "TN-11"
+S.LEY_NODE       = "TN-12"
 
 -- true nếu TN `id` được phép xuất hiện trên địa hình `terrainId`.
 function S.allowedOn(id, terrainId)

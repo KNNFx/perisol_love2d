@@ -24,10 +24,10 @@ local Passives = {}
 -- Số ô thực hữu của `pid` nằm kề footprint (không thuộc footprint), mỗi ô tính một lần.
 local function adjacentOwned(state, pid, tiles)
     local inFoot, seen, n = {}, {}, 0
-    for _, t in ipairs(tiles) do inFoot[t.q .. "," .. t.r] = true end
+    for _, t in ipairs(tiles) do inFoot[Hex.key(t)] = true end
     for _, t in ipairs(tiles) do
         for _, h in ipairs(Hex.ring(t, 1)) do
-            local k = h.q .. "," .. h.r
+            local k = Hex.key(h)
             if not inFoot[k] and not seen[k] and state.owner[k] == pid and state.map:get(h.q, h.r) then
                 seen[k] = true
                 n = n + 1
@@ -81,13 +81,13 @@ function Passives.compute(state, pid)
         local tn = Structures.strategicAt(state, t)
         local def = tn and Strategic.passive[tn]
         if def and not Rebel.isBlockaded(state, t) then
-            if def.own and state.owner[t.q .. "," .. t.r] == pid then
+            if def.own and state.owner[Hex.key(t)] == pid then
                 for _, y in ipairs(def.own) do add(tn, y.res, y.n, t) end
             end
             if def.adjacent then
                 for _, h in ipairs(Hex.ring(t, 1)) do
                     local nb = state.map:get(h.q, h.r)
-                    if nb and state.owner[nb.q .. "," .. nb.r] == pid then
+                    if nb and state.owner[Hex.key(nb)] == pid then
                         for _, y in ipairs(def.adjacent) do add(tn, y.res, y.n, nb) end
                     end
                 end

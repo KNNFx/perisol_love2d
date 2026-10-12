@@ -53,7 +53,7 @@ function K.marketReach(state, pid, tiles)
     if not hqTile then return false, "Chưa đặt Nhà Chính" end
     for _, t in ipairs(tiles) do
         if Hex.distance(t, hqTile) <= 1 then return true end
-        if Structures.strategicAt(state, t) == "TN-03" then return true end
+        if Structures.strategicAt(state, t) == Strategic.FISHING then return true end
     end
     if Roads.route(state, tiles, { hqTile }) then return true end
     return false, "Khu Chợ phải liền Nhà Chính hoặc nối đường tới Nhà Chính (trừ ô có Cá)"
@@ -78,7 +78,7 @@ function K.checkFootprint(state, pid, b, q, r, rot)
         local t = state.map:get(c.q, c.r)
         if not t then return false, "Hình vượt ra ngoài bản đồ" end
         newTiles[i] = t
-        inNew[c.q .. "," .. c.r] = t
+        inNew[Hex.key(c)] = t
     end
     for _, k in ipairs(b.tiles) do
         if not inNew[k] then return false, "Hình mới phải chứa các ô của công trình hiện tại" end
@@ -87,7 +87,7 @@ function K.checkFootprint(state, pid, b, q, r, rot)
     local inOld = {}
     for _, k in ipairs(b.tiles) do inOld[k] = true end
     for _, t in ipairs(newTiles) do
-        local k = t.q .. "," .. t.r
+        local k = Hex.key(t)
         if state.owner[k] ~= pid then return false, "Mọi ô phải là lãnh thổ thực hữu của bạn" end
         if not inOld[k] then
             if Structures.at(state, t) or Territory.isAnchorTile(state, t) then return false, "Có ô đã có công trình" end
@@ -100,7 +100,7 @@ function K.checkFootprint(state, pid, b, q, r, rot)
 
     local ordered = Structures.tilesOf(state, b)
     for _, t in ipairs(newTiles) do
-        if not inOld[t.q .. "," .. t.r] then ordered[#ordered + 1] = t end
+        if not inOld[Hex.key(t)] then ordered[#ordered + 1] = t end
     end
     if b.id == "B-05" and b.level + 1 <= 2 then
         local okM, whyM = K.marketReach(state, pid, ordered)
@@ -128,7 +128,7 @@ function K.upgradeOptions(state, uid)
                 local ok, _, tiles = K.checkFootprint(state, b.owner, b, q, r, rot)
                 if ok then
                     local keys = {}
-                    for i, t in ipairs(tiles) do keys[i] = t.q .. "," .. t.r end
+                    for i, t in ipairs(tiles) do keys[i] = Hex.key(t) end
                     table.sort(keys)
                     local sig = table.concat(keys, ";")
                     if not seen[sig] then
@@ -185,7 +185,7 @@ function K.completeDemolitions(state, pid, events)
             for _, t in ipairs(tiles) do
                 local tn = Structures.strategicAt(state, t)
                 if tn then
-                    state.lostStrategic[t.q .. "," .. t.r] = true
+                    state.lostStrategic[Hex.key(t)] = true
                     events[#events + 1] = { kind = "strategic_lost", pid = pid, tn = tn, q = t.q, r = t.r }
                 end
             end

@@ -22,8 +22,6 @@ local RES_COLOR = {
     faith = { 0.96, 0.96, 0.74 }, gold = { 0.98, 0.82, 0.25 },
 }
 
-local function key(tile) return tile.q .. "," .. tile.r end
-
 -- Chữ nhỏ canh giữa tại (cx, cy).
 local function worldText(text, cx, cy, scale)
     local font = love.graphics.getFont()
@@ -52,7 +50,7 @@ function L.drawInfluence(state, opts)
         for _, a in ipairs(Territory.anchors(state, pid)) do
             for _, h in ipairs(Hex.range(a, a.radius)) do
                 local t = state.map:get(h.q, h.r)
-                if t and state.owner[key(t)] ~= pid then
+                if t and state.owner[Hex.key(t)] ~= pid then
                     local cx, cy = tileCenter(t)
                     love.graphics.setColor(pc[1], pc[2], pc[3], 0.10)
                     love.graphics.polygon("fill", hexPolygon(cx, cy))
@@ -74,7 +72,7 @@ function L.drawTerritory(state, opts)
     local map = state.map
 
     for _, tile in ipairs(map.list) do
-        local owner = state.owner[key(tile)]
+        local owner = state.owner[Hex.key(tile)]
         if owner then
             local cx, cy = tileCenter(tile)
             local pc = PLAYER[owner]
@@ -84,7 +82,7 @@ function L.drawTerritory(state, opts)
     end
 
     for _, tile in ipairs(map.list) do
-        local k = key(tile)
+        local k = Hex.key(tile)
         local owner = state.owner[k]
         local cx, cy = tileCenter(tile)
 
@@ -96,7 +94,7 @@ function L.drawTerritory(state, opts)
             for d = 1, 6 do
                 local dir = Hex.DIRECTIONS[d]
                 local n = map:get(tile.q + dir.q, tile.r + dir.r)
-                if n and state.owner[key(n)] ~= owner then
+                if n and state.owner[Hex.key(n)] ~= owner then
                     local a, b = EDGE[d][1], EDGE[d][2]
                     love.graphics.line(poly[2 * a - 1], poly[2 * a], poly[2 * b - 1], poly[2 * b])
                 end
@@ -233,13 +231,13 @@ function L.drawRoads(state, opts)
         return 0.62, 0.45, 0.27, 2.2
     end
     for _, t in ipairs(state.map.list) do
-        local road = state.roads[key(t)]
+        local road = state.roads[Hex.key(t)]
         if road then
             local cx, cy = tileCenter(t)
             local r, g, b, w = colorOf(road)
             for _, nb in ipairs(state.map:neighbors(t)) do
-                local nr = state.roads[key(nb)]
-                if nr and key(nb) > key(t) then
+                local nr = state.roads[Hex.key(nb)]
+                if nr and Hex.key(nb) > Hex.key(t) then
                     local nx, ny = tileCenter(nb)
                     love.graphics.setColor(0, 0, 0, 0.4)
                     love.graphics.setLineWidth((w + 1.2) / zoom)
@@ -273,7 +271,7 @@ function L.drawUnits(state, opts)
     for _, u in ipairs(units) do
         local tile = state.map:get(u.q, u.r)
         local cx, cy = tileCenter(tile)
-        local k = u.q .. "," .. u.r
+        local k = Hex.key(u)
         local idx = count[k] or 0
         count[k] = idx + 1
         cx, cy = cx - 7 + idx * 5, cy + 7 - idx * 2

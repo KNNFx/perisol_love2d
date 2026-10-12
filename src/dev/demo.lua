@@ -5,6 +5,7 @@ local Game = require("src.core.game")
 local Rebel = require("src.core.rebel")
 local Structures = require("src.core.structures")
 local State = require("src.core.state")
+local Strategic = require("src.data.strategic")
 
 local Demo = {}
 
@@ -72,7 +73,7 @@ end
 -- Popup xác nhận dỡ khi công trình nằm trên TN (cảnh báo mất vĩnh viễn).
 function Demo.demolish(state)
     local best, _, bs = upgradeArena(state)
-    best.strategic = "TN-05"
+    best.strategic = Strategic.OPEN_ORE
     return { focus = best, selected = bs[1].uid, confirm = { kind = "demolish", uid = bs[1].uid } }
 end
 

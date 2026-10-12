@@ -86,7 +86,7 @@ function U.baseMove(state, u)
     local tile = U.tileOf(state, u)
     if tile then
         local tn = Structures.strategicAt(state, tile)
-        if tn == "TN-04" and u.type ~= "trade" then
+        if tn == Strategic.HORSE and u.type ~= "trade" then
             if Territory.distanceToAnchor(state, u.owner, tile) <= C.TN04_HOME_RADIUS then mp = mp + C.TN04_BONUS_MOVE end
         elseif tn == Strategic.HARBOR and u.type == "trade" then
             mp = mp + C.TN10_BONUS_MOVE
@@ -102,7 +102,7 @@ function U.stepCost(state, u, tile)
     local c = Movement.stepCost(U.TYPES[u.type].move, tile.terrain, state.round)
     if c == INF then return INF end
     if Roads.has(state, tile) then c = math.max(1, c - C.ROAD_STEP_REDUCTION) end
-    if Structures.strategicAt(state, tile) == "TN-11" and u.type ~= "trade" then
+    if Structures.strategicAt(state, tile) == Strategic.WIND and u.type ~= "trade" then
         c = math.max(0, c - C.TN11_STEP_REFUND)
     end
     -- aura Pháo Đài S-02 của đối thủ: đơn vị quân sự vào ô trong aura tốn thêm `speed` điểm (D-019)
@@ -152,9 +152,9 @@ end
 -- Đường đi (danh sách tile, không gồm ô xuất phát) tới (q, r) và tổng chi phí, hoặc nil.
 function U.pathTo(state, u, q, r, reach)
     reach = reach or U.reachable(state, u)
-    local node = reach[q .. "," .. r]
+    local node = reach[Hex.keyQR(q, r)]
     if not node or (u.q == q and u.r == r) then return nil end
-    local path, k = {}, q .. "," .. r
+    local path, k = {}, Hex.keyQR(q, r)
     while k and reach[k].prev do
         table.insert(path, 1, reach[k].tile)
         k = reach[k].prev
@@ -225,16 +225,13 @@ end
 
 -- Số Khu Chợ (B-05, không chờ dỡ) của `pid`.
 local function hasMarket(state, pid)
-    for _, b in pairs(state.buildings) do
-        if b.owner == pid and b.id == "B-05" and not b.demolishing then return true end
-    end
-    return false
+    return #Structures.marketsOf(state, pid) > 0
 end
 
 -- Giao Thương sinh ở ô thuộc Khu Chợ của mình; chưa có chợ nào thì sinh ở Nhà Chính (Data §2).
 local function isTradeSpawn(state, pid, tile)
     local b = Structures.at(state, tile)
-    if b and b.owner == pid and b.id == "B-05" and not b.demolishing then return true end
+    if b and Structures.isMarket(b, pid) then return true end
     return not hasMarket(state, pid) and isOwnAnchor(state, pid, tile) and tile.q == state.players[pid].hq.q
         and tile.r == state.players[pid].hq.r
 end
@@ -370,7 +367,7 @@ end
 -- HQ C4+: mọi Viễn Chinh của `pid` tự nâng thành Hiệp Sĩ, giữ nguyên điểm di chuyển và trạng thái (Data §2).
 function U.transformArmy(state, pid, events)
     local hq = state.players[pid]
-    if hq.hqLevel < 4 then return end
+    if hq.hqLevel < C.HQ_KNIGHT_LEVEL then return end
     for _, u in ipairs(U.ownedBy(state, pid)) do
         if u.type == "expedition" then
             u.type = "knight"
