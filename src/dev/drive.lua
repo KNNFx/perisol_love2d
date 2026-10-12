@@ -11,11 +11,6 @@ local MapRenderer = require("src.render.map_renderer")
 
 local Drive = {}
 
-local function canAfford(res, cost)
-    for k, n in pairs(cost) do if (res[k] or 0) < n then return false end end
-    return true
-end
-
 local function clickTile(scene, tile)
     local x, y = MapRenderer.tileCenter(tile)
     scene.camera.x, scene.camera.y = x, y     -- đưa ô vào giữa màn hình để không bị panel che
@@ -101,7 +96,7 @@ function Drive.update(scene, drv, dt)
             end
             local buyable = false
             for _, t in ipairs(Territory.buyTargets(st, actor)) do
-                if canAfford(p.res, Territory.buyTileCost(st, actor, t)) then buyable = true break end
+                if Game.afford(st, actor, "buyTile", t) then buyable = true break end
             end
             if Game.check(st, { type = "upgradeHQ" }) then
                 scene.ui:activate("upgradehq")

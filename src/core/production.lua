@@ -5,6 +5,7 @@
 -- Mặt Hex không sản xuất, chỉ cho người đang lượt phiếu Chi Phối.
 
 local C         = require("src.config.constants")
+local Wallet = require("src.core.wallet")
 local Dice      = require("src.core.dice")
 local Hex       = require("src.core.hex")
 local Derived   = require("src.core.derived")
@@ -138,9 +139,7 @@ end
 function P.apply(state, events)
     for _, e in ipairs(events) do
         if e.kind == "produce" then
-            local res = state.players[e.pid].res
-            res[e.res] = res[e.res] + e.amount
-            if e.res == "bond" then res.bond = math.min(res.bond, C.BOND_MAX) end   -- tối đa 5 Tín Phiếu
+            Wallet.gain(state.players[e.pid].res, e.res, e.amount)
         elseif e.kind == "votes" then
             state.players[e.pid].votes = state.players[e.pid].votes + e.amount
         end

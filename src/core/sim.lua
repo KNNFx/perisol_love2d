@@ -162,7 +162,7 @@ function Sim.replay(repro)
         local ok, err = pcall(Game.apply, state, cmd)
         if not ok then return false, "lệnh thứ " .. n .. " bị từ chối khi phát lại: " .. tostring(err), state end
         if cmd.type == "endTurn" then
-            for _, t in ipairs((repro.topups or {})[n] or {}) do state.players[t.pid].res[t.key] = t.value end
+            for _, t in ipairs((repro.topups or {})[n] or {}) do state.players[t.pid].res[t.key] = t.value end   -- wallet:ok nạp rich
             local good, msg = Sim.invariants(state)
             if not good then return false, violation(repro.seed, state.round, msg), state end
         end
@@ -196,6 +196,7 @@ function Sim.play(seed, players, opts)
         local ok, reason = Game.check(state, cmd)
         assert(ok, "lệnh trong legal() bị check() từ chối: " .. tostring(cmd.type) .. " - " .. tostring(reason))
         local events = Game.apply(state, cmd)
+        if opts.onCommand then opts.onCommand(state, cmd, events) end   -- móc kiểm tra theo từng lệnh (spec)
         for _, e in ipairs(events) do
             if e.kind == "seven" then stats.sevens = stats.sevens + 1
             elseif e.kind == "build" then stats.builds = stats.builds + 1
@@ -232,7 +233,7 @@ function Sim.play(seed, players, opts)
                     end
                     table.sort(keys)
                     for _, k in ipairs(keys) do
-                        p.res[k] = RICH_FLOOR
+                        p.res[k] = RICH_FLOOR   -- wallet:ok nạp rich
                         ups[#ups + 1] = { pid = pid, key = k, value = RICH_FLOOR }
                     end
                 end

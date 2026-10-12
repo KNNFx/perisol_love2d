@@ -9,6 +9,7 @@
 -- Đơn vị đi xuyên nhau, không chiếm ô, không chặn xây dựng (Data nguyên tắc 1).
 
 local C          = require("src.config.constants")
+local Wallet = require("src.core.wallet")
 local Dice       = require("src.core.dice")
 local Hex        = require("src.core.hex")
 local Aura       = require("src.core.aura")
@@ -197,7 +198,7 @@ function U.move(state, u, q, r)
     local path, cost = U.pathTo(state, u, q, r)
     local built, gold = U.roadPlan(state, u, path)
     for _, t in ipairs(built) do Roads.build(state, t) end
-    state.players[u.owner].res.gold = state.players[u.owner].res.gold - gold
+    assert(Wallet.pay(state.players[u.owner].res, { gold = gold }), "U.move: thiếu Vàng xây đường")
     u.mp = u.mp - cost
     u.q, u.r = q, r
     for _, t in ipairs(path) do
@@ -331,7 +332,7 @@ function U.suppress(state, u, dir, pay)
     local roll
     local success = pay
     if pay then
-        state.players[pid].res.faith = state.players[pid].res.faith - C.SUPPRESS_GUARANTEE_FAITH
+        assert(Wallet.pay(state.players[pid].res, { faith = C.SUPPRESS_GUARANTEE_FAITH }), "U.suppress: thiếu Tín Ngưỡng")
     else
         roll = Dice.rollOne(state.rng)
         success = roll >= threshold
@@ -347,7 +348,7 @@ function U.suppress(state, u, dir, pay)
         local to = path[#path]
         state.rebel.q, state.rebel.r = to.q, to.r
         state.rebel.suppressedRound = state.round
-        state.players[pid].res.faith = state.players[pid].res.faith + C.SUPPRESS_REWARD_FAITH
+        Wallet.gain(state.players[pid].res, "faith", C.SUPPRESS_REWARD_FAITH)
         events[#events + 1] = { kind = "suppress", pid = pid, uid = u.uid, ok = true, roll = roll, threshold = threshold,
                                 paid = pay or false, from = from, to = { q = to.q, r = to.r }, q = to.q, r = to.r }
     else
@@ -416,7 +417,7 @@ function U.startTurn(state, pid, events)
         due = math.max(0, #army - 1) * C.EXPEDITION_UPKEEP_GOLD
     end
     if due > 0 then
-        res.gold = res.gold - due
+        Wallet.pay(res, { gold = due })
         events[#events + 1] = { kind = "unit_upkeep", pid = pid, gold = due, count = #army }
     end
     for _, u in ipairs(U.ownedBy(state, pid)) do

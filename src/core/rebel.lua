@@ -8,6 +8,7 @@
 -- (hòa -> chủ chọn), người đổ nhận ceil(1/2) số đó.
 
 local C         = require("src.config.constants")
+local Wallet = require("src.core.wallet")
 local Hex       = require("src.core.hex")
 local Dice      = require("src.core.dice")
 local State     = require("src.core.state")
@@ -247,11 +248,9 @@ end
 
 local function applyLoss(state, owner, roller, resKey, amount)
     local victim = state.players[owner]
-    local lost = math.min(amount, victim.res[resKey])
+    local lost = Wallet.take(victim.res, resKey, amount)
     local gained = math.ceil(lost / 2)
-    victim.res[resKey] = victim.res[resKey] - lost
-    local taker = state.players[roller]
-    taker.res[resKey] = taker.res[resKey] + gained
+    Wallet.gain(state.players[roller].res, resKey, gained)
     return lost, gained
 end
 

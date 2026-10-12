@@ -9,6 +9,7 @@
 -- kính MARKET_C3_RADIUS coi như đã nối, phí = số ô trống giữa hai chợ.
 
 local C          = require("src.config.constants")
+local Wallet = require("src.core.wallet")
 local Hex        = require("src.core.hex")
 local Rebel      = require("src.core.rebel")
 local Roads      = require("src.core.roads")
@@ -123,9 +124,10 @@ function T.execute(state, from, to, give, get)
     local ok, why, route = T.check(state, from, to, give, get)
     assert(ok, why)
     local f, t = state.players[from].res, state.players[to].res
-    for res, n in pairs(give) do f[res] = f[res] - n; t[res] = t[res] + n end
-    for res, n in pairs(get) do t[res] = t[res] - n; f[res] = f[res] + n end
-    f.gold = f.gold - route.fee
+    assert(Wallet.pay(f, give) and Wallet.pay(t, get), "T.execute: thiếu tài nguyên sau check")
+    for res, n in pairs(give) do Wallet.gain(t, res, n) end
+    for res, n in pairs(get) do Wallet.gain(f, res, n) end
+    assert(Wallet.pay(f, { gold = route.fee }), "T.execute: không đủ Vàng trả phí đường")
     return route
 end
 

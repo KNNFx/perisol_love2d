@@ -9,6 +9,7 @@
 -- Phần lẻ (0.5) dồn vào player.carry và chỉ cộng vào tài nguyên khi đủ 1.
 
 local C          = require("src.config.constants")
+local Wallet = require("src.core.wallet")
 local Hex        = require("src.core.hex")
 local Roads      = require("src.core.roads")
 local Derived    = require("src.core.derived")
@@ -111,7 +112,7 @@ function Passives.step(state, pid, events)
     end
     for res, v in pairs(p.carry) do
         local whole = math.floor(v)
-        if whole > 0 then p.res[res] = p.res[res] + whole end
+        if whole > 0 then Wallet.gain(p.res, res, whole) end
         p.carry[res] = v - whole
         if p.carry[res] == 0 then p.carry[res] = nil end
     end

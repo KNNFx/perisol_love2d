@@ -86,13 +86,6 @@ local function buildTip(b)
         b.name, costText(lv.cost), table.concat(prod, ", "), table.concat(names, ", "))
 end
 
-local function canAfford(res, cost)
-    for k, n in pairs(cost) do
-        if (res[k] or 0) < n then return false end
-    end
-    return true
-end
-
 -- ─── Vòng đời ───────────────────────────────────────────────────────────────
 
 function Scene:enter(opts)
@@ -816,7 +809,7 @@ function Scene:drawActions(x, y, w)
     local by = y + Theme.px(18)
     for _, b in ipairs(Buildings.list) do
         local lv = b.levels[1]
-        local affordable = p and canAfford(p.res, lv.cost)
+        local affordable = actor and Game.affordBuild(state, actor, b.id)
         local selected = self.mode and self.mode.kind == "build" and self.mode.id == b.id
         local tip = buildTip(b)
         if inAction and not affordable then tip = tip .. "\n(Không đủ tài nguyên)" end
@@ -857,13 +850,13 @@ function Scene:drawActions(x, y, w)
     y = y + bh + gap
     local hqLevel = p and p.hqLevel or 1
     local upgradeOk = inAction and Game.check(state, { type = "upgradeHQ" })
-    local upCost = C.HQ_UPGRADE_COST[hqLevel + 1]
+    local upCost = actor and Game.price(state, actor, "hq")
     local upTip
     if upCost then
         upTip = "Nâng Nhà Chính lên cấp " .. hqLevel + 1 .. ": " .. costText(upCost) .. ".\n" .. HQ_EFFECT[hqLevel + 1]
         local okGate, whyGate = Territory.canUpgradeHQ(state, actor or 1)
         if p and not okGate then upTip = upTip .. "\nChưa được: " .. whyGate
-        elseif p and not canAfford(p.res, upCost) then upTip = upTip .. "\n(Không đủ tài nguyên)" end
+        elseif p and not Game.afford(state, actor, "hq") then upTip = upTip .. "\n(Không đủ tài nguyên)" end
     end
     ui:button("upgradehq", x, y, w, bh, upCost and ("Nâng Nhà Chính C" .. hqLevel + 1) or "Nhà Chính đã tối đa", {
         enabled = upgradeOk and true or false, font = Theme.font(11, true), tip = upTip,
@@ -884,7 +877,7 @@ function Scene:drawActions(x, y, w)
     ui:button("buyunit", x, y, half, bh, string.format("Viễn Chinh %d/%d", p and Units.quotaCount(state, actor, "expedition") or 0,
             Units.quotaMax("expedition")), {
         enabled = canBuy("expedition", anchorTiles), focused = isMode("buyunit"), font = Theme.font(9, true),
-        tip = "Viễn Chinh (" .. costText(C.EXPEDITION_COST) .. ") sinh ở Nhà Chính hoặc Khu Trực Thuộc, đi " .. C.EXPEDITION_BASE_MOVE
+        tip = "Viễn Chinh (" .. costText(Game.price(state, actor, "unit", "expedition")) .. ") sinh ở Nhà Chính hoặc Khu Trực Thuộc, đi " .. C.EXPEDITION_BASE_MOVE
             .. " bước mỗi lượt từ lượt sau. Bấm vào đơn vị trên bản đồ để Lập Khu Trực Thuộc, Trấn Áp Phiến Quân, Trú Đóng.",
         onClick = function()
             if #anchorTiles == 1 then
@@ -902,7 +895,7 @@ function Scene:drawActions(x, y, w)
     ui:button("buytrade", x + half + Theme.px(4), y, half, bh, string.format("Giao Thương %d/%d",
             p and Units.quotaCount(state, actor, "trade") or 0, Units.quotaMax("trade")), {
         enabled = canBuy("trade", tradeSpawns), focused = isMode("buytrade"), font = Theme.font(9, true),
-        tip = "Giao Thương (" .. costText(C.UNIT_COST.trade) .. ") sinh ở Khu Chợ của bạn (chưa có chợ thì ở Nhà Chính), đi "
+        tip = "Giao Thương (" .. costText(Game.price(state, actor, "unit", "trade")) .. ") sinh ở Khu Chợ của bạn (chưa có chợ thì ở Nhà Chính), đi "
             .. C.TRADE_BASE_MOVE .. " bước ngay khi mua. Mỗi ô đi qua tự xây Đường Đất (" .. C.ROAD_COST_PER_TILE .. " V/ô).",
         onClick = function()
             local valid = {}
@@ -915,12 +908,12 @@ function Scene:drawActions(x, y, w)
     })
     y = y + bh + gap
     local canRoad = false
-    if inAction and p and canAfford(p.res, C.ROAD_UPGRADE_COST) then
+    if inAction and p and Game.afford(state, actor, "road") then
         for _, t in ipairs(Roads.list(state)) do
             if Game.roadUpgradeCheck(state, actor, t) then canRoad = true break end
         end
     end
-    ui:button("roadup", x, y, w, bh, "Nâng Đường Lát Đá (" .. (costText(C.ROAD_UPGRADE_COST):gsub(" %+ ", "+")) .. ")", {
+    ui:button("roadup", x, y, w, bh, "Nâng Đường Lát Đá (" .. (costText(Game.price(state, actor, "road")):gsub(" %+ ", "+")) .. ")", {
         enabled = canRoad, focused = isMode("road"), font = Theme.font(11, true),
         tip = "Nâng một ô Đường Đất trong lãnh thổ/vùng ảnh hưởng của bạn thành Lát Đá: đi nhanh hơn, phí giao thương giảm một nửa nếu cả tuyến là Lát Đá, Phiến Quân đi qua không phá được.",
         onClick = function() toggle("road") end,
@@ -1075,12 +1068,12 @@ function Scene:drawBuildingPanel(x, y, w)
         local sites = dd.site and Derived.siteCandidates(state, b.owner, dd.id, b.uid) or { false }
         local can, why = false, nil
         if mine and #partners > 0 and #sites > 0 then
-            can = canAfford(state.players[actor].res, dd.cost)
+            can = Game.afford(state, actor, "derived", dd.id)
             if not can then why = "Không đủ tài nguyên" end
         elseif mine then
             why = #partners == 0 and "Chưa có đối tác đủ cấp, đủ gần (liền kề hoặc nối đường)" or "Không có ô trống hợp lệ"
         end
-        local tip = string.format("%s (%s)\n%s%s", dd.name, costText(dd.cost), dd.note, why and ("\nChưa được: " .. why) or "")
+        local tip = string.format("%s (%s)\n%s%s", dd.name, costText(Game.price(state, actor, "derived", dd.id)), dd.note, why and ("\nChưa được: " .. why) or "")
         ui:button("bp_d" .. dd.id, x + Theme.px(6), by, w - Theme.px(12), bh,
             string.format("Lập %s", dd.name), {
             enabled = inAction and can, font = Theme.font(10, true), tip = tip,
@@ -1112,13 +1105,13 @@ function Scene:drawBuildingPanel(x, y, w)
         ui:label(sdef.note, x + pad, by, { font = fs, color = Theme.color.good, width = w - 2 * pad })
         by = by + Theme.px(44)
         local can, tip = false, "Đã ở cấp tối đa"
-        local cost = Specials.upgradeCost(b)
+        local cost = Game.price(state, actor, "specialUp", b)
         if cost then
             local ok, why = Specials.checkUpgrade(state, actor, b)
             tip = string.format("Nâng cấp +%d: %s. Aura bán kính %d.", b.level, costText(cost), sdef.levels[b.level + 1].aura)
             if not mine then why = "Không phải công trình của bạn" end
             if not ok and mine then tip = tip .. "\n" .. tostring(why)
-            elseif mine and not canAfford(state.players[actor].res, cost) then tip = tip .. "\n(Không đủ tài nguyên)"
+            elseif mine and not Game.afford(state, actor, "specialUp", b) then tip = tip .. "\n(Không đủ tài nguyên)"
             elseif mine then can = true end
         end
         ui:button("bp_sup", x + Theme.px(6), by, w - Theme.px(12), bh,
@@ -1146,7 +1139,7 @@ function Scene:drawBuildingPanel(x, y, w)
         upTip = string.format("Nâng lên C%d: %s, chiếm %d ô (hình %s).\nHình mới phải chứa các ô hiện tại.",
             b.level + 1, costText(cost), nextDef.tiles, nextDef.shape)
         if b.demolishing then upTip = "Công trình đang chờ dỡ"
-        elseif mine and not canAfford(state.players[actor].res, cost) then upTip = upTip .. "\n(Không đủ tài nguyên)"
+        elseif mine and not Game.afford(state, actor, "upgrade", b) then upTip = upTip .. "\n(Không đủ tài nguyên)"
         elseif mine and #Construction.upgradeOptions(state, b.uid) == 0 then
             upTip = upTip .. "\n(Không có chỗ: cần ô thực hữu trống kề, đúng địa hình)"
         else canUp = true end
@@ -1180,7 +1173,7 @@ function Scene:drawSubPanel(x, y, w)
     local bh, pad = Theme.px(24), Theme.px(8)
     local fs = Theme.font(10)
     local nextLevel = sub.level + 1
-    local cost = C.SUB_UPGRADE_COST[nextLevel]
+    local cost = Game.price(state, actor, "sub", nextLevel)
     local h = Theme.px(60) + bh + Theme.px(8)
     ui:panel(x, y, w, h, { borderColor = Theme.player[actor] })
     ui:label(string.format("Khu Trực Thuộc  C%d", sub.level), x + pad, y + Theme.px(5),
@@ -1193,7 +1186,7 @@ function Scene:drawSubPanel(x, y, w)
         local ok, why = Territory.canUpgradeSub(state, actor, tile)
         tip = string.format("Nâng lên C%d: %s.\n%s", nextLevel, costText(cost), SUB_EFFECT[nextLevel])
         if not ok then tip = tip .. "\nChưa được: " .. why
-        elseif not canAfford(state.players[actor].res, cost) then tip = tip .. "\n(Không đủ tài nguyên)"
+        elseif not Game.afford(state, actor, "sub", nextLevel) then tip = tip .. "\n(Không đủ tài nguyên)"
         else can = true end
     end
     ui:button("sp_up", x + Theme.px(6), y + Theme.px(52), w - Theme.px(12), bh,
@@ -1216,7 +1209,7 @@ function Scene:drawFoundSubPopup(W, H)
     ui:panel(x, y, w, h, { borderColor = Theme.color.accent })
     ui:label(string.format("Lập Khu Trực Thuộc tại (%d,%d)?", u.q, u.r), x, y + Theme.px(8),
         { font = Theme.font(14, true), width = w, align = "center", color = Theme.color.accent })
-    ui:label("Chi phí " .. costText(C.SUB_COST) .. ". Đơn vị Viễn Chinh sẽ bị tiêu thụ (mất vĩnh viễn).",
+    ui:label("Chi phí " .. costText(Game.price(state, u.owner, "foundSub")) .. ". Đơn vị Viễn Chinh sẽ bị tiêu thụ (mất vĩnh viễn).",
         x + Theme.px(16), y + Theme.px(40), { font = Theme.font(11), width = w - Theme.px(32), align = "center" })
     local bw, by = Theme.px(120), y + h - Theme.px(40)
     ui:button("fs_ok", x + w / 2 - bw - Theme.px(6), by, bw, Theme.px(28), "Lập Sub", {
@@ -1261,10 +1254,10 @@ function Scene:drawUnitPanel(x, y, w)
     local okSub, whySub = false, "Không phải lượt của bạn"
     if mine then
         okSub, whySub = Units.checkFoundSub(state, u.owner, u)
-        if okSub and not canAfford(state.players[u.owner].res, C.SUB_COST) then okSub, whySub = false, "Không đủ tài nguyên" end
+        if okSub and not Game.afford(state, u.owner, "foundSub") then okSub, whySub = false, "Không đủ tài nguyên" end
     end
     btn("up_sub", "Lập Khu Trực Thuộc", okSub,
-        "Lập Sub tại ô đang đứng (" .. costText(C.SUB_COST) .. "). Đơn vị bị tiêu thụ.\n"
+        "Lập Sub tại ô đang đứng (" .. costText(Game.price(state, u.owner, "foundSub")) .. "). Đơn vị bị tiêu thụ.\n"
             .. (okSub and "" or ("Chưa được: " .. tostring(whySub))),
         function() self.confirm = { kind = "sub", uid = u.uid } end)
 
@@ -1520,9 +1513,9 @@ function Scene:drawSpecialPopup(W, H)
     for i, d in ipairs(SpecialsData.list) do
         local ry = y + Theme.px(36) + (i - 1) * rowH
         local ok, why = Specials.status(state, actor, d.id)
-        local afford = canAfford(p.res, d.levels[1].cost)
+        local afford = Game.afford(state, actor, "special", d.id)
         ui:label(d.name, x + Theme.px(14), ry, { font = Theme.font(12, true), color = Theme.color.text })
-        ui:label(costText(d.levels[1].cost), x + Theme.px(14), ry + Theme.px(16),
+        ui:label(costText(Game.price(state, actor, "special", d.id)), x + Theme.px(14), ry + Theme.px(16),
             { font = Theme.font(10), color = afford and Theme.color.good or Theme.color.bad })
         ui:label(ok and (afford and d.note or "Thiếu tài nguyên") or why, x + Theme.px(14), ry + Theme.px(29),
             { font = Theme.font(9), color = ok and Theme.color.dim or Theme.color.bad, width = w - Theme.px(130) })

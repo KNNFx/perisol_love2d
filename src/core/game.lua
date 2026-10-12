@@ -38,6 +38,7 @@ local Hex         = require("src.core.hex")
 local Buildings   = require("src.data.buildings")
 local Terrains    = require("src.data.terrains")
 local Resources   = require("src.data.resources")
+local Wallet      = require("src.core.wallet")
 
 local Game = {}
 local key = State.key
@@ -46,17 +47,6 @@ local CORE = {}
 for _, r in ipairs(Resources.core) do CORE[r.key] = true end
 
 -- ─── Tiện ích ───────────────────────────────────────────────────────────────
-
-local function canAfford(res, cost)
-    for k, n in pairs(cost) do
-        if (res[k] or 0) < n then return false end
-    end
-    return true
-end
-
-local function pay(res, cost)
-    for k, n in pairs(cost) do res[k] = res[k] - n end
-end
 
 -- Xếp hạng thứ tự lượt bằng xúc xắc; hòa thì những người hòa đổ lại.
 local function rankByRolls(rng, pids)
@@ -91,7 +81,7 @@ function Game.new(opts)
     local state = State.new(map, players, opts.seed)
     state.setupIdx, state.takenStarts, state.history = 1, {}, {}
     for pid = 1, players do
-        for k, v in pairs(C.STARTING_RESOURCES) do state.players[pid].res[k] = v end
+        for k, v in pairs(C.STARTING_RESOURCES) do state.players[pid].res[k] = v end   -- wallet:ok khởi tạo ván
     end
     local pids = {}
     for pid = 1, players do pids[pid] = pid end
@@ -170,10 +160,41 @@ end
 
 -- ─── Điều kiện xây ──────────────────────────────────────────────────────────
 
--- Chi phí xây thực tế của công trình `id` cấp 1 trên `tile` (hiệu ứng địa hình giảm chi phí).
-local function buildCost(state, pid, id, tile)
-    return Construction.cost(state, id, 1, tile)
+-- Giá thực tế của mọi lần mua: nơi DUY NHẤT core và UI lấy giá (check, apply, legal, nút bấm). Trả bảng chi phí,
+-- nil nếu không có giá (đã tối đa...). Hiệu ứng làm đổi giá (địa hình, TN, sau này Tech/nhân vật/Sắc Lệnh) cắm ở đây.
+--   "build" (id, tile) · "upgrade" (b) · "buyTile" (tile) · "hq" · "sub" (cấp mới) · "foundSub" · "unit" (loại)
+--   "road" · "special" (id) · "specialUp" (b) · "derived" (id)
+function Game.price(state, pid, kind, a, b)
+    if kind == "build" then return Construction.cost(state, a, 1, b)
+    elseif kind == "upgrade" then return Game.upgradeCost(state, a)
+    elseif kind == "buyTile" then return Territory.buyTileCost(state, pid, a)
+    elseif kind == "hq" then return C.HQ_UPGRADE_COST[state.players[pid].hqLevel + 1]
+    elseif kind == "sub" then return C.SUB_UPGRADE_COST[a]
+    elseif kind == "foundSub" then return C.SUB_COST
+    elseif kind == "unit" then return C.UNIT_COST[a]
+    elseif kind == "road" then return C.ROAD_UPGRADE_COST
+    elseif kind == "special" then return Specials.def(a).levels[1].cost
+    elseif kind == "specialUp" then return Specials.upgradeCost(a)
+    elseif kind == "derived" then return Derived.def(a).cost
+    end
+    error("Game.price: loại giá không có: " .. tostring(kind))
 end
+
+-- `pid` đủ tiền trả giá Game.price(...) chưa? (cho nút UI và check).
+function Game.afford(state, pid, kind, a, b)
+    local cost = Game.price(state, pid, kind, a, b)
+    return cost ~= nil and Wallet.canAfford(state.players[pid].res, cost)
+end
+
+-- Nút "Xây" (chưa chọn ô): sáng nếu có ô thực hữu nào mà giá thực trên ô đó trả nổi (giá đổi theo địa hình / TN).
+function Game.affordBuild(state, pid, id)
+    for _, t in ipairs(Territory.ownedTiles(state, pid)) do
+        if Game.afford(state, pid, "build", id, t) then return true end
+    end
+    return false
+end
+
+local function buildCost(state, pid, id, tile) return Game.price(state, pid, "build", id, tile) end
 
 local function buildCheck(state, pid, id, tile)
     local def = Buildings.level(id, 1)
@@ -187,7 +208,7 @@ local function buildCheck(state, pid, id, tile)
         local okM, whyM = Construction.marketReach(state, pid, { tile })
         if not okM then return false, whyM end
     end
-    if not canAfford(state.players[pid].res, buildCost(state, pid, id, tile)) then return false, "Không đủ tài nguyên" end
+    if not Game.afford(state, pid, "build", id, tile) then return false, "Không đủ tài nguyên" end
     return true
 end
 
@@ -217,7 +238,7 @@ H.placeHQ = {
         for _, n in ipairs(state.map:neighbors(hqTile)) do
             local res = C.START_BONUS_BY_TERRAIN[n.terrain]
             if res then
-                state.players[pid].res[res] = state.players[pid].res[res] + C.START_BONUS_PER_TILE
+                Wallet.gain(state.players[pid].res, res, C.START_BONUS_PER_TILE)
                 gains[res] = (gains[res] or 0) + C.START_BONUS_PER_TILE
             end
         end
@@ -305,8 +326,8 @@ H.trade = {
     apply = function(state, cmd, pid, events)
         local res = state.players[pid].res
         local rate = Trade.bankRate(state, pid)
-        res[cmd.give] = res[cmd.give] - rate
-        res[cmd.get] = res[cmd.get] + 1
+        Wallet.pay(res, { [cmd.give] = rate })
+        Wallet.gain(res, cmd.get, 1)
         events[#events + 1] = { kind = "trade", pid = pid, give = cmd.give, get = cmd.get, rate = rate }
     end,
 }
@@ -317,14 +338,14 @@ H.buyTile = {
         local tile = state.map:get(cmd.q, cmd.r)
         local ok, why = Territory.canBuyTile(state, pid, tile)
         if not ok then return false, why end
-        if not canAfford(state.players[pid].res, Territory.buyTileCost(state, pid, tile)) then
+        if not Game.afford(state, pid, "buyTile", tile) then
             return false, "Không đủ tài nguyên mua ô"
         end
         return true
     end,
     apply = function(state, cmd, pid, events)
         local tile = state.map:get(cmd.q, cmd.r)
-        pay(state.players[pid].res, Territory.buyTileCost(state, pid, tile))
+        Wallet.pay(state.players[pid].res, Game.price(state, pid, "buyTile", tile))
         Territory.buyTile(state, pid, tile)
         events[#events + 1] = { kind = "buy_tile", pid = pid, q = tile.q, r = tile.r }
         events[#events + 1] = { kind = "claim", pid = pid, q = tile.q, r = tile.r }
@@ -336,15 +357,14 @@ H.upgradeHQ = {
     check = function(state, cmd, pid)
         local ok, why = Territory.canUpgradeHQ(state, pid)
         if not ok then return false, why end
-        local level = state.players[pid].hqLevel + 1
-        if not canAfford(state.players[pid].res, C.HQ_UPGRADE_COST[level]) then
+        if not Game.afford(state, pid, "hq") then
             return false, "Không đủ tài nguyên nâng cấp"
         end
         return true
     end,
     apply = function(state, cmd, pid, events)
         local p = state.players[pid]
-        pay(p.res, C.HQ_UPGRADE_COST[p.hqLevel + 1])
+        Wallet.pay(p.res, Game.price(state, pid, "hq"))
         Territory.upgradeHQ(state, pid)
         events[#events + 1] = { kind = "upgrade_hq", pid = pid, level = p.hqLevel, q = p.hq.q, r = p.hq.r }
         if p.hqLevel >= 4 then Units.transformArmy(state, pid, events) end   -- HQ C4: Viễn Chinh thành Hiệp Sĩ
@@ -358,7 +378,7 @@ H.upgradeSub = {
         local ok, why = Territory.canUpgradeSub(state, pid, tile)
         if not ok then return false, why end
         local level = Territory.subAt(state, pid, tile).level + 1
-        if not canAfford(state.players[pid].res, C.SUB_UPGRADE_COST[level]) then
+        if not Game.afford(state, pid, "sub", level) then
             return false, "Không đủ tài nguyên nâng cấp"
         end
         return true
@@ -366,7 +386,7 @@ H.upgradeSub = {
     apply = function(state, cmd, pid, events)
         local tile = state.map:get(cmd.q, cmd.r)
         local sub = Territory.subAt(state, pid, tile)
-        pay(state.players[pid].res, C.SUB_UPGRADE_COST[sub.level + 1])
+        Wallet.pay(state.players[pid].res, Game.price(state, pid, "sub", sub.level + 1))
         local level = Territory.upgradeSub(state, pid, tile)
         events[#events + 1] = { kind = "upgrade_sub", pid = pid, level = level, q = tile.q, r = tile.r }
     end,
@@ -379,11 +399,11 @@ H.buildSpecial = {
     check = function(state, cmd, pid)
         local ok, why = Specials.checkBuild(state, pid, cmd.id, cmd.q, cmd.r, cmd.rot)
         if not ok then return false, why end
-        if not canAfford(state.players[pid].res, Specials.def(cmd.id).levels[1].cost) then return false, "Không đủ tài nguyên" end
+        if not Game.afford(state, pid, "special", cmd.id) then return false, "Không đủ tài nguyên" end
         return true
     end,
     apply = function(state, cmd, pid, events)
-        pay(state.players[pid].res, Specials.def(cmd.id).levels[1].cost)
+        Wallet.pay(state.players[pid].res, Game.price(state, pid, "special", cmd.id))
         local b = Specials.build(state, pid, cmd.id, cmd.q, cmd.r, cmd.rot)
         events[#events + 1] = { kind = "special_built", pid = pid, id = cmd.id, uid = b.uid, q = cmd.q, r = cmd.r }
     end,
@@ -395,12 +415,12 @@ H.upgradeSpecial = {
         local b = state.buildings[cmd.uid]
         local ok, why = Specials.checkUpgrade(state, pid, b)
         if not ok then return false, why end
-        if not canAfford(state.players[pid].res, Specials.upgradeCost(b)) then return false, "Không đủ tài nguyên" end
+        if not Game.afford(state, pid, "specialUp", b) then return false, "Không đủ tài nguyên" end
         return true
     end,
     apply = function(state, cmd, pid, events)
         local b = state.buildings[cmd.uid]
-        pay(state.players[pid].res, Specials.upgradeCost(b))
+        Wallet.pay(state.players[pid].res, Game.price(state, pid, "specialUp", b))
         Specials.upgrade(state, b)
         local a = Structures.tilesOf(state, b)[1]
         events[#events + 1] = { kind = "special_upgrade", pid = pid, id = b.id, level = b.level, uid = b.uid, q = a.q, r = a.r }
@@ -422,7 +442,7 @@ Game.prompts.cancel7 = {
     apply = function(state, p, choice, events)
         if choice == "cancel" then
             state.players[p.pid].cancel7Used = (state.players[p.pid].cancel7Used or 0) + 1
-            state.players[p.roller].res.faith = state.players[p.roller].res.faith + 1
+            Wallet.gain(state.players[p.roller].res, "faith", 1)
             events[#events + 1] = { kind = "seven_cancelled", pid = p.pid, roller = p.roller }
             resolution(state, events)
         elseif #p.rest > 0 then
@@ -450,7 +470,7 @@ Game.prompts.pushrebel = {
         local target = choice == "push" and p.target or choice
         local q, r = target:match("^(-?%d+),(-?%d+)$")
         local from = { q = state.rebel.q, r = state.rebel.r }
-        state.players[p.pid].res.faith = state.players[p.pid].res.faith - p.cost
+        Wallet.pay(state.players[p.pid].res, { faith = p.cost })
         state.rebel.q, state.rebel.r = tonumber(q), tonumber(r)
         events[#events + 1] = { kind = "rebel_pushed", pid = p.pid, from = from, q = tonumber(q), r = tonumber(r), cost = p.cost }
         resolution(state, events)
@@ -467,12 +487,12 @@ H.buildDerived = {
         local tile = cmd.q and state.map:get(cmd.q, cmd.r) or nil
         local ok, why = Derived.checkBuild(state, pid, cmd.id, { a = cmd.a, b = cmd.b, tile = tile })
         if not ok then return false, why end
-        if not canAfford(state.players[pid].res, def.cost) then return false, "Không đủ tài nguyên" end
+        if not Game.afford(state, pid, "derived", cmd.id) then return false, "Không đủ tài nguyên" end
         return true
     end,
     apply = function(state, cmd, pid, events)
         local def = Derived.def(cmd.id)
-        pay(state.players[pid].res, def.cost)
+        Wallet.pay(state.players[pid].res, Game.price(state, pid, "derived", cmd.id))
         local tile = cmd.q and state.map:get(cmd.q, cmd.r) or nil
         local inst = Derived.build(state, pid, cmd.id, { a = cmd.a, b = cmd.b, tile = tile })
         local at = Structures.tilesOf(state, state.buildings[inst.a])[1]
@@ -491,8 +511,8 @@ H.redeemBond = {
     end,
     apply = function(state, cmd, pid, events)
         local res = state.players[pid].res
-        res.bond = res.bond - cmd.n
-        res.gold = res.gold + cmd.n * C.BOND_REDEEM_GOLD
+        Wallet.pay(res, { bond = cmd.n })
+        Wallet.gain(res, "gold", cmd.n * C.BOND_REDEEM_GOLD)
         events[#events + 1] = { kind = "bond_redeemed", pid = pid, n = cmd.n, gold = cmd.n * C.BOND_REDEEM_GOLD }
     end,
 }
@@ -503,7 +523,7 @@ H.foundSub = {
     check = function(state, cmd, pid)
         local ok, why = Units.checkFoundSub(state, pid, state.units[cmd.uid])
         if not ok then return false, why end
-        if not canAfford(state.players[pid].res, C.SUB_COST) then
+        if not Game.afford(state, pid, "foundSub") then
             return false, "Không đủ tài nguyên lập Khu Trực Thuộc"
         end
         return true
@@ -511,7 +531,7 @@ H.foundSub = {
     apply = function(state, cmd, pid, events)
         local u = state.units[cmd.uid]
         local tile = Units.tileOf(state, u)
-        pay(state.players[pid].res, C.SUB_COST)
+        Wallet.pay(state.players[pid].res, Game.price(state, pid, "foundSub"))
         Units.remove(state, u.uid)
         Territory.addSub(state, pid, tile)
         events[#events + 1] = { kind = "found_sub", pid = pid, q = tile.q, r = tile.r, uid = u.uid }
@@ -523,13 +543,13 @@ H.buyUnit = {
     check = function(state, cmd, pid)
         local ok, why = Units.checkBuy(state, pid, cmd.unit, state.map:get(cmd.q or 0, cmd.r or 0))
         if not ok then return false, why end
-        if not canAfford(state.players[pid].res, C.UNIT_COST[cmd.unit]) then
+        if not Game.afford(state, pid, "unit", cmd.unit) then
             return false, "Không đủ tài nguyên mua " .. Units.TYPES[cmd.unit].name
         end
         return true
     end,
     apply = function(state, cmd, pid, events)
-        pay(state.players[pid].res, C.UNIT_COST[cmd.unit])
+        Wallet.pay(state.players[pid].res, Game.price(state, pid, "unit", cmd.unit))
         local u = Units.spawn(state, pid, cmd.unit, state.map:get(cmd.q, cmd.r))
         events[#events + 1] = { kind = "unit_buy", pid = pid, uid = u.uid, unit = u.type, q = u.q, r = u.r }
     end,
@@ -556,7 +576,7 @@ local function roadUpgradeCheck(state, pid, tile)
     if state.owner[key(tile)] ~= pid and not Territory.inInfluence(state, pid, tile) then
         return false, "Chỉ nâng đường trong lãnh thổ hoặc vùng ảnh hưởng của bạn"
     end
-    if not canAfford(state.players[pid].res, C.ROAD_UPGRADE_COST) then return false, "Không đủ tài nguyên nâng đường" end
+    if not Game.afford(state, pid, "road") then return false, "Không đủ tài nguyên nâng đường" end
     return true
 end
 
@@ -566,7 +586,7 @@ H.upgradeRoad = {
     phase = "action",
     check = function(state, cmd, pid) return roadUpgradeCheck(state, pid, state.map:get(cmd.q or 0, cmd.r or 0)) end,
     apply = function(state, cmd, pid, events)
-        pay(state.players[pid].res, C.ROAD_UPGRADE_COST)
+        Wallet.pay(state.players[pid].res, Game.price(state, pid, "road"))
         state.roads[cmd.q .. "," .. cmd.r].level = 2
         events[#events + 1] = { kind = "road_upgrade", pid = pid, q = cmd.q, r = cmd.r }
     end,
@@ -632,7 +652,7 @@ H.disband = {
     apply = function(state, cmd, pid, events)
         local u = state.units[cmd.uid]
         local refund = C.UNIT_DISBAND_REFUND[u.type] or 0
-        state.players[pid].res.gold = state.players[pid].res.gold + refund
+        Wallet.gain(state.players[pid].res, "gold", refund)
         Units.remove(state, u.uid)
         events[#events + 1] = { kind = "unit_disband", pid = pid, uid = u.uid, unit = u.type, q = u.q, r = u.r, refund = refund }
     end,
@@ -661,7 +681,7 @@ H.build = {
     end,
     apply = function(state, cmd, pid, events)
         local tile = state.map:get(cmd.q, cmd.r)
-        pay(state.players[pid].res, buildCost(state, pid, cmd.id, tile))
+        Wallet.pay(state.players[pid].res, Game.price(state, pid, "build", cmd.id, tile))
         Structures.place(state, { id = cmd.id, level = 1, owner = pid }, { tile })
         events[#events + 1] = { kind = "build", pid = pid, id = cmd.id, level = 1, q = cmd.q, r = cmd.r }
     end,
@@ -678,7 +698,7 @@ local function upgradeCheck(state, pid, cmd)
     local b = state.buildings[cmd.uid]
     local ok, why = Construction.checkFootprint(state, pid, b, cmd.q, cmd.r, cmd.rot or 0)
     if not ok then return false, why end
-    if not canAfford(state.players[pid].res, upgradeCost(state, b)) then return false, "Không đủ tài nguyên" end
+    if not Game.afford(state, pid, "upgrade", b) then return false, "Không đủ tài nguyên" end
     return true
 end
 
@@ -690,7 +710,7 @@ H.upgrade = {
     check = function(state, cmd, pid) return upgradeCheck(state, pid, cmd) end,
     apply = function(state, cmd, pid, events)
         local b = state.buildings[cmd.uid]
-        pay(state.players[pid].res, upgradeCost(state, b))
+        Wallet.pay(state.players[pid].res, Game.price(state, pid, "upgrade", b))
         local a = Construction.upgrade(state, cmd.uid, cmd.q, cmd.r, cmd.rot or 0)
         events[#events + 1] = { kind = "upgrade", pid = pid, id = b.id, level = b.level, q = a.q, r = a.r, uid = b.uid }
     end,
@@ -830,21 +850,21 @@ function Game.legal(state)
             end
         end
         for _, t in ipairs(Territory.buyTargets(state, actor)) do
-            if canAfford(p.res, Territory.buyTileCost(state, actor, t)) then
+            if Game.afford(state, actor, "buyTile", t) then
                 out[#out + 1] = { type = "buyTile", pid = actor, q = t.q, r = t.r }
             end
         end
-        if Territory.canUpgradeHQ(state, actor) and canAfford(p.res, C.HQ_UPGRADE_COST[p.hqLevel + 1]) then
+        if Territory.canUpgradeHQ(state, actor) and Game.afford(state, actor, "hq") then
             out[#out + 1] = { type = "upgradeHQ", pid = actor }
         end
         for _, sub in ipairs(p.subs) do
             local tile = state.map:get(sub.q, sub.r)
-            if Territory.canUpgradeSub(state, actor, tile) and canAfford(p.res, C.SUB_UPGRADE_COST[sub.level + 1]) then
+            if Territory.canUpgradeSub(state, actor, tile) and Game.afford(state, actor, "sub", sub.level + 1) then
                 out[#out + 1] = { type = "upgradeSub", pid = actor, q = sub.q, r = sub.r }
             end
         end
         for _, u in ipairs(Units.ownedBy(state, actor)) do
-            if canAfford(p.res, C.SUB_COST) and Units.checkFoundSub(state, actor, u) then
+            if Game.afford(state, actor, "foundSub") and Units.checkFoundSub(state, actor, u) then
                 out[#out + 1] = { type = "foundSub", pid = actor, uid = u.uid }
             end
             if u.mp > 0 and not u.acted then
@@ -872,14 +892,14 @@ function Game.legal(state)
             if Units.checkGarrison(state, actor, u) then out[#out + 1] = { type = "garrison", pid = actor, uid = u.uid } end
             out[#out + 1] = { type = "disband", pid = actor, uid = u.uid }
         end
-        if canAfford(p.res, C.EXPEDITION_COST) then
+        if Game.afford(state, actor, "unit", "expedition") then
             for _, a in ipairs(Territory.anchors(state, actor)) do
                 if Units.checkBuy(state, actor, "expedition", state.map:get(a.q, a.r)) then
                     out[#out + 1] = { type = "buyUnit", pid = actor, unit = "expedition", q = a.q, r = a.r }
                 end
             end
         end
-        if canAfford(p.res, C.UNIT_COST.trade) then
+        if Game.afford(state, actor, "unit", "trade") then
             local spawns = { state.map:get(p.hq.q, p.hq.r) }
             for _, m in ipairs(Trade.markets(state, actor)) do spawns[#spawns + 1] = Structures.tilesOf(state, m)[1] end
             for _, t in ipairs(spawns) do
@@ -888,7 +908,7 @@ function Game.legal(state)
                 end
             end
         end
-        if canAfford(p.res, C.ROAD_UPGRADE_COST) then
+        if Game.afford(state, actor, "road") then
             for _, t in ipairs(Roads.list(state)) do
                 if roadUpgradeCheck(state, actor, t) then out[#out + 1] = { type = "upgradeRoad", pid = actor, q = t.q, r = t.r } end
             end
@@ -924,7 +944,7 @@ function Game.legal(state)
         for _, b in ipairs(Structures.list(state)) do
             if b.owner == actor and not b.demolishing then
                 for _, def in ipairs(DerivedData.list) do
-                    if def.host[1] == b.id and b.level >= def.host[2] and canAfford(p.res, def.cost) then
+                    if def.host[1] == b.id and b.level >= def.host[2] and Game.afford(state, actor, "derived", def.id) then
                         local partners = Derived.partnerCandidates(state, actor, def.id, b.uid)
                         local sites = def.site and Derived.siteCandidates(state, actor, def.id, b.uid) or { false }
                         for _, other in ipairs(def.dep and partners or (def.partner and partners or { false })) do
@@ -940,7 +960,7 @@ function Game.legal(state)
         end
         -- Đặc Biệt: xây mới (đủ tài nguyên + HQ C3), nâng cấp +1/+2, "Pháo"
         for _, def in ipairs(SpecialsData.list) do
-            if canAfford(p.res, def.levels[1].cost) then
+            if Game.afford(state, actor, "special", def.id) then
                 for _, pl in ipairs(Specials.placements(state, actor, def.id)) do
                     out[#out + 1] = { type = "buildSpecial", pid = actor, id = def.id, q = pl.q, r = pl.r, rot = pl.rot }
                 end
@@ -948,7 +968,7 @@ function Game.legal(state)
         end
         for _, b in ipairs(Structures.list(state)) do
             if b.owner == actor and Aura.isSpecial(b) then
-                if Specials.checkUpgrade(state, actor, b) and canAfford(p.res, Specials.upgradeCost(b)) then
+                if Specials.checkUpgrade(state, actor, b) and Game.afford(state, actor, "specialUp", b) then
                     out[#out + 1] = { type = "upgradeSpecial", pid = actor, uid = b.uid }
                 end
                 if b.id == "S-02" and Aura.levelDef(b).strike then
@@ -965,8 +985,7 @@ function Game.legal(state)
         end
         for _, b in ipairs(Structures.list(state)) do
             if b.owner == actor and not b.demolishing then
-                local cost = upgradeCost(state, b)
-                if cost and canAfford(p.res, cost) then
+                if Game.afford(state, actor, "upgrade", b) then
                     for _, o in ipairs(Construction.upgradeOptions(state, b.uid)) do
                         out[#out + 1] = { type = "upgrade", pid = actor, uid = b.uid, q = o.q, r = o.r, rot = o.rot }
                     end
@@ -1014,7 +1033,7 @@ local MIGRATIONS = {
         end
         s.lostStrategic, s.units, s.roads = s.lostStrategic or {}, s.units or {}, s.roads or {}
         for _, p in ipairs(s.players or {}) do
-            for _, r in ipairs(Resources.materials) do p.res[r.key] = p.res[r.key] or 0 end
+            for _, r in ipairs(Resources.materials) do p.res[r.key] = p.res[r.key] or 0 end   -- wallet:ok migration
             p.carry = p.carry or {}
         end
         data.version = 3
