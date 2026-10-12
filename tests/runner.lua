@@ -1,8 +1,18 @@
--- Mini test runner chạy trong LÖVE: `lovec.exe . --test` (xem test.bat).
--- API kiểu busted: describe / it / expect.*. Spec nằm ở tests/*_spec.lua.
+-- Mini test runner. Chạy được bằng luajit thuần (`make test`, tools/test.lua) và trong LÖVE (`make test-love`, `love . --test`).
+-- API kiểu busted: describe / it / expect.*. Spec nằm ở tests/*_spec.lua và phải có tên trong SPECS bên dưới
+-- (không quét thư mục để khỏi phụ thuộc love.filesystem; `make check` kiểm tra danh sách đủ).
+-- Ca thật sự cần love.* khai bằng it.love(...): bỏ qua có khai báo khi không có LÖVE, runner in số ca bị bỏ qua.
 
 local M = {}
 
+local SPECS = {
+    "construction", "core_utils", "data", "derived", "game", "hex", "hq_levels", "m15_integration", "mapgen",
+    "passives", "production", "rebel", "rng", "roads", "sim", "specials", "structures", "territory", "ui",
+    "units", "golden",
+}
+M.SPECS = SPECS
+
+local HAS_LOVE = rawget(_G, "love") ~= nil and type(love) == "table" and love.filesystem ~= nil
 local suites, stack = {}, {}
 
 local function describe(name, fn)
@@ -17,6 +27,13 @@ local function it(name, fn)
     local suite = stack[#stack]
     assert(suite, "it() phải nằm trong describe()")
     suite.tests[#suite.tests + 1] = { name = name, fn = fn }
+end
+
+-- Ca cần LÖVE: chạy khi có love.*, ngược lại bỏ qua có khai báo.
+local function itLove(name, fn)
+    local suite = stack[#stack]
+    assert(suite, "it.love() phải nằm trong describe()")
+    suite.tests[#suite.tests + 1] = { name = name, fn = fn, needsLove = true }
 end
 
 local function fmt(v)
@@ -74,19 +91,19 @@ function expect.deepEq(a, b, msg, path)
 end
 
 function M.run()
-    local items = love.filesystem.getDirectoryItems("tests")
-    table.sort(items)
+    local itTable = setmetatable({ love = itLove }, { __call = function(_, ...) return it(...) end })
+    _G.describe, _G.it, _G.expect = describe, itTable, expect
+    for _, mod in ipairs(SPECS) do require("tests." .. mod .. "_spec") end
 
-    _G.describe, _G.it, _G.expect = describe, it, expect
-    for _, file in ipairs(items) do
-        local mod = file:match("^(.+_spec)%.lua$")
-        if mod then require("tests." .. mod) end
-    end
-
-    local passed, failed = 0, 0
+    local passed, failed, skipped, skippedNames = 0, 0, 0, {}
     for _, suite in ipairs(suites) do
         print(suite.name)
         for _, t in ipairs(suite.tests) do
+          if t.needsLove and not HAS_LOVE then
+            skipped = skipped + 1
+            skippedNames[#skippedNames + 1] = suite.name .. " / " .. t.name
+            print("  skip " .. t.name .. " (cần LÖVE)")
+          else
             local ok, err = xpcall(t.fn, function(e) return e end)
             if ok then
                 passed = passed + 1
@@ -96,10 +113,12 @@ function M.run()
                 print("  FAIL " .. t.name)
                 print("       " .. tostring(err))
             end
+          end
         end
     end
 
-    print(string.format("\n%d passed, %d failed", passed, failed))
+    print(string.format("\n%d passed, %d failed, %d skipped", passed, failed, skipped))
+    for _, n in ipairs(skippedNames) do print("  bỏ qua (cần LÖVE): " .. n) end
     io.stdout:flush()
     return failed == 0 and 0 or 1
 end

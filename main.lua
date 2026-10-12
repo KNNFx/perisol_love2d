@@ -1,37 +1,11 @@
 -- Perisol — bootstrap. Logic game nằm trong src/, test trong tests/.
 
-local testMode, simCount, richSim = false, nil, false
-for i, a in pairs(arg or {}) do
+local testMode = false
+for _, a in pairs(arg or {}) do
     if a == "--test" then testMode = true end
-    if a == "--sim" then simCount = tonumber(arg[i + 1]) or 100 end
-    if a == "--rich" then richSim = true end
 end
 
--- Mô phỏng headless: `lovec.exe . --sim 100` chơi 100 ván ngẫu nhiên (2-4 người) và in thống kê.
-if simCount then
-    function love.load()
-        local Sim = require("src.core.sim")
-        local sum = Sim.batch(simCount, 1, function(i, seed, players, state, ranking)
-            print(string.format("ván %3d seed %-4d %d người  thắng P%d (%d điểm, %d ô)", i, seed, players,
-                ranking[1].pid, ranking[1].total, ranking[1].tileCount))
-        end, { rich = richSim })
-        local g = sum.games
-        print(string.format("\n%d ván, không lỗi. Trung bình/ván: %.1f lần ra 7, %.1f công trình, %.1f lần chiếm ô, %.0f lệnh",
-            g, sum.sevens / g, sum.builds / g, sum.claims / g, sum.commands / g))
-        print(string.format("Nâng cấp %.1f · dỡ %.1f · TN mất %.1f (mỗi ván)", sum.upgrades / g, sum.demolishes / g, sum.tnLost / g))
-        print(string.format("Đơn vị mỗi ván: mua %.1f · di chuyển %.1f · Trấn Áp thắng %.2f / thua %.2f · mất %.1f · lập Sub %.1f",
-            sum.unitsBought / g, sum.unitMoves / g, sum.suppressWins / g, sum.suppressLosses / g, sum.unitsLost / g,
-            sum.subsFounded / g))
-        print(string.format("Đường xây %.1f · nâng Lát Đá %.2f · đề xuất trao đổi %.2f · chấp nhận %.2f (mỗi ván)",
-            sum.roadsBuilt / g, sum.roadUpgrades / g, sum.tradesProposed / g, sum.tradesAccepted / g))
-        print(string.format("Phái Sinh lập %.2f · Đặc Biệt xây %.2f · tổng 7 bị hủy %.2f (mỗi ván)", sum.derivedBuilt / g, sum.specialsBuilt / g, sum.sevensCancelled / g))
-        print(string.format("Điểm trung bình/người: %.1f · ô thực hữu trung bình/người: %.1f · ô của người thắng: %.1f",
-            sum.score / sum.players, sum.tiles / sum.players, sum.winnerTiles / g))
-        io.stdout:flush()
-        love.event.quit(0)
-    end
-    return
-end
+-- Mô phỏng/quét seed/repro/phủ lệnh chạy bằng luajit thuần: xem Makefile (`make sim`, `make sweep`, `make cover`).
 
 if testMode then
     function love.load()

@@ -358,7 +358,7 @@ describe("game: lưu / nạp / phát lại", function()
         expect.eq(Game.load(Serialize.dump(data)), nil)
     end)
 
-    it("Save.write/read khứ hồi và dùng .bak khi bản chính hỏng", function()
+    it.love("Save.write/read khứ hồi và dùng .bak khi bản chính hỏng", function()
         local name = "test_m1_spec"
         Save.remove(name)
         local s = setup(43, 2)

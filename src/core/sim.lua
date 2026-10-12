@@ -1,5 +1,5 @@
 -- Mô phỏng ván chơi bằng người chơi ngẫu nhiên (có thiên hướng) — bắt crash / vòng lặp vô hạn và
--- kiểm tra bất biến. Thuần Lua, không gọi love.*. Dùng trong tests/sim_spec.lua và `lovec . --sim N`.
+-- kiểm tra bất biến. Thuần Lua, không gọi love.*. Dùng trong tests/sim_spec.lua và tools/*.lua (`make sim`, `make sweep`, `make repro`).
 
 local C         = require("src.config.constants")
 local Game      = require("src.core.game")
@@ -145,8 +145,32 @@ end
 
 -- Chơi trọn một ván. Trả state, stats. Báo lỗi nếu lệnh hợp lệ bị từ chối hoặc vi phạm bất biến.
 -- opts.rich: sau mỗi lượt nạp đầy tài nguyên và vật liệu (trừ Tín Phiếu) để ván ngẫu nhiên chạm tới Nhà Chính C3+, Phái Sinh,
--- Đặc Biệt, trao đổi...; dùng để bắt crash ở các hệ thống ít khi xuất hiện trong ván ngẫu nhiên thường (`--sim N --rich`).
+-- Đặc Biệt, trao đổi...; dùng để bắt crash ở các hệ thống ít khi xuất hiện trong ván ngẫu nhiên thường (`make sim-rich`).
+-- opts.trace: bảng do người gọi cấp; Sim.play điền {state, topups} để dựng bản repro kể cả khi ván lỗi giữa chừng.
+-- topups[n] = danh sách {pid, key, value} đã nạp ngay sau lệnh thứ n của history (luôn là endTurn).
 local RICH_FLOOR = 25
+
+local function violation(seed, round, msg)
+    return string.format("vi phạm bất biến (seed %s, vòng %d): %s", tostring(seed), round, tostring(msg))
+end
+
+-- Phát lại bản repro {seed, players, rich, history, topups}: áp lại từng lệnh, nạp lại tài nguyên đúng chỗ, kiểm tra bất biến
+-- như Sim.play. Trả true, state nếu không lỗi; nếu lỗi trả false, thông điệp (cùng thông điệp với Sim.play), state.
+function Sim.replay(repro)
+    local state = Game.new({ seed = repro.seed, players = repro.players })
+    for n, cmd in ipairs(repro.history) do
+        local ok, err = pcall(Game.apply, state, cmd)
+        if not ok then return false, "lệnh thứ " .. n .. " bị từ chối khi phát lại: " .. tostring(err), state end
+        if cmd.type == "endTurn" then
+            for _, t in ipairs((repro.topups or {})[n] or {}) do state.players[t.pid].res[t.key] = t.value end
+            local good, msg = Sim.invariants(state)
+            if not good then return false, violation(repro.seed, state.round, msg), state end
+        end
+    end
+    local good, msg = Sim.invariants(state)
+    if not good then return false, "vi phạm bất biến cuối ván (seed " .. tostring(repro.seed) .. "): " .. tostring(msg), state end
+    return true, state
+end
 
 function Sim.play(seed, players, opts)
     opts = opts or {}
@@ -157,6 +181,8 @@ function Sim.play(seed, players, opts)
                     suppressLosses = 0, unitsLost = 0, subsFounded = 0, roadsBuilt = 0, roadUpgrades = 0,
                     tradesProposed = 0, tradesAccepted = 0, derivedBuilt = 0, specialsBuilt = 0, sevensCancelled = 0 }
     local perTurn = 0
+    local trace = opts.trace
+    if trace then trace.state, trace.topups = state, {} end
 
     while state.phase ~= "over" do
         stats.commands = stats.commands + 1
@@ -198,14 +224,22 @@ function Sim.play(seed, players, opts)
         if cmd.type == "endTurn" then
             perTurn = 0
             if opts.rich then
-                for _, p in ipairs(state.players) do
+                local ups = {}
+                for pid, p in ipairs(state.players) do
+                    local keys = {}
                     for k, v in pairs(p.res) do
-                        if k ~= "bond" and v < RICH_FLOOR then p.res[k] = RICH_FLOOR end
+                        if k ~= "bond" and v < RICH_FLOOR then keys[#keys + 1] = k end
+                    end
+                    table.sort(keys)
+                    for _, k in ipairs(keys) do
+                        p.res[k] = RICH_FLOOR
+                        ups[#ups + 1] = { pid = pid, key = k, value = RICH_FLOOR }
                     end
                 end
+                if trace then trace.topups[#state.history] = ups end
             end
             local good, msg = Sim.invariants(state)
-            assert(good, "vi phạm bất biến (seed " .. tostring(seed) .. ", vòng " .. state.round .. "): " .. tostring(msg))
+            assert(good, violation(seed, state.round, msg))
         end
     end
 
