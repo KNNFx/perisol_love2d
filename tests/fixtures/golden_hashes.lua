@@ -12,7 +12,7 @@ return {
     ["std:10:2"] = "4f0654ff5cb5d34d",
     ["std:11:3"] = "c2a81873f4f6d58d",
     ["std:12:4"] = "644dadfad084d4e0",
-    ["rich:1:2"] = "a249c4a2490fdc44",
-    ["rich:2:3"] = "2fe2de1fa519a319",
-    ["rich:3:4"] = "aeffa2404d67f39e",
+    ["rich:1:2"] = "a266996ef9e09eb0",
+    ["rich:2:3"] = "c9bad335f2043edf",
+    ["rich:3:4"] = "edb1eeae6953935c",
 }

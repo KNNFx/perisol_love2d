@@ -15,7 +15,6 @@ local Roads      = require("src.core.roads")
 local Aura       = require("src.core.aura")
 local Structures = require("src.core.structures")
 local Territory  = require("src.core.territory")
-local Upkeep     = require("src.core.upkeep")
 local Buildings  = require("src.data.buildings")
 local Shapes     = require("src.data.shapes")
 local Strategic  = require("src.data.strategic")
@@ -195,6 +194,5 @@ function K.completeDemolitions(state, pid, events)
     end
 end
 
-Upkeep.register(K.completeDemolitions)
 
 return K

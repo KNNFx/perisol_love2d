@@ -101,15 +101,27 @@ end
 
 -- ─── Ngưỡng và trạng thái ───────────────────────────────────────────────────
 
--- Số phiếu `pid` cần để sở hữu `tile`.
--- Ô trong cụm: luôn CLUSTER_TILE_VOTES. Ô thường: 1/2/3 theo khoảng cách tới mốc (TN-06 −1).
-function T.threshold(state, pid, tile)
+-- Ngưỡng theo khoảng cách; `tn` là TN đang tính trên ô (nil = không có).
+local function thresholdWith(state, pid, tile, tn)
     if tile.settlement or tile.landmark then return C.CLUSTER_TILE_VOTES end
     local d = T.distanceToAnchor(state, pid, tile)
     local idx = math.max(1, math.min(d, #C.CHI_PHOI_THRESHOLD))
     local need = C.CHI_PHOI_THRESHOLD[idx]
-    if Structures.strategicAt(state, tile) == TN_THRESHOLD_BONUS then need = need - 1 end
+    if tn == TN_THRESHOLD_BONUS then need = need - 1 end
     return math.max(1, need)
+end
+
+-- Số phiếu `pid` cần để sở hữu `tile`.
+-- Ô trong cụm: luôn CLUSTER_TILE_VOTES. Ô thường: 1/2/3 theo khoảng cách tới mốc (TN-06 −1).
+function T.threshold(state, pid, tile)
+    return thresholdWith(state, pid, tile, Structures.strategicAt(state, tile))
+end
+
+-- Ngưỡng như lúc TN-06 còn: ô chiếm nhờ TN-06 rồi mất TN (D-020) vẫn thuộc chủ với số phiếu đó.
+-- Chỉ TN-06 được tính; ô mất TN khác thì bằng T.threshold.
+function T.thresholdAtClaim(state, pid, tile)
+    return thresholdWith(state, pid, tile, tile.strategic == TN_THRESHOLD_BONUS and tile.strategic or
+        Structures.strategicAt(state, tile))
 end
 
 -- "owned" | "contested" | "none".  Contested = chưa có chủ nhưng đã có phiếu.

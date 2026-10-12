@@ -15,7 +15,6 @@ local Roads      = require("src.core.roads")
 local Derived    = require("src.core.derived")
 local Rebel      = require("src.core.rebel")
 local Structures = require("src.core.structures")
-local Upkeep     = require("src.core.upkeep")
 local Buildings  = require("src.data.buildings")
 local Strategic  = require("src.data.strategic")
 local Terrains   = require("src.data.terrains")
@@ -118,6 +117,5 @@ function Passives.step(state, pid, events)
     end
 end
 
-Upkeep.register(Passives.step)
 
 return Passives

@@ -18,7 +18,6 @@ local Roads      = require("src.core.roads")
 local State      = require("src.core.state")
 local Structures = require("src.core.structures")
 local Territory  = require("src.core.territory")
-local Upkeep     = require("src.core.upkeep")
 local Movement   = require("src.data.movement")
 local Strategic  = require("src.data.strategic")
 
@@ -427,6 +426,5 @@ function U.startTurn(state, pid, events)
     end
 end
 
-Upkeep.register(U.startTurn)
 
 return U

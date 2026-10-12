@@ -164,6 +164,8 @@ function Invariants.check(state)
         if not Territory.isAnchorTile(state, tile) then
             local have = Territory.votesOn(state, tile, pid)
             local need = Territory.threshold(state, pid, tile)
+            -- D-020: ô chiếm nhờ TN-06 rồi mất TN (dỡ công trình) vẫn thuộc chủ: xét theo ngưỡng lúc TN-06 còn
+            if state.lostStrategic[k] then need = Territory.thresholdAtClaim(state, pid, tile) end
             if have < need then
                 return false, string.format("ô %s của P%d có %d phiếu < ngưỡng %d", k, pid, have, need)
             end
