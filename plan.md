@@ -290,7 +290,7 @@ Each phase ends with `test.bat` green, `lovec . --sim 100` clean, a UI check (sc
 
 ## P4 — M2 Cards (≈3 weeks)
 
-1. **Card engine:** data files `src/data/cards/tech.lua`, `edicts.lua`, `events.lua`, generated from `Perisol_Cards_v1.2.md` (30 + 30 + 20). Each card is `{id, name, cost, levels={...}, effect = function/handler key}`. Use an **effect registry** (`effects[cardId] = {onPlay, onTrigger, modifiers}`) plus an event bus (`onRoll`, `onBuild`, `onRebelStop`, `onEventFlip`…) so cards hook in without editing core code.
+1. **Card engine:** data files `src/data/cards/tech.lua`, `edicts.lua`, `events.lua`, generated from `Perisol_Cards_v1.2.md` (30 + 30 + 20). Each card is `{id, name, cost, levels={...}, effect = function/handler key}`. Build three cards of each timing type first (Tức Thì, Phản Ứng, Nội Tại), using the hooks that already exist: `prompt` (reaction windows), `Upkeep` (passive steps), the `character`/`tech` modifier stages and `Game.price` (cost). Only after those nine cards work, extract the shared part (an effect registry and an event bus) from what they repeat, so cards hook in without editing core code. See `docs/Architecture_Hardening_Plan.md` §1 for the rule.
 2. **Global Events:** 4 decks of 5, one flipped at rounds 5/10/15/20, resolved in the Resolution phase in order.
 3. **Tech tree:** buy (3 KH + 3 KT), maximum 5 active, upgrade cost `ceil(prev × 1.8) + Gold`, effects registered as modifiers.
 4. **Edicts:** buy (2 VH + 2 KT + 2 V), a hidden hand (opponents see only the count; hot-seat needs a "pass the screen" privacy cover). There are 3 timing types:
@@ -343,4 +343,4 @@ Each phase ends with `test.bat` green, `lovec . --sim 100` clean, a UI check (sc
 
 1. Owner review of the open items at the end of D-014..D-019 (shapes, S-04 blockade and Long Mạch radius, Tín Phiếu rules, Sub C2 threshold, and so on).
 2. Playtest #1 (M1, P2 checklist) and playtest #2 (M1.5: roads, trade, Derived, Specials). Tuning only touches `constants.lua` and `src/data/*.lua`.
-3. Start P4 (M2 Cards): card data, effect registry and event bus. The M1.5 hooks it will use are the `prompt` phase (reaction Edicts), `Upkeep` steps, the modifier stages `character`/`tech`, and the stubs listed in D-019.
+3. Start P4 (M2 Cards): card data, then three cards of each timing type on the existing hooks before extracting a registry (see P4 item 1). The M1.5 hooks it will use are the `prompt` phase (reaction Edicts), `Upkeep` steps, the modifier stages `character`/`tech`, and the stubs listed in D-019.

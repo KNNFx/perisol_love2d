@@ -1,7 +1,7 @@
 # Perisol — Kế hoạch chuẩn hóa kiến trúc và siết contract
 
 Lập ngày 2026-10-12, trên commit `63abf37` (M0, M1, M1.5 đã xong; M2 chưa bắt đầu).
-Trạng thái: **đề xuất, chưa thực hiện.** Ba quyết định ở Giai đoạn 0 đang chờ chủ dự án.
+Trạng thái: **đã thực hiện tới commit `b2edf5d` (ghi ngày 2026-10-13).** Ba quyết định ở Giai đoạn 0 đã chốt. Các ô còn `[ ]` ở Giai đoạn 1–4 có lý do ghi ngay dưới, và danh sách tổng nằm ở cuối tài liệu (mục 11).
 
 Tài liệu này là kế hoạch làm việc, không phải nguồn luật chơi. Luật vẫn nằm ở GDD, `Perisol_Data.md` và `Decisions.md`.
 
@@ -38,6 +38,21 @@ Mỗi hạng mục, kể cả design pattern, phải qua cả ba. Thiếu một 
 ## 2. Hiện trạng làm căn cứ
 
 Số liệu đo ngày 2026-10-12 trên Linux, LÖVE 11.5 và LuaJIT.
+
+### Trước → sau
+
+Cột "Trước" là mốc lịch sử 2026-10-12 (giữ nguyên bên dưới). Cột "Sau" đo ngày 2026-10-13 trên commit `b2edf5d`.
+
+| Chỉ số | Trước (2026-10-12) | Sau (2026-10-13) |
+|---|---|---|
+| Số ca test pass | 255 (chạy bằng LÖVE) | 307 (chạy bằng `luajit`, `make test`) |
+| Bản `canAfford` | 3 | 1 (`Wallet.canAfford`) |
+| Chỗ ghi `.res` ngoài module chủ | 24 | 0 (`make layer`) |
+| Điểm `Game.check` ném lỗi với lệnh méo | 5 | 0 (`tests/fuzz_spec.lua`) |
+| Trường state sinh lười | 11 | 0 |
+| File nối tay khóa ô | 10 | 1 (`src/core/hex.lua`) |
+| Cặp UI lệch core về "đủ tiền" | 17 | 0 |
+| Lỗi bất biến seed 5006 (2 người, rich) | Có | Hết (`make sweep N=1 BASE=5006 RICH=1`: 0 ván lỗi) |
 
 ### Cái đang giữ được
 
@@ -112,14 +127,15 @@ Làm trước vì đây là lưới an toàn cho mọi bước sau. Người, ag
 
 Việc cần làm:
 
-- [ ] `Makefile` với các target trên
-- [ ] `tests/runner.lua`: thay `love.filesystem.getDirectoryItems` bằng danh sách spec không phụ thuộc LÖVE
-- [ ] `tools/sim.lua`, `tools/sweep.lua`, `tools/cover.lua` chạy bằng `luajit`; `main.lua` chỉ còn bootstrap và cờ dev của scene
-- [ ] `Sim.play` chế độ `rich`: ghi các lần nạp tài nguyên vào bản repro để phát lại được
-- [ ] Kiểm tra lớp trong `make check`: `src/core` không chứa `love.`; không ghi thẳng `state.roads` / `state.units` / vị trí Phiến Quân ngoài module chủ (bật sau Giai đoạn 2)
-- [ ] `.bat` thành shim gọi cùng cờ, hoặc bỏ theo quyết định ở Giai đoạn 0
+- [x] `Makefile` với các target trên (có đủ `help`, `check`, `test`, `test-love`, `sim`, `sim-rich`, `sweep`, `repro`, `cover`, `run`, `shot`; thêm `layer`, `hash`, `hash-write`)
+  > **Lệch:** `make cover` còn khoảng trống khai báo trong `tools/cover_gaps.lua`: 3 lệnh (`buildSpecial`, `upgradeSpecial`, `fortressStrike`) và 6 event (`fortress_strike`, `special_built`, `special_upgrade`, `broadcast`, `rebel_pushed`, `seven_cancelled`).
+- [x] `tests/runner.lua`: không còn `love.filesystem`; danh sách `SPECS` khai tường minh, ca `it.love` bị bỏ qua khi không có LÖVE
+- [x] `tools/sim.lua`, `tools/sweep.lua`, `tools/cover.lua` chạy bằng `luajit`; `main.lua` chỉ còn bootstrap và cờ dev của scene
+- [x] `Sim.play` chế độ `rich`: ghi các lần nạp tài nguyên (`topups`) vào bản repro để phát lại được
+- [x] Kiểm tra lớp trong `make check` (target `layer`): `src/core` không chứa `love.`; không ghi thẳng `state.roads` / `state.units` / vị trí Phiến Quân ngoài module chủ
+- [x] `.bat` thành shim gọi cùng cờ với Makefile (giữ Windows là máy dev phụ; Makefile là nguồn chính)
 
-**Xong khi:** `make check` xanh trên máy sạch, và `make sweep` tái hiện được lỗi seed 5006.
+**Xong khi:** `make check` xanh (đo ở mốc này), và `make sweep` với seed 5006 hiện không còn lỗi. Chưa xác minh trên máy sạch.
 
 ---
 
@@ -137,14 +153,19 @@ Mỗi dòng: viết test trước, rồi mới sửa code.
 | Chủ sở hữu ghi | `Rebel.moveTo`, `Roads.upgrade`, dùng `Units.remove` | "Phá hoại hạ tầng", thẻ dời Phiến Quân cần một điểm móc | Grep trong `make check` |
 | Đầu lượt | Danh sách bước khai tường minh một chỗ theo D-021 | "Mỗi vòng" trong D-014 | Spec thứ tự |
 
-- [ ] Tài nguyên
-- [ ] Giá hiệu lực
-- [ ] State
-- [ ] Save
-- [ ] Lệnh
-- [ ] Chủ sở hữu ghi
-- [ ] Đầu lượt (cần D-021)
-- [ ] Bất biến TN-06 (cần D-020)
+- [x] Tài nguyên: `Wallet` (`src/core/wallet.lua`) là nơi duy nhất ghi `player.res`; `units.lua` không tự trừ tài nguyên nữa.
+  > **Lệch:** test "bảo toàn tài nguyên khớp tổng event" không làm. Thay bằng: sau mỗi lệnh không tài nguyên nào âm, Tín Phiếu không vượt trần. Hiện thực trong `tests/wallet_spec.lua` (10 ván sim, kiểm qua `onCommand` của `Sim.play`). Riêng `Invariants.check` chạy sau mỗi lượt (`endTurn`) và cuối ván trong `Sim.play`.
+- [ ] Giá hiệu lực: UI và core đều đọc `Game.price` (một hàm), nên phần "nguồn giá chung" đã xong.
+  > **Chưa xong:** pipeline modifier cho giá chưa có, vì chưa có nội dung nào đăng ký giảm giá. Làm khi có giảm giá đầu tiên (Tech, kỹ năng nhân vật, phụ phí Sắc Lệnh).
+- [x] State: `State.new` khai đủ mọi trường; `Invariants.shape` kiểm hình dạng khi nạp save.
+  > **Lệch:** không có spec riêng. Contract được canh qua test save: fixture nạp xong đúng hình dạng `Game.new` (`tests/save_spec.lua`).
+- [x] Save: migration v1→v4 trong `Game.load` (`MIGRATIONS`); fixture `v1`, `v2`, `v3`, `v3_thieu_truong` trong `tests/fixtures/saves` nạp được.
+  > **Lệch:** còn một chỗ vá `or {}` trong migration v3→v4 (`src/core/game.lua`). Không còn trong `Game.load`.
+- [x] Lệnh: `tests/fuzz_spec.lua` (lệnh méo); `Game.check` không ném lỗi.
+- [x] Chủ sở hữu ghi: `Rebel.moveTo`, `Roads.build/upgrade/damage*`, `Units.spawn/remove` là điểm ghi duy nhất.
+  > **Lệch:** canh bằng grep trong `make layer`, không bằng test.
+- [x] Đầu lượt (cần D-021): `Upkeep.steps` khai tường minh (demolish → passives → units); `tests/upkeep_spec.lua` canh thứ tự.
+- [x] Bất biến TN-06 (cần D-020): `Invariants.check` nới cho ô trong `state.lostStrategic`; `tests/tn06_spec.lua`.
 
 **Xong khi:** mỗi contract có ít nhất một test đỏ khi vi phạm, và `make check` + `make sweep N=200` xanh.
 
@@ -154,23 +175,24 @@ Mỗi dòng: viết test trước, rồi mới sửa code.
 
 Không đổi hành vi. `make check` và `make sweep` là lưới an toàn; state cuối của các seed mốc phải giữ nguyên.
 
-- [ ] `State.key` và `State.unkey` duy nhất; bỏ `Hex.key` trùng, `key` riêng ở `game_layers.lua`, các chỗ nối chuỗi và regex parse tay
-- [ ] `Structures.marketsOf(state, pid)` thay 4 bản chép vị từ Khu Chợ
-- [ ] Hằng tên cho đủ 12 TN trong `data/strategic.lua`; core thôi dùng chuỗi `"TN-xx"`
-- [ ] Hằng cho ngưỡng cấp trong `constants.lua`: HQ C4 (Hiệp Sĩ), HQ C5 (aura), Chợ C3, Sub C3, đường Lát Đá, thưởng hủy tổng 7
-- [ ] Payload event thống nhất `pid`, `q`, `r` (sửa `rebel_step.to`)
-- [ ] Sửa nhãn `PHASE_NAME.prompt` cho `cancel7` / `pushrebel`
-- [ ] Gộp ba dòng `Game.prompts = Game.prompts or {}`; cập nhật comment đầu `game.lua` và `state.lua`
+- [x] Khóa ô: một nguồn duy nhất trong `src/core/hex.lua` (`Hex.key`, `Hex.keyQR`, `Hex.unkey`). Key riêng ở `game_layers.lua`, chỗ nối chuỗi và regex parse tay đã bỏ.
+  > **Lệch:** khóa ô đặt ở `hex.lua` (module không require gì), không ở `State`. `State.key` và `State.unkey` chỉ là alias.
+- [x] `Structures.marketsOf(state, pid)` (predicate `Structures.isMarket`) thay các bản chép vị từ Khu Chợ (`trade.lua`, `territory.lua`, `units.lua`).
+- [x] Hằng tên cho đủ 12 TN trong `data/strategic.lua` (`Strategic.GRANITE` … `Strategic.LEY_NODE`); core không còn chuỗi `"TN-xx"`.
+- [x] Hằng cho ngưỡng cấp trong `constants.lua`: `C.HQ_KNIGHT_LEVEL`, `C.HQ_AURA_LEVEL`, `C.MARKET_C3_LEVEL`, `C.SUB_C3_LEVEL`, `C.ROAD_STONE_LEVEL`, `C.SEVEN_CANCEL_FAITH`.
+- [x] Sửa nhãn: `PROMPT_NAME` trong `src/scenes/game.lua` có `cancel7` và `pushrebel`.
+- [x] Gộp `Game.prompts = {}` còn một dòng (`src/core/game.lua`); comment đầu `game.lua` và `state.lua` mô tả registry và trường `prompt`.
 
-**Xong khi:** hash state cuối của bộ seed mốc không đổi so với trước giai đoạn này.
+**Xong khi:** `make check` xanh, trong đó `make hash` so golden hash với fixture (đo ở mốc này).
+  > **Lệch:** golden hash chạy qua `tools/hash.lua` trong `make check`, không nằm trong bộ spec.
 
 ---
 
 ## 7. Giai đoạn 4 — Đồng bộ tài liệu
 
-- [ ] `CLAUDE.md`: mục Commands trỏ về `make`; sửa câu "không có Lua standalone"; sửa thứ tự upkeep; thêm mục "Contract" ngắn kèm bộ lọc 3 câu
-- [ ] `docs/Decisions.md`: D-020, D-021
-- [ ] `plan.md`: P4 đổi "effect registry and event bus" thành "trích sau 3 thẻ mỗi loại"; trỏ sang tài liệu này
+- [x] `CLAUDE.md`: mục Commands trỏ về `make`; câu "không có Lua standalone" đã sửa; thứ tự upkeep đã khớp D-021; thêm mục "Contracts and tests" kèm bộ lọc 3 câu
+- [x] `docs/Decisions.md`: D-020, D-021 (đã có từ trước, `d5ced22`)
+- [x] `plan.md`: P4 đổi "effect registry and event bus" thành "viết 3 thẻ mỗi loại trước, trích sau"; trỏ sang tài liệu này
 
 ---
 
@@ -183,10 +205,20 @@ Không đổi hành vi. `make check` và `make sweep` là lưới an toàn; stat
 | Tách file `scenes/game.lua` theo popup/panel | Khi bắt đầu UI thẻ bài |
 | Bot tham lam, bot theo trường phái, chỉ số cân bằng, quét hằng số | Sau Giai đoạn 1, song song với M2 |
 | `Production.modifiers` thành instance thay vì singleton | Khi có test hoặc tính năng cần hai registry |
+| Payload event thống nhất `pid`, `q`, `r` (sửa `rebel_step.to`) | Khi thẻ hoặc UI đầu tiên phải đọc event theo vị trí/người chơi một cách tổng quát |
+| Gỡ `require` muộn `units.lua` trong `Rebel.stop` (`src/core/rebel.lua`) | Khi chạm lại hai module `rebel.lua` và `units.lua` |
 
 ---
 
-## 9. Thứ tự và phụ thuộc
+## 9. Nguyên tắc test
+
+- Test kiểm **đầu vào, kết quả và side effect**. Không kiểm cách cài đặt: cấu trúc bên trong, tên nội bộ, thứ tự nạp module, nội dung mã nguồn.
+- Kiểm tra cấu trúc (lớp, ai được ghi gì) thuộc về `make layer`, không thuộc về spec.
+- Không viết test để lấy coverage hay để đạt chỉ tiêu số lượng.
+
+---
+
+## 10. Thứ tự và phụ thuộc
 
 ```
 Giai đoạn 0 (quyết định) ──┐
@@ -195,3 +227,12 @@ Giai đoạn 1 (Makefile) ────┘
 ```
 
 Giai đoạn 1 bắt đầu được ngay. Trong Giai đoạn 2, chỉ hai mục "Đầu lượt" và "Bất biến TN-06" phải chờ quyết định.
+
+---
+
+## 11. Ô còn lại (đo 2026-10-13)
+
+| Ô | Lý do chưa xong |
+|---|---|
+| Giai đoạn 2 — Giá hiệu lực (pipeline modifier cho giá) | Chưa có nội dung nào đăng ký giảm giá. Xem dòng "Chưa xong" ở Giai đoạn 2. |
+| Xong khi Giai đoạn 1 và 2 trên máy sạch | Chưa thử trên máy sạch. `make check` và `make sweep` chạy trên máy dev hiện tại. |

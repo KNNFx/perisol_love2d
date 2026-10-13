@@ -1,8 +1,8 @@
 -- Trạng thái ván chơi: chỉ chứa dữ liệu thuần (serialize được), trừ `map` là tham chiếu sinh lại từ
 -- (seed, players) nên KHÔNG bao giờ được lưu (D-011). Thuần Lua, không gọi love.*.
 --
--- HÌNH DẠNG CỐ ĐỊNH: State.new khai MỌI trường mà một ván có thể mang; không trường nào được sinh lười giữa ván
--- (tests/state_spec.lua canh). Trường "chưa có giá trị" dùng `false` (không dùng nil: nil làm khóa biến mất khỏi bảng,
+-- HÌNH DẠNG CỐ ĐỊNH: State.new khai MỌI trường mà một ván có thể mang; không trường nào được sinh lười giữa ván.
+-- Trường "chưa có giá trị" dùng `false` (không dùng nil: nil làm khóa biến mất khỏi bảng,
 -- nên save, so sánh và hash không còn thấy trường). Đọc bằng `if state.rebel then` / `not p.hq`, đừng so với nil.
 -- Thêm trường mới = thêm vào đây + tăng C.SAVE_VERSION + viết migration trong Game.load (src/core/game.lua).
 --
