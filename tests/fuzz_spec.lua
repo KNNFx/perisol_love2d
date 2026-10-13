@@ -6,8 +6,7 @@ local Game      = require("src.core.game")
 local Rng       = require("src.core.rng")
 local Sim       = require("src.core.sim")
 local State     = require("src.core.state")
-
-local PHASES = { "setup_hq", "roll", "rebel_move", "rebel_loss", "prompt", "action", "over" }
+local Units     = require("src.core.units")
 
 -- Mẫu lệnh hợp lệ về hình dạng cho mọi loại (giá trị có thể sai ngữ cảnh), để đột biến khi Game.legal không có loại đó.
 local TEMPL = {
@@ -339,42 +338,71 @@ local function run()
     return R
 end
 
-local function report(R)
-    local names = {}
-    for k in pairs(R.byClass) do names[#names + 1] = k end
-    table.sort(names)
-    local parts = {}
-    for _, k in ipairs(names) do parts[#parts + 1] = k .. "=" .. R.byClass[k] end
-    print(string.format("  fuzz: %d lệnh (%s)", R.total, table.concat(parts, " ")))
-    parts = {}
-    for _, ph in ipairs(PHASES) do parts[#parts + 1] = ph .. "=" .. (R.statesByPhase[ph] or 0) .. "state/" .. (R.byPhase[ph] or 0) .. "lệnh" end
-    print("  fuzz: theo pha " .. table.concat(parts, " "))
-    print(string.format("  fuzz: chấp nhận %d, từ chối %d; check ném %d, lý do hỏng %d, state đổi %d, apply ném sau check ok %d, legal ném %d",
-        R.accepted, R.rejected, R.checkThrew, R.badReason, R.stateChanged, R.applyAcceptedThrew, R.legalThrew))
+-- Điểm vỡ gom theo file:dòng, để thông điệp của ca đỏ đủ để tìm chỗ sửa.
+local function siteLines(R, kindPrefix)
     local keys = {}
-    for k in pairs(R.sites) do keys[#keys + 1] = k end
+    for k in pairs(R.sites) do if k:sub(1, #kindPrefix) == kindPrefix then keys[#keys + 1] = k end end
     table.sort(keys)
+    local out = {}
     for _, k in ipairs(keys) do
-        local s = R.sites[k]
+        local st = R.sites[k]
         local cl = {}
-        for c in pairs(s.classes) do cl[#cl + 1] = c end
+        for c in pairs(st.classes) do cl[#cl + 1] = c end
         table.sort(cl)
-        print(string.format("  fuzz-site: %s x%d [%s] mẫu: %s", k, s.n, table.concat(cl, ","), s.sample))
+        out[#out + 1] = string.format("%s x%d [%s] mẫu: %s", k, st.n, table.concat(cl, ","), st.sample)
     end
+    return table.concat(out, "\n       ")
+end
+
+-- Chạy fuzz đúng một lần, lúc ca đầu tiên cần; nếu lần chạy ném lỗi thì mọi ca dùng chung kết quả đều đỏ (runner không sập).
+local cached
+local function result()
+    if not cached then
+        local ok, R = pcall(run)
+        cached = { ok = ok, R = R }
+    end
+    if not cached.ok then error("fuzz không chạy xong: " .. tostring(cached.R), 0) end
+    return cached.R
+end
+
+local function noneOf(counter, kindPrefix, msg)
+    local R = result()
+    if R[counter] ~= 0 then error(msg .. ": " .. R[counter] .. "\n       " .. siteLines(R, kindPrefix), 0) end
 end
 
 describe("fuzz: lệnh méo", function()
-    local t0 = os.clock()
-    local R = run()
-    local elapsed = os.clock() - t0
-
-    it("Game.check không bao giờ ném lỗi", function()
-        report(R)
-        print(string.format("  fuzz: %.1f giây", elapsed))
-        expect.eq(R.checkThrew, 0, "số lần check ném lỗi")
+    it("Game.check không bao giờ ném lỗi", function() noneOf("checkThrew", "check threw", "số lần check ném lỗi") end)
+    it("Game.legal không ném lỗi ở mọi state đã thu", function() noneOf("legalThrew", "legal threw", "legal ném lỗi") end)
+    it("lệnh bị từ chối luôn trả false kèm lý do chuỗi không rỗng", function()
+        noneOf("badReason", "rejected without", "từ chối không kèm lý do")
     end)
-    it("Game.legal không ném lỗi ở mọi state đã thu", function() expect.eq(R.legalThrew, 0) end)
-    it("lệnh bị từ chối luôn trả false kèm lý do chuỗi không rỗng", function() expect.eq(R.badReason, 0) end)
-    it("lệnh bị từ chối không làm đổi state", function() expect.eq(R.stateChanged, 0) end)
-    it("lệnh check cho qua thì apply không ném lỗi", function() expect.eq(R.applyAcceptedThrew, 0) end)
+    it("lệnh bị từ chối không làm đổi state", function() noneOf("stateChanged", "state changed", "state đổi sau lệnh bị từ chối") end)
+    it("lệnh check cho qua thì apply không ném lỗi", function()
+        noneOf("applyAcceptedThrew", "apply threw", "apply ném sau check ok")
+    end)
+
+    -- Tọa độ là chuỗi số ("3") không được coi như số: lệnh bị từ chối kèm lý do và state không đổi.
+    it("lệnh có tọa độ chuỗi số bị từ chối, state không đổi", function()
+        local s, pid, c = require("tests.arena")(4, 2)
+        local cq, cr = tostring(c.q), tostring(c.r)
+        local u = Units.spawn(s, pid, "expedition", c)
+        -- bản đúng kiểu của chính các lệnh này phải qua được, để biết lệnh chuỗi bị từ chối vì tọa độ chứ không vì lý do khác
+        expect.truthy(Game.check(s, { type = "build", id = "B-01", q = c.q, r = c.r }))
+        local cmds = {
+            { type = "placeVote", q = cq, r = cr }, { type = "placeVote", q = c.q, r = cr },
+            { type = "buyTile", q = cq, r = cr }, { type = "build", id = "B-01", q = cq, r = cr },
+            { type = "moveUnit", uid = u.uid, q = cq, r = cr }, { type = "upgradeRoad", q = cq, r = cr },
+            { type = "buyUnit", unit = "expedition", q = cq, r = cr },
+        }
+        local before = deepCopy(State.snapshot(s))
+        local hist = #s.history
+        for _, cmd in ipairs(cmds) do
+            local ok, why = Game.check(s, cmd)
+            expect.falsy(ok, cmd.type .. " với tọa độ chuỗi phải bị từ chối")
+            expect.truthy(type(why) == "string" and why ~= "", cmd.type .. " thiếu lý do")
+            pcall(Game.apply, s, cmd)
+        end
+        expect.eq(#s.history, hist, "history không được nhận lệnh bị từ chối")
+        expect.truthy(same(State.snapshot(s), before), "state không đổi")
+    end)
 end)

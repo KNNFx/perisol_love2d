@@ -5,7 +5,7 @@
 --   1. demolish   hoàn tất dỡ công trình (TN trên ô mất vĩnh viễn)
 --   2. passives   thu nhập thụ động, kèm dọn và đếm nhịp Phái Sinh
 --   3. units      reset điểm di chuyển, trả Vàng duy trì đơn vị (thu nhập ở bước 2 trả được upkeep của chính lượt này)
--- Mỗi bước: fn(state, pid, events). M2 (thẻ Nội Tại) thêm bước bằng Upkeep.register, chạy sau ba bước trên.
+-- Mỗi bước: fn(state, pid, events). M2 (thẻ Nội Tại) sẽ thêm bước vào danh sách này, sau ba bước trên.
 
 local Construction = require("src.core.construction")
 local Passives     = require("src.core.passives")
@@ -14,21 +14,15 @@ local Units        = require("src.core.units")
 local Upkeep = {}
 
 Upkeep.steps = {
-    { name = "demolish", fn = Construction.completeDemolitions },
-    { name = "passives", fn = Passives.step },
-    { name = "units",    fn = Units.startTurn },
+    Construction.completeDemolitions,   -- 1. demolish
+    Passives.step,                      -- 2. passives
+    Units.startTurn,                    -- 3. units
 }
-
--- Thêm một bước vào cuối danh sách.
-function Upkeep.register(fn, name)
-    assert(type(fn) == "function", "bước upkeep phải là hàm")
-    Upkeep.steps[#Upkeep.steps + 1] = { name = name or "extra", fn = fn }
-end
 
 -- Chạy mọi bước cho `pid`. Trả events.
 function Upkeep.startTurn(state, pid)
     local events = {}
-    for _, st in ipairs(Upkeep.steps) do st.fn(state, pid, events) end
+    for _, step in ipairs(Upkeep.steps) do step(state, pid, events) end
     return events
 end
 

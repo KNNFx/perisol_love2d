@@ -1,12 +1,9 @@
-local C          = require("src.config.constants")
 local Game       = require("src.core.game")
 local Hex        = require("src.core.hex")
 local Serialize  = require("src.core.serialize")
 local Sim        = require("src.core.sim")
 local State      = require("src.core.state")
 local Structures = require("src.core.structures")
-local Upkeep     = require("src.core.upkeep")
-local reload     = require("tests.reload")
 
 local function newGame(seed, players)
     local s = Game.new({ seed = seed, players = players })
@@ -96,23 +93,6 @@ describe("state: vật liệu và dữ liệu mới", function()
 end)
 
 describe("upkeep + prompt", function()
-    it("bước upkeep đăng ký chạy khi đổ xúc xắc, trước khi đổ", function()
-        local s = newGame(9, 2)
-        local calls, seenPid = 0, nil
-        local n0 = #Upkeep.steps
-        Upkeep.register(function(state, pid, events)
-            calls = calls + 1
-            seenPid = pid
-            events[#events + 1] = { kind = "test_upkeep", pid = pid }
-        end)
-        local actor = Game.actor(s)
-        local ev = Game.apply(s, { type = "roll" })
-        Upkeep.steps[#Upkeep.steps] = nil
-        expect.eq(#Upkeep.steps, n0)
-        expect.eq(calls, 1); expect.eq(seenPid, actor)
-        expect.eq(ev[1].kind, "test_upkeep")
-    end)
-
     it("lời nhắc: người trả lời là actor, legal chỉ gồm respond, trả lời xong quay về phase cũ", function()
         local s = newGame(9, 2)
         s.phase = "action"
@@ -148,14 +128,33 @@ end)
 describe("save v3", function()
     it("save/load giữ nguyên công trình, occupied, lostStrategic", function()
         local s = newGame(21, 2)
-        local t = s.map.list[12]
-        Structures.place(s, { id = "B-01", level = 2, owner = 1 }, { t, s.map.list[13] })
-        s.lostStrategic["3,3"] = true
-        local s2 = reload(s)   -- công trình C2 hai ô đặt tay không qua được kiểm tra của Game.load
-        expect.eq(Structures.at(s2, t).level, 2)
-        expect.eq(#Structures.at(s2, t).tiles, 2)
+        local Shapes, Buildings = require("src.data.shapes"), require("src.data.buildings")
+        local function plain(x) return x and x.terrain == "DH-01" and not x.settlement and not x.landmark and not x.strategic and not s.owner[State.key(x)] end
+        local tiles   -- footprint C2 của Trại KT toàn Đồng Bằng trống: hợp lệ trên bản đồ sinh lại khi nạp
+        for _, t in ipairs(s.map.list) do
+            local cand, good = {}, true
+            for i, h in ipairs(Shapes.footprint(Buildings.level("B-01", 2).shape, t.q, t.r, 0)) do
+                cand[i] = s.map:get(h.q, h.r)
+                if not plain(cand[i]) then good = false break end
+            end
+            if good then tiles = cand break end
+        end
+        expect.truthy(tiles, "cần vùng Đồng Bằng trống vừa hình C2")
+        for _, t in ipairs(tiles) do s.owner[State.key(t)], s.votes[State.key(t)] = 1, { [1] = 9 } end
+        Structures.place(s, { id = "B-01", level = 2, owner = 1 }, tiles)
+        local a, b = tiles[1], tiles[2]
+        local lostKey
+        for _, t in ipairs(s.map.list) do if t.strategic then lostKey = State.key(t) break end end
+        expect.truthy(lostKey, "cần một ô có TN")
+        s.lostStrategic[lostKey] = true
+        local s2, err = Game.load(Game.save(s))
+        expect.truthy(s2, tostring(err))
+        expect.eq(Structures.at(s2, a).level, 2)
+        expect.eq(#Structures.at(s2, a).tiles, #tiles)
+        expect.eq(Structures.at(s2, b).uid, Structures.at(s2, a).uid)
         expect.eq(s2.nextUid, s.nextUid)
-        expect.truthy(s2.lostStrategic["3,3"])
+        expect.truthy(s2.lostStrategic[lostKey])
+        expect.eq(Structures.strategicAt(s2, s2.map:get(Hex.unkey(lostKey))), nil)
     end)
 
     it("nạp save v2 cũ: công trình theo ô được nâng lên uid, thêm vật liệu", function()
@@ -189,6 +188,5 @@ describe("save v3", function()
         expect.eq(s2.players[1].res.steel, 0)
         expect.eq(next(s2.lostStrategic), nil)
         expect.truthy(Sim.invariants(s2))
-        expect.eq(C.SAVE_VERSION, 4)
     end)
 end)

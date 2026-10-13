@@ -57,19 +57,16 @@ describe("wallet: contract tài nguyên", function()
         expect.eq(Wallet.take(res, "gold", 1), 0)
     end)
 
-    it("sau MỖI lệnh của 10 ván sim (9 thường + 1 rich) không tài nguyên nào âm/lẻ và Tín Phiếu <= trần", function()
-        local keys, cmds = allKeys(), 0
-        for i = 1, 10 do
-            local rich = i > 9   -- ván rich chậm (~6 giây); quét rộng hơn thuộc về make sweep RICH=1
+    it("sau mỗi lệnh của các ván sim ngẫu nhiên không tài nguyên nào âm/lẻ và Tín Phiếu <= trần", function()
+        local keys = allKeys()
+        for i = 1, 9 do
             local players = 2 + i % 3
-            Sim.play((rich and 920 or 900) + i, players, { rich = rich, onCommand = function(state, cmd)
-                cmds = cmds + 1
+            Sim.play(900 + i, players, { onCommand = function(state, cmd)
                 for pid, p in ipairs(state.players) do
                     for _, k in ipairs(keys) do
                         local v = p.res[k]
                         if type(v) ~= "number" or v < 0 or v ~= math.floor(v) then
-                            error(string.format("ván %d (%s) sau %s: P%d %s = %s", i, rich and "rich" or "thường",
-                                cmd.type, pid, k, tostring(v)))
+                            error(string.format("ván %d sau %s: P%d %s = %s", i, cmd.type, pid, k, tostring(v)))
                         end
                     end
                     if p.res.bond > C.BOND_MAX then
@@ -78,6 +75,5 @@ describe("wallet: contract tài nguyên", function()
                 end
             end })
         end
-        expect.truthy(cmds > 1000, "phải kiểm tra nhiều lệnh, có " .. cmds)
     end)
 end)

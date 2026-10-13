@@ -28,10 +28,10 @@ function Save.write(name, state)
     local ok, err = love.filesystem.write(tmp, str)
     if not ok then return false, "không ghi được file tạm: " .. tostring(err) end
 
-    local check = Game.load(love.filesystem.read(tmp))
+    local check, why = Game.load(love.filesystem.read(tmp))
     if not check then
         love.filesystem.remove(tmp)
-        return false, "file tạm không đọc lại được"
+        return false, "file tạm không đọc lại được: " .. tostring(why)
     end
 
     local old = love.filesystem.getInfo(main) and love.filesystem.read(main)

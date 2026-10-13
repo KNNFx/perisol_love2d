@@ -45,7 +45,7 @@ end
 -- Chơi trọn một ván. Trả state, stats. Báo lỗi nếu lệnh hợp lệ bị từ chối hoặc vi phạm bất biến.
 -- opts.rich: sau mỗi lượt nạp đầy tài nguyên và vật liệu (trừ Tín Phiếu) để ván ngẫu nhiên chạm tới Nhà Chính C3+, Phái Sinh,
 -- Đặc Biệt, trao đổi...; dùng để bắt crash ở các hệ thống ít khi xuất hiện trong ván ngẫu nhiên thường (`make sim-rich`).
--- opts.trace: bảng do người gọi cấp; Sim.play điền {state, topups} để dựng bản repro kể cả khi ván lỗi giữa chừng.
+-- opts.trace: bảng do người gọi cấp; Sim.play điền {state, topups, failedCmd} để dựng bản repro kể cả khi ván lỗi giữa chừng.
 
 -- topups[n] = danh sách {pid, key, value} đã nạp ngay sau lệnh thứ n của history (luôn là endTurn).
 local RICH_FLOOR = 25
@@ -54,8 +54,13 @@ local function violation(seed, round, msg)
     return string.format("vi phạm bất biến (seed %s, vòng %d): %s", tostring(seed), round, tostring(msg))
 end
 
--- Phát lại bản repro {seed, players, rich, history, topups}: áp lại từng lệnh, nạp lại tài nguyên đúng chỗ, kiểm tra bất biến
--- như Sim.play. Trả true, state nếu không lỗi; nếu lỗi trả false, thông điệp (cùng thông điệp với Sim.play), state.
+local function rejectedMsg(cmd, reason)
+    return "lệnh trong legal() bị check() từ chối: " .. tostring(cmd.type) .. " - " .. tostring(reason)
+end
+
+-- Phát lại bản repro {seed, players, rich, history, topups, failedCmd}: áp lại từng lệnh, nạp lại tài nguyên đúng chỗ, kiểm tra bất biến
+-- như Sim.play; rồi nếu có `failedCmd` (lệnh legal() đưa ra nhưng check() từ chối, chưa vào history) thì check lại nó.
+-- Trả true, state nếu không lỗi; nếu lỗi trả false, thông điệp (cùng thông điệp với Sim.play), state.
 function Sim.replay(repro)
     local state = Game.new({ seed = repro.seed, players = repro.players })
     for n, cmd in ipairs(repro.history) do
@@ -69,6 +74,10 @@ function Sim.replay(repro)
     end
     local good, msg = Sim.invariants(state)
     if not good then return false, "vi phạm bất biến cuối ván (seed " .. tostring(repro.seed) .. "): " .. tostring(msg), state end
+    if repro.failedCmd then
+        local ok, reason = Game.check(state, repro.failedCmd)
+        if not ok then return false, rejectedMsg(repro.failedCmd, reason), state end
+    end
     return true, state
 end
 
@@ -94,7 +103,8 @@ function Sim.play(seed, players, opts)
         perTurn = perTurn + 1
 
         local ok, reason = Game.check(state, cmd)
-        assert(ok, "lệnh trong legal() bị check() từ chối: " .. tostring(cmd.type) .. " - " .. tostring(reason))
+        if not ok and trace then trace.failedCmd = cmd end   -- chưa vào history: repro phải mang theo để áp lại
+        assert(ok, rejectedMsg(cmd, reason))
         local events = Game.apply(state, cmd)
         if opts.onCommand then opts.onCommand(state, cmd, events) end   -- móc kiểm tra theo từng lệnh (spec)
         for _, e in ipairs(events) do

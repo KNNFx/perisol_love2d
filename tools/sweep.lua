@@ -28,7 +28,7 @@ for i = 0, count - 1 do
         local path = string.format("build/repro/%d.lua", seed)
         local f = assert(io.open(path, "w"))
         f:write(Serialize.dump({ seed = seed, players = players, rich = rich, message = msg,
-            history = trace.state and trace.state.history or {}, topups = trace.topups or {} }))
+            history = trace.state and trace.state.history or {}, topups = trace.topups or {}, failedCmd = trace.failedCmd }))
         f:close()
         print("  repro: " .. path)
     end

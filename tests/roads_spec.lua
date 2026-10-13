@@ -12,7 +12,6 @@ local Trade        = require("src.core.trade")
 local Units        = require("src.core.units")
 local Upkeep       = require("src.core.upkeep")
 local arena        = require("tests.arena")
-local reload       = require("tests.reload")
 
 local key = State.key
 
@@ -363,18 +362,43 @@ describe("trade: giữa người chơi", function()
         expect.truthy(Game.check(s, { type = "respond", choice = "decline" }))
     end)
 
-    it("legal() có đề xuất 1 đổi 1 khi có tuyến; lời nhắc sống qua save/load", function()
+    it("legal() có đề xuất 1 đổi 1 khi có tuyến", function()
         local s, pid, other = setup()
         local n = 0
         for _, cmd in ipairs(Game.legal(s)) do
             if cmd.type == "proposeTrade" then n = n + 1; expect.truthy(Game.check(s, cmd)) end
         end
         expect.truthy(n > 0)
+    end)
+
+    it("F5 khi đang chờ trả lời đề xuất trao đổi: nạp lại vẫn chờ đúng người, trả lời xong ván chơi tiếp", function()
+        -- Ván seed 5, hai Khu Chợ kề nhau trên ô có địa hình thật hợp lệ cho Khu Chợ (Game.load sinh lại bản đồ từ seed).
+        local s, pid, c = arena(5, 2)
+        local real = Game.new({ seed = 5, players = 2 }).map
+        local ALLOWED = { ["DH-01"] = true, ["DH-05"] = true, ["DH-07"] = true, ["DH-10"] = true }
+        local mine, theirs
+        for _, h in ipairs(Hex.range(c, 2)) do
+            local nb = Hex.add(h, { q = 1, r = 0 })
+            if Hex.distance(c, nb) <= 2 and ALLOWED[real:get(h.q, h.r).terrain] and ALLOWED[real:get(nb.q, nb.r).terrain] then
+                mine, theirs = s.map:get(h.q, h.r), s.map:get(nb.q, nb.r)
+                break
+            end
+        end
+        expect.truthy(mine, "seed 5 phải có hai ô kề hợp lệ trong vùng")
+        local other = 3 - pid
+        s.owner[key(theirs)], s.votes[key(theirs)] = other, { [other] = 9 }
+        Structures.place(s, { id = "B-05", level = 1, owner = pid }, { mine })
+        Structures.place(s, { id = "B-05", level = 1, owner = other }, { theirs })
+        for k in pairs(s.players[other].res) do s.players[other].res[k] = (k == "bond") and 0 or 20 end
+
         Game.apply(s, { type = "proposeTrade", to = other, give = { science = 1 }, get = { culture = 1 } })
-        local s2 = reload(s)   -- thế cờ dựng tay không qua được kiểm tra của Game.load
+        local s2, err = Game.load(Game.save(s))
+        expect.truthy(s2, tostring(err))
         expect.eq(s2.phase, "prompt"); expect.eq(s2.prompt.kind, "trade"); expect.eq(Game.actor(s2), other)
+        local sci, cul = s2.players[pid].res.science, s2.players[pid].res.culture
         Game.apply(s2, { type = "respond", choice = "accept" })
-        expect.eq(s2.phase, "action")
+        expect.eq(s2.phase, "action"); expect.eq(Game.actor(s2), pid)
+        expect.eq(s2.players[pid].res.science, sci - 1); expect.eq(s2.players[pid].res.culture, cul + 1)
     end)
 
     it("đổi ngân hàng 1:1 khi có Khu Chợ C2+ đứng trên TN-06 của mình; ngược lại 4:1", function()

@@ -377,6 +377,18 @@ describe("game: lưu / nạp / phát lại", function()
         expect.falsy(Save.exists(name))
         expect.eq((Save.read(name)), nil)
     end)
+
+    it.love("Save.write thất bại thì báo lý do bất biến bị vi phạm và không để lại file", function()
+        local name = "test_save_fail"
+        Save.remove(name)
+        local s = setup(44, 2)
+        s.players[1].res.bond = C.BOND_MAX + 1
+        local ok, err = Save.write(name, s)
+        expect.falsy(ok)
+        expect.truthy(tostring(err):find("Tín Phiếu", 1, true), "thông báo phải nêu lý do: " .. tostring(err))
+        expect.falsy(Save.exists(name))
+        Save.remove(name)
+    end)
 end)
 
 describe("scoring", function()

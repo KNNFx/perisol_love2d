@@ -3,9 +3,7 @@ local Fmt     = require("src.ui.log_format")
 local Tween   = require("src.ui.tween")
 local Actions = require("src.input.actions")
 local Game    = require("src.core.game")
-local Wallet  = require("src.core.wallet")
 local Territory = require("src.core.territory")
-local Buildings = require("src.data.buildings")
 
 describe("ui: log_format", function()
     it("sản xuất chia sẻ ghi rõ người nhận và người đổ", function()
@@ -88,56 +86,42 @@ describe("input: actions", function()
     end)
 end)
 
--- Luật bật/tắt nút của UI phải trùng nguồn giá mà Game.check dùng. Mỗi "cặp" = (state, lựa chọn mua/xây/nâng):
--- bên UI là hàm scenes/game.lua gọi, bên core tính độc lập từ Game.buildCost / Game.upgradeCost.
-describe("ui: giá hiệu lực khớp core", function()
-    local function sameCost(a, b)
-        for k, n in pairs(a) do if (b[k] or 0) ~= n then return false end end
-        for k, n in pairs(b) do if (a[k] or 0) ~= n then return false end end
-        return true
+-- Nút Xây của UI (Game.affordBuild) phải dựa trên giá THỰC trên ô, không phải giá gốc: lỗi cũ là nút tối dù đủ tiền
+-- khi ô có giảm giá (TN-08 Đất Màu Mỡ: Trại KT C1 giảm 1 KT).
+describe("ui: nút Xây theo giá hiệu lực", function()
+    local function newPosition()
+        local s, pid, plain = require("tests.arena")()
+        local discounted
+        for _, t in ipairs(Territory.ownedTiles(s, pid)) do
+            if t ~= plain and Game.buildCheck(s, pid, "B-01", t) then discounted = t break end
+        end
+        discounted.strategic = "TN-08"            -- đúng một ô thực hữu được giảm giá
+        local full = Game.buildCost(s, pid, "B-01", plain)
+        local cut = Game.buildCost(s, pid, "B-01", discounted)
+        expect.truthy(cut.engineering < full.engineering, "thế cờ phải có giảm giá")
+        return s, pid, discounted, plain, full, cut
+    end
+    local function setRes(s, pid, cost, less)
+        for k in pairs(s.players[pid].res) do s.players[pid].res[k] = 0 end
+        for k, n in pairs(cost) do s.players[pid].res[k] = n end
+        if less then s.players[pid].res.engineering = s.players[pid].res.engineering - 1 end
     end
 
-    it("nút xây/nâng sáng khi và chỉ khi core cho là đủ tiền (>= 200 cặp từ ván sim)", function()
-        local pairsN, rawDiffer, affordDiffer, mismatches = 0, 0, 0, {}
-        for seed = 1, 8 do
-            Sim.play(seed, 2 + seed % 3, { onCommand = function(state)
-                if state.phase ~= "action" then return end
-                local pid = Game.actor(state)
-                local res = state.players[pid].res
-                local owned = Territory.ownedTiles(state, pid)
-                -- xây: nút theo loại công trình; core: có ô thực hữu nào trả nổi giá THỰC trên ô đó
-                for _, b in ipairs(Buildings.list) do
-                    local ui = Game.affordBuild(state, pid, b.id)
-                    local core = false
-                    local differs = false
-                    for _, t in ipairs(owned) do
-                        local eff = Game.buildCost(state, pid, b.id, t)
-                        if Wallet.canAfford(res, eff) then core = true end
-                        if not sameCost(eff, b.levels[1].cost) then differs = true end
-                    end
-                    pairsN = pairsN + 1
-                    if differs then rawDiffer = rawDiffer + 1 end
-                    if core ~= Wallet.canAfford(res, b.levels[1].cost) and #owned > 0 then affordDiffer = affordDiffer + 1 end
-                    if ui ~= core then mismatches[#mismatches + 1] = string.format("seed %d vòng %d build %s ui=%s core=%s",
-                        seed, state.round, b.id, tostring(ui), tostring(core)) end
-                end
-                -- nâng cấp tại chỗ: nút dùng Game.upgradeCost
-                for _, b in pairs(state.buildings) do
-                    if b.owner == pid then
-                        local cost = Game.upgradeCost(state, b)
-                        if cost then
-                            local ui = Game.afford(state, pid, "upgrade", b)
-                            local core = Wallet.canAfford(res, cost)
-                            pairsN = pairsN + 1
-                            if ui ~= core then mismatches[#mismatches + 1] = "upgrade " .. b.id end
-                        end
-                    end
-                end
-            end })
-        end
-        print(string.format("    [giá] %d cặp so; %d cặp giá thô != giá hiệu lực; %d cặp thô/hiệu lực khác kết luận đủ tiền",
-            pairsN, rawDiffer, affordDiffer))
-        expect.truthy(pairsN >= 200, "cần >= 200 cặp, có " .. pairsN)
-        expect.eq(#mismatches, 0, table.concat(mismatches, "; ", 1, math.min(#mismatches, 5)))
+    it("đủ đúng giá đã giảm (không đủ giá gốc): nút sáng và lệnh build trên ô giảm giá thành công", function()
+        local s, pid, tile, _, _, cut = newPosition()
+        setRes(s, pid, cut)
+        expect.truthy(Game.affordBuild(s, pid, "B-01"))
+        expect.truthy(Game.check(s, { type = "build", id = "B-01", q = tile.q, r = tile.r }))
+        Game.apply(s, { type = "build", id = "B-01", q = tile.q, r = tile.r })
+        expect.truthy(require("src.core.structures").at(s, tile))
+        for k, v in pairs(s.players[pid].res) do expect.eq(v, 0, "còn dư " .. k) end
+    end)
+
+    it("thiếu 1 so với giá đã giảm: nút tối và lệnh build bị từ chối", function()
+        local s, pid, tile, plain, _, cut = newPosition()
+        setRes(s, pid, cut, true)
+        expect.falsy(Game.affordBuild(s, pid, "B-01"))
+        expect.falsy(Game.check(s, { type = "build", id = "B-01", q = tile.q, r = tile.r }))
+        expect.falsy(Game.check(s, { type = "build", id = "B-01", q = plain.q, r = plain.r }))
     end)
 end)
