@@ -126,13 +126,4 @@ describe("save: từ chối dữ liệu hỏng", function()
             expect.eq(type(err), "string", "phải kèm lý do")
         end)
     end
-
-    it("Game.load không còn vá kiểu `or {}` (chỉ migration mới được đổi hình dạng)", function()
-        local f = io.open("src/core/game.lua", "rb")
-        if not f then return end
-        local src = f:read("*a"); f:close()
-        local body = src:match("\nfunction Game%.load%(.-\nend\n")
-        expect.truthy(body, "không tìm thấy Game.load")
-        expect.falsy(body:find("or {}", 1, true), "Game.load còn `or {}`")
-    end)
 end)

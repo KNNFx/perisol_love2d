@@ -25,13 +25,6 @@ function Upkeep.register(fn, name)
     Upkeep.steps[#Upkeep.steps + 1] = { name = name or "extra", fn = fn }
 end
 
--- Tên các bước theo thứ tự chạy.
-function Upkeep.names()
-    local out = {}
-    for i, st in ipairs(Upkeep.steps) do out[i] = st.name end
-    return out
-end
-
 -- Chạy mọi bước cho `pid`. Trả events.
 function Upkeep.startTurn(state, pid)
     local events = {}

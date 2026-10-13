@@ -16,7 +16,8 @@ F    ?=
 help: ## Liet ke target
 	@awk 'BEGIN{FS=":.*## "} /^[a-z-]+:.*## /{printf "  make %-10s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
-check: layer test ## Cong truoc commit: lop + spec (gom golden hash) + smoke sim + cover
+check: layer test ## Cong truoc commit: lop + spec + golden hash + smoke sim + cover
+	$(LUA) tools/hash.lua > /dev/null
 	$(LUA) tools/sim.lua 10 > /dev/null
 	$(LUA) tools/cover.lua
 
