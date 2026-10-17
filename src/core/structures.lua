@@ -36,13 +36,19 @@ end
 -- Đặt công trình mới. `tiles` là danh sách tile; tile đầu là ô neo. Trả công trình.
 function S.place(state, spec, tiles)
     local uid = state.nextUid
-    state.nextUid = uid + 1
+    assert(type(uid) == "number" and uid >= 1 and uid < math.huge and uid == math.floor(uid)
+        and not state.buildings[uid], "UID công trình không hợp lệ")
+    assert(#tiles > 0, "công trình phải chiếm ít nhất một ô")
     local keys = {}
+    local seen = {}
     for i, t in ipairs(tiles) do
         keys[i] = key(t)
+        assert(not seen[keys[i]], "footprint có ô trùng")
         assert(not state.occupied[keys[i]], "ô đã có công trình: " .. keys[i])
-        state.occupied[keys[i]] = uid
+        seen[keys[i]] = true
     end
+    state.nextUid = uid + 1
+    for _, k in ipairs(keys) do state.occupied[k] = uid end
     local b = { uid = uid, id = spec.id, level = spec.level or 1, owner = spec.owner,
                 tiles = keys, anchor = keys[1], rot = spec.rot or 0 }
     state.buildings[uid] = b
@@ -55,12 +61,17 @@ function S.upgrade(state, uid, tiles, level, rot)
     local b = state.buildings[uid]
     assert(b, "công trình không tồn tại: " .. tostring(uid))
     local keys = {}
+    local seen = {}
     for i, t in ipairs(tiles) do
         keys[i] = key(t)
         local at = state.occupied[keys[i]]
+        assert(not seen[keys[i]], "footprint có ô trùng")
         assert(at == nil or at == uid, "ô đã có công trình khác: " .. keys[i])
-        state.occupied[keys[i]] = uid
+        seen[keys[i]] = true
     end
+    assert(keys[1] == b.anchor, "nâng cấp phải giữ ô neo")
+    for _, k in ipairs(b.tiles) do assert(seen[k], "nâng cấp phải giữ mọi ô cũ") end
+    for _, k in ipairs(keys) do state.occupied[k] = uid end
     b.tiles, b.anchor, b.level, b.rot = keys, keys[1], level, rot or b.rot
     return b
 end

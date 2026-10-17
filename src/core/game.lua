@@ -54,6 +54,21 @@ local key = State.key
 local CORE = {}
 for _, r in ipairs(Resources.core) do CORE[r.key] = true end
 
+local function whole(n) return type(n) == "number" and n >= 0 and n < math.huge and n == math.floor(n) end
+local function playerExists(state, pid) return whole(pid) and state.players[pid] ~= nil end
+local function listOf(list, predicate)
+    if type(list) ~= "table" then return false end
+    local count = 0
+    for k, v in pairs(list) do
+        if not whole(k) or k < 1 or k > #list or not predicate(v) then return false end
+        count = count + 1
+    end
+    return count == #list
+end
+local function choices(p, a, b)
+    return #p.options == 2 and p.options[1] == a and p.options[2] == b and p.resume == "action"
+end
+
 -- ─── Tiện ích ───────────────────────────────────────────────────────────────
 
 -- Xếp hạng thứ tự lượt bằng xúc xắc; hòa thì những người hòa đổ lại.
@@ -84,6 +99,10 @@ end
 -- ─── Khởi tạo ───────────────────────────────────────────────────────────────
 
 function Game.new(opts)
+    assert(type(opts) == "table" and whole(opts.players) and opts.players >= 1 and opts.players <= 4,
+        "Game.new: cần 1–4 người chơi")
+    assert(type(opts.seed) == "string" or (type(opts.seed) == "number" and opts.seed > -math.huge
+        and opts.seed < math.huge and opts.seed == math.floor(opts.seed)), "Game.new: seed phải là chuỗi hoặc số nguyên hữu hạn")
     local players = opts.players
     local map = Mapgen.generate({ seed = opts.seed, players = players })
     local state = State.new(map, players, opts.seed)
@@ -171,7 +190,7 @@ end
 -- nil nếu không có giá (đã tối đa...). Hiệu ứng làm đổi giá (địa hình, TN, sau này Tech/nhân vật/Sắc Lệnh) cắm ở đây.
 --   "build" (id, tile) · "upgrade" (b) · "buyTile" (tile) · "hq" · "sub" (cấp mới) · "foundSub" · "unit" (loại)
 --   "road" · "special" (id) · "specialUp" (b) · "derived" (id)
-function Game.price(state, pid, kind, a, b)
+local function price(state, pid, kind, a, b)
     if kind == "build" then return Construction.cost(state, a, 1, b)
     elseif kind == "upgrade" then return Game.upgradeCost(state, a)
     elseif kind == "buyTile" then return Territory.buyTileCost(state, pid, a)
@@ -185,6 +204,13 @@ function Game.price(state, pid, kind, a, b)
     elseif kind == "derived" then return Derived.def(a).cost
     end
     error("Game.price: loại giá không có: " .. tostring(kind))
+end
+
+-- Bảng giá trả về thuộc caller; sửa nó không được làm đổi data hoặc giá của lệnh sau.
+-- Đây là facade mua/nâng, không bao gồm phí đường, upkeep hay phí kỹ năng.
+function Game.price(state, pid, kind, a, b)
+    local cost = price(state, pid, kind, a, b)
+    return cost and Serialize.copy(cost) or nil
 end
 
 -- `pid` đủ tiền trả giá Game.price(...) chưa? (cho nút UI và check).
@@ -444,6 +470,15 @@ H.fortressStrike = {
 
 -- Hủy tổng 7 (S-05): hỏi lần lượt các chủ Thiên Đình còn lượt hủy. Hủy: người đổ nhận 1 TN, Phiến Quân không đi.
 Game.prompts.cancel7 = {
+    validate = function(state, p)
+        local seen = { [p.pid] = true }
+        return choices(p, "cancel", "allow") and playerExists(state, p.roller)
+            and p.roller == state.order[state.turn] and listOf(p.rest, function(pid)
+                if not playerExists(state, pid) or seen[pid] then return false end
+                seen[pid] = true
+                return true
+            end), "Lời nhắc hủy tổng 7 sai payload"
+    end,
     check = function() return true end,
     apply = function(state, p, choice, events)
         if choice == "cancel" then
@@ -461,6 +496,28 @@ Game.prompts.cancel7 = {
 
 -- Đẩy Phiến Quân (S-05): "push" = ô đã định sẵn ngẫu nhiên; hoặc tên ô "q,r" do chủ chọn (+1). Trả TN, dời Phiến Quân.
 Game.prompts.pushrebel = {
+    validate = function(state, p)
+        local function holder(h)
+            if type(h) ~= "table" or not playerExists(state, h.pid) or not whole(h.uid) then return false end
+            local b = state.buildings[h.uid]
+            return b and b.id == "S-05" and b.owner == h.pid and not b.demolishing
+        end
+        if not state.rebel or p.resume ~= "action" or not holder(p) or not whole(p.cost)
+            or not listOf(p.rest, holder) then return false, "Lời nhắc đẩy Phiến Quân sai payload" end
+        local lv = Aura.levelDef(state.buildings[p.uid])
+        if p.cost ~= lv.pushPay then return false, "Phí đẩy Phiến Quân sai" end
+        local candidates = {}
+        for _, t in ipairs(Specials.pushCandidates(state, state.buildings[p.uid])) do candidates[key(t)] = true end
+        if lv.pushChoose then
+            if p.options[1] ~= "decline" or #p.options < 2 then return false, "Thiếu đích đẩy Phiến Quân" end
+            for i = 2, #p.options do
+                if not candidates[p.options[i]] then return false, "Đích đẩy Phiến Quân không hợp lệ" end
+            end
+        elseif not choices(p, "push", "decline") or not candidates[p.target] then
+            return false, "Đích đẩy Phiến Quân không hợp lệ"
+        end
+        return true
+    end,
     check = function(state, p, choice)
         if choice == "decline" then return true end
         local b = state.buildings[p.uid]
@@ -613,6 +670,11 @@ H.proposeTrade = {
 }
 
 Game.prompts.trade = {
+    validate = function(state, p)
+        return choices(p, "accept", "decline") and playerExists(state, p.from) and p.from ~= p.pid
+            and p.from == state.order[state.turn] and whole(p.fee)
+            and Trade.checkOffer(p.give, p.get), "Lời nhắc trao đổi sai payload"
+    end,
     check = function(state, p, choice)
         if choice == "accept" then
             local ok, why = Trade.check(state, p.from, p.pid, p.give, p.get)
@@ -735,14 +797,35 @@ H.demolish = {
 
 -- Lời nhắc xen lượt (trả lời đề xuất trao đổi, phản ứng của Đặc Biệt, Sắc Lệnh Phản Ứng ở M2...).
 -- state.prompt = { kind, pid, options = { choice... }, resume = "action", ... dữ liệu riêng của kind }
--- Mỗi kind đăng ký vào Game.prompts: { check(state, prompt, choice) -> ok, lý do,
+-- Mỗi kind đăng ký vào Game.prompts: { validate(state, prompt), check(state, prompt, choice) -> ok, lý do,
 --                                      apply(state, prompt, choice, events) }.
 
 -- Mở lời nhắc: phase chuyển sang "prompt" cho người trả lời. `resume` là phase quay về sau khi trả lời.
+function Game.validatePrompt(state, prompt)
+    if type(prompt) ~= "table" then return false, "Lời nhắc phải là bảng" end
+    local plain = pcall(Serialize.copy, prompt)
+    if not plain then return false, "Lời nhắc phải là dữ liệu thuần" end
+    local handler = Game.prompts[prompt.kind]
+    if not handler or type(handler.validate) ~= "function" or type(handler.check) ~= "function"
+        or type(handler.apply) ~= "function" then return false, "Loại lời nhắc chưa có đủ handler" end
+    if not playerExists(state, prompt.pid) or not Invariants.PHASES[prompt.resume]
+        or prompt.resume == "prompt" or prompt.resume == "over" then return false, "Người trả lời/phase tiếp tục sai" end
+    local seen = {}
+    if not listOf(prompt.options, function(v)
+        if type(v) ~= "string" or seen[v] then return false end
+        seen[v] = true
+        return true
+    end) or #prompt.options == 0 then return false, "Lựa chọn lời nhắc không hợp lệ" end
+    return handler.validate(state, prompt)
+end
+
 function Game.openPrompt(state, prompt)
-    assert(Game.prompts[prompt.kind], "kind lời nhắc chưa đăng ký: " .. tostring(prompt.kind))
-    prompt.resume = prompt.resume or state.phase
-    state.prompt = prompt
+    assert(not state.prompt, "Chưa hỗ trợ lời nhắc lồng nhau")
+    local owned = Serialize.copy(prompt)
+    owned.resume = owned.resume or state.phase
+    local ok, why = Game.validatePrompt(state, owned)
+    assert(ok, why)
+    state.prompt = owned
     state.phase = "prompt"
 end
 
@@ -750,6 +833,8 @@ H.respond = {
     phase = "prompt",
     check = function(state, cmd)
         local p = state.prompt
+        local valid, why = Game.validatePrompt(state, p)
+        if not valid then return false, why end
         local ok = false
         for _, c in ipairs(p.options) do
             if c == cmd.choice then ok = true end
@@ -788,27 +873,34 @@ H.endTurn = {
 
 function Game.check(state, cmd)
     if type(cmd) ~= "table" then return false, "Lệnh phải là một bảng" end
+    local plain = pcall(Serialize.copy, cmd)
+    if not plain then return false, "Lệnh phải là dữ liệu thuần hữu hạn, không vòng tham chiếu" end
+    if type(cmd.type) ~= "string" then return false, "Lệnh không tồn tại" end
+    for _, name in ipairs({ "broadcast", "pay" }) do
+        if cmd[name] ~= nil and type(cmd[name]) ~= "boolean" then return false, name .. " phải là boolean" end
+    end
     local h = H[cmd.type]
     if not h then return false, "Lệnh không tồn tại" end
     if state.phase == "over" then return false, "Ván đã kết thúc" end
     if h.phase ~= state.phase then return false, "Chưa thể làm điều này lúc này" end
     local actor = Game.actor(state)
-    if cmd.pid and cmd.pid ~= actor then return false, "Chưa tới lượt của bạn" end
+    if cmd.pid ~= nil and cmd.pid ~= actor then return false, "Chưa tới lượt của bạn" end
     return h.check(state, cmd, actor)
 end
 
 function Game.apply(state, cmd)
     local ok, reason = Game.check(state, cmd)
-    if not ok then error("lệnh không hợp lệ (" .. tostring(cmd.type) .. "): " .. tostring(reason), 2) end
+    if not ok then error("lệnh không hợp lệ: " .. tostring(reason), 2) end
     local pid = Game.actor(state)
 
-    local rec = { pid = pid }
-    for k, v in pairs(cmd) do rec[k] = v end
-    state.history[#state.history + 1] = rec
+    cmd = Serialize.copy(cmd)
+    local rec = Serialize.copy(cmd)
+    rec.pid = pid
 
     local events = {}
     local round, turn = state.round, state.turn
     H[cmd.type].apply(state, cmd, pid, events)
+    state.history[#state.history + 1] = rec
     for _, e in ipairs(events) do
         e.round, e.turn = round, turn
         state.log[#state.log + 1] = e
@@ -839,7 +931,8 @@ function Game.legal(state)
         end
     elseif ph == "prompt" then
         for _, c in ipairs(state.prompt.options) do
-            out[#out + 1] = { type = "respond", pid = actor, choice = c }
+            local cmd = { type = "respond", pid = actor, choice = c }
+            if Game.check(state, cmd) then out[#out + 1] = cmd end
         end
     elseif ph == "action" then
         local p = state.players[actor]
@@ -1081,12 +1174,15 @@ function Game.save(state)
     return Serialize.dump({ version = C.SAVE_VERSION, state = State.snapshot(state) })
 end
 
--- Nạp từ chuỗi. Trả state, hoặc nil, lý do (dữ liệu hỏng không bao giờ ném lỗi hay trả state méo): đọc, chạy chuỗi
+-- Nạp save cục bộ. Trả state, hoặc nil, lý do: đọc, chạy chuỗi
 -- migration lên C.SAVE_VERSION, kiểm tra hình dạng, dựng lại bản đồ từ (seed, players), rồi kiểm tra bất biến.
 function Game.load(str)
     local data, err = Serialize.load(str)
     if not data then return nil, "không đọc được file save: " .. tostring(err) end
-    if type(data) ~= "table" or type(data.version) ~= "number" then return nil, "file save thiếu version" end
+    if type(data) ~= "table" or not whole(data.version) or data.version < 1 then return nil, "file save sai version" end
+    local plain, copied = pcall(Serialize.copy, data)
+    if not plain then return nil, "file save không phải dữ liệu thuần: " .. tostring(copied) end
+    data = copied
     if data.version > C.SAVE_VERSION then return nil, "file save từ phiên bản mới hơn" end
     if type(data.state) ~= "table" then return nil, "file save thiếu state" end
     while data.version < C.SAVE_VERSION do
@@ -1107,6 +1203,10 @@ function Game.load(str)
     local checked, valid, msg = pcall(Invariants.check, s)
     if not checked then return nil, "dữ liệu save không hợp lệ: " .. tostring(valid) end
     if not valid then return nil, "dữ liệu save vi phạm bất biến: " .. tostring(msg) end
+    if s.phase == "prompt" then
+        local ran, validPrompt, reason = pcall(Game.validatePrompt, s, s.prompt)
+        if not ran or not validPrompt then return nil, "lời nhắc trong save không hợp lệ: " .. tostring(reason or validPrompt) end
+    end
     return s
 end
 

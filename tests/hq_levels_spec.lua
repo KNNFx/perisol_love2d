@@ -15,7 +15,7 @@ local arena        = require("tests.arena")
 
 local key = State.key
 
-local function farRebel(s) s.rebel = { q = -99, r = -99 } end
+local farRebel = require("tests.park_rebel")
 local function off(s, t, dq, dr) return s.map:get(t.q + dq, t.r + dr) end
 local function hqTile(s, pid) return s.map:get(s.players[pid].hq.q, s.players[pid].hq.r) end
 

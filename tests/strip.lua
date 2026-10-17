@@ -29,7 +29,6 @@ local function strip(seed)
         if found then break end
     end
     s.phase = "action"
-    s.rebel = { q = -99, r = -99 }
     local pid = Game.actor(s)
     local best
     for _, t in ipairs(s.map.list) do
@@ -54,6 +53,7 @@ local function strip(seed)
     end
     for k in pairs(s.players[pid].res) do s.players[pid].res[k] = 50 end
     for _, m in ipairs({ "alloy", "paper", "steel", "silk", "bond" }) do s.players[pid].res[m] = 0 end   -- vật liệu bắt đầu từ 0
+    require("tests.park_rebel")(s)
     return s, pid, best
 end
 

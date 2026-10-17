@@ -128,7 +128,7 @@ describe("derived: D-01 Phòng TN Vật Liệu", function()
         expect.eq(total(Production.compute(s, { 3, 5 }, pid), "alloy"), 1)
         s.rebel = { q = c.q, r = c.r }
         expect.eq(total(Production.compute(s, { 3, 5 }, pid), "alloy"), 0)
-        s.rebel = { q = -99, r = -99 }
+        require("tests.park_rebel")(s)
         Structures.remove(s, nc.uid)
         expect.eq(total(Production.compute(s, { 3, 5 }, pid), "alloy"), 0)
         local ev = Upkeep.startTurn(s, pid)

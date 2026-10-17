@@ -236,3 +236,81 @@ Giai đoạn 1 bắt đầu được ngay. Trong Giai đoạn 2, chỉ hai mục
 |---|---|
 | Giai đoạn 2 — Giá hiệu lực (pipeline modifier cho giá) | Chưa có nội dung nào đăng ký giảm giá. Xem dòng "Chưa xong" ở Giai đoạn 2. |
 | Xong khi Giai đoạn 1 và 2 trên máy sạch | Chưa thử trên máy sạch. `make check` và `make sweep` chạy trên máy dev hiện tại. |
+
+---
+
+## 12. Chuẩn contract, abstraction, API và enforcement — 2026-10-14
+
+Áp dụng cho API hiện có. Mỗi API phải ghi: đầu vào hợp lệ và tiền điều kiện; đầu ra; ai sở hữu bảng;
+phần state được sửa và thời điểm sửa; cách báo lỗi; nơi kiểm tra và ca hồi quy chứng minh hành vi.
+Một interface chung không mặc nhiên cho phép thay thế mọi nghiệp vụ. Khi thêm nội dung, kiểm tra xem
+nó có cùng tiền/hậu điều kiện với abstraction đang dùng trước khi đưa vào.
+
+### 12.1. Ranh giới và cách báo lỗi
+
+| Ranh giới | Contract | Enforcement |
+|---|---|---|
+| `Game.check(state, cmd)` | State do `Game.new`/`Game.load` tạo và được cập nhật qua command. Cmd là bảng dữ liệu thuần, `type` đã biết; `pid` nếu có phải đúng actor; cờ `pay`/`broadcast` là boolean. Trả `true` hoặc `false, reason`; không sửa state/RNG. | Kiểm dữ liệu thuần, envelope và handler; fuzz + `contracts_spec`. Không hứa chấp nhận state bị caller sửa tùy ý. |
+| `Game.apply(state, cmd)` | Kiểm tra trước; lệnh bị từ chối không đổi state/history. Sao chép payload, handler chạy đồng bộ; chỉ ghi history sau khi handler thành công. Trả events, thêm chúng vào log. | Gọi `Game.check`, sao chép dữ liệu; test từ chối và caller sửa command sau apply. Lỗi lập trình trong handler vẫn ném lỗi, không có rollback cả command. |
+| `Game.legal(state)` | Liệt kê các lựa chọn bot/UI hỗ trợ; mỗi lựa chọn phải qua `Game.check`. Không hứa liệt kê mọi lượng trao đổi hoặc mọi tổ hợp có thể nhập. | Sim kiểm lệnh trước apply, fuzz và spec. Riêng `prompt` lọc từng lựa chọn qua check để loại accept không còn hợp lệ. |
+| `Game.load(text)` | File save cục bộ có version hỗ trợ. Chuyển về schema hiện tại, dựng map, kiểm shape và invariant, kiểm payload prompt. Trả state hoặc `nil, reason`. | Kiểm dữ liệu thuần, migration, `Invariants.shape/check`, `Game.validatePrompt`; fixture v1–v3 và các ca save hỏng. Không phải sandbox chạy Lua không tin cậy: serializer vẫn đọc biểu thức Lua. |
+| `Game.validatePrompt(state, p)` | Người trả lời hợp lệ; options là danh sách chuỗi không trùng; phase tiếp tục hợp lệ; kind có đủ `validate/check/apply`; payload riêng do kind kiểm tra. Không sửa state. | Dùng chung khi mở, trả lời và load. Payload hợp lệ không có nghĩa mọi lựa chọn còn thực hiện được; `check` xét điều kiện hiện tại. |
+| `Game.openPrompt(state, p)` | Một prompt đang chờ tại một thời điểm. Sao chép payload trước khi lưu. Payload sai hoặc đang có prompt thì lỗi trước khi đổi state. | Assert + validator chung; test giữ nguyên state khi từ chối và test save/resume. Handler `respond` đóng prompt cũ trước khi có thể mở prompt kế tiếp. |
+| `Wallet.canAfford/pay/gain/take` | Ví là bảng; key thuộc Resources; số dư và lượng thay đổi là số nguyên hữu hạn không âm; Tín Phiếu không vượt trần. Key thiếu trong ví có nghĩa 0. | Validate trước khi ghi. `pay` thiếu tiền trả false và không trừ dở; đầu vào sai contract ném lỗi. Test số âm/lẻ/NaN/vô cực/sai kiểu/key lạ và hành vi thanh toán. |
+| `Structures.place/upgrade/remove` | Primitive quản lý UID và chỉ mục occupied. Caller đã kiểm địa hình/quyền xây/giá. Place cần footprint không rỗng, không trùng/đè ô. Upgrade phải giữ neo và mọi ô cũ. | Preflight toàn footprint trước khi sửa occupied/UID; test từ chối không chiếm dở ô. Đây không phải phép di chuyển hoặc thu nhỏ công trình tổng quát. |
+| `Modifiers` | Chuỗi biến đổi số hữu hạn theo stage đã định; chỉ floor ở cuối. Callback là hàm, nhận context chỉ đọc theo quy ước. | Guard callback/kết quả số và test thứ tự/làm tròn. Không mô hình hóa cấm hành động, thay tài nguyên, chi phí hay lựa chọn xen lượt. Không có proxy chống callback sửa context. |
+
+### 12.2. Quyền sở hữu dữ liệu và phạm vi abstraction
+
+- `state` thuộc ván; scene/render đọc các bảng và gửi command. Các module core nhận quyền sửa phần dữ liệu
+  theo trách nhiệm đã ghi ở §5. Lua không đóng kín các bảng này.
+- Command gửi vào và prompt mở mới được sao chép sâu bằng `Serialize.copy`: không chia sẻ bảng con với caller.
+  Hàm này chỉ sao chép dữ liệu thuần không vòng, khóa chuỗi/số nguyên hữu hạn. Dữ liệu sai ném lỗi;
+  các ranh giới nhận dữ liệu ngoài dùng `pcall` để chuyển thành lỗi có lý do.
+- `Game.price` trả bảng riêng của caller. `nil` nghĩa không còn giá cho thao tác đó; không có nghĩa miễn phí.
+  State/pid và tham số của kind phải hợp lệ; kind không hỗ trợ là lỗi lập trình. API mua/nâng gồm:
+
+| kind | a | b |
+|---|---|---|
+| build | ID Cơ Bản | tile; bỏ trống chỉ để hỏi giá nền |
+| upgrade | instance Cơ Bản | — |
+| buyTile | tile | — |
+| hq | — | — |
+| sub | cấp muốn nâng tới | — |
+| foundSub | — | — |
+| unit | expedition/trade | — |
+| road | — | — |
+| special | ID Đặc Biệt | — |
+| specialUp | instance Đặc Biệt | — |
+| derived | ID Phái Sinh | — |
+
+- Phí di chuyển, trấn áp, upkeep, giao thương thuộc module tính nghiệp vụ tương ứng; vẫn thanh toán qua Wallet.
+  Pipeline giảm giá chỉ thêm khi có nội dung cần ghép nhiều hiệu ứng, không suy từ facade hiện tại.
+- `Trade.checkOffer` kiểm payload tài nguyên dùng chung cho đề xuất và prompt/load. `Trade.check` bổ sung
+  người tham gia, số dư và tuyến hiện tại; trả lời accept luôn kiểm lại.
+- Events trả về từ apply cũng được lưu trong log: caller chỉ đọc. Events là thông báo kết quả, không có reducer
+  tổng quát để replay hoặc rollback. Replay chạy command dưới cùng phiên bản luật/mapgen.
+- `State.snapshot` là bản sao nông bỏ map, chỉ dùng ngay để serialize/hash; không phải snapshot độc lập để giữ và sửa.
+- State.new khai các trường gốc/người chơi; optional payload như `demolishing`, `spawnBonus`, `rebel.pending`
+  được module tạo entity quản lý. Shape load kiểm cấp HQ/Sub, UID cấp tiếp, bảng entity, phase/pending, xúc xắc và RNG.
+- `Upkeep.steps` là thứ tự luật dỡ → thụ động → đơn vị. Thêm bước có nghĩa chọn thời điểm nghiệp vụ;
+  danh sách này không hỗ trợ tự dừng chờ input.
+- Schema `levels` của Phái Sinh là adapter tra cứu/hiển thị; không cấp cho Phái Sinh quyền nâng footprint như Cơ Bản.
+  `state.derived` vẫn là instance quan hệ chủ/đối tác/ô riêng; `Derived.evaluate` quyết định hoạt động hiện tại.
+
+### 12.3. Enforcement và điều kiện hoàn tất
+
+1. **Runtime ở ranh giới:** dữ liệu bên ngoài bị từ chối có lý do; lỗi dùng sai API nội bộ fail-fast trước các phép ghi
+   mà API có thể preflight. Không thêm fallback tự chữa dữ liệu ngoài migration.
+2. **Test hành vi:** xác nhận đầu ra, lượng tài nguyên, tiếp tục sau load, quyền sở hữu payload và state không đổi khi từ chối.
+   Test phải qua API thực, không khẳng định tên hàm hay cấu trúc cài đặt. Các test hiện có của từng luật vẫn là nguồn kiểm chứng.
+3. **Lint cấu trúc:** `make layer` quét mẫu nguồn trong `src/core/*.lua`, có ngoại lệ ghi rõ bằng marker. Nó không
+   theo alias (`local r = state.roads[k]`) và không chứng minh quyền ghi được đóng kín. Thêm cách ghi mới phải review
+   theo ownership; không diễn giải dòng lint xanh thành bảo đảm runtime.
+4. **Hồi quy tích hợp:** `make check` gồm layer, specs, golden, smoke và coverage đã khai khoảng trống.
+   `make test-love` kiểm cả Save.write/read trên filesystem LÖVE. Thay đổi contract giữ nguyên luật phải giữ golden;
+   không sinh lại fixture để che lỗi. Save hợp lệ cũ phải tiếp tục chơi được; siết validation không cần đổi version nếu
+   hình dạng state hợp lệ không đổi.
+
+Khi thêm API hoặc mở rộng abstraction, cập nhật contract, enforcement và test trong cùng thay đổi. Nếu còn tiền điều kiện
+chỉ được caller bảo đảm, ghi rõ thay vì tuyên bố API an toàn với mọi đầu vào.

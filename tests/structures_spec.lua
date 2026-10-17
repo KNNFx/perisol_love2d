@@ -98,6 +98,7 @@ describe("upkeep + prompt", function()
         s.phase = "action"
         local seen
         Game.prompts.test_ask = {
+            validate = function() return true end,
             check = function(state, p, choice) return true end,
             apply = function(state, p, choice, events)
                 seen = choice

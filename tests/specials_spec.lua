@@ -380,7 +380,7 @@ describe("specials: S-03 Bảo Tàng, S-04 Đài Phát Thanh", function()
     it("S-03: +2 VH mỗi vòng; +1 điểm cuối ván cho mỗi Khu Dân Cư chi phối trong bán kính 3; tính như công trình C2+", function()
         local s, pid, c = setup()
         put(s, pid, c, "S-03", 1, TRI(3, 0))
-        s.rebel = { q = -99, r = -99 }
+        require("tests.park_rebel")(s)
         local before = s.players[pid].res.culture
         Upkeep.startTurn(s, pid)
         expect.eq(s.players[pid].res.culture, before + 2)
@@ -470,10 +470,15 @@ describe("specials: S-05 Thiên Đình", function()
         local roller = 3 - pid
         toRoll(s, roller)
         rigSeven(s)
-        s.rebel = { q = -99, r = -99 }
+        require("tests.park_rebel")(s)
         local faith = s.players[roller].res.faith
         local ev = Game.apply(s, { type = "roll" })
         expect.eq(s.phase, "prompt"); expect.eq(Game.actor(s), owner); expect.eq(s.prompt.kind, "cancel7")
+        local loaded = assert(Game.load(Game.save(s)))
+        Game.apply(loaded, { type = "respond", choice = "cancel" })
+        expect.eq(loaded.phase, "action")
+        expect.eq(Game.actor(loaded), roller)
+        expect.eq(loaded.players[roller].res.faith, faith + 1)
         local ok = Game.check(s, { type = "respond", choice = "cancel" })
         expect.truthy(ok)
         ev = Game.apply(s, { type = "respond", choice = "cancel" })
@@ -557,7 +562,7 @@ describe("specials: S-05 Thiên Đình", function()
         s.rebel = { q = from.q, r = from.r, pending = { stage = "move", points = 1, roller = 3 - pid, visited = { [key(from)] = true } } }
         Game.apply(s, { type = "rebelStep", q = inside.q, r = inside.r })
         expect.eq(s.phase, "action")
-        s.rebel = { q = -99, r = -99 }
+        require("tests.park_rebel")(s)
         local faith = s.players[pid].res.faith
         Upkeep.startTurn(s, pid)
         expect.eq(s.players[pid].res.faith, faith + 2)

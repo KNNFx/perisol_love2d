@@ -18,6 +18,7 @@ function Hex.keyQR(q, r) return q .. "," .. r end
 function Hex.key(h) return Hex.keyQR(h.q, h.r) end
 -- Tách khóa thành q, r dạng number; khóa sai định dạng trả nil.
 function Hex.unkey(k)
+    if type(k) ~= "string" then return nil end
     local q, r = k:match("^(-?%d+),(-?%d+)$")
     if not q then return nil end
     return tonumber(q), tonumber(r)

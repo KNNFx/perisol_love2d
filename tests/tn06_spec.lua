@@ -17,7 +17,7 @@ local function setup(strategic)
     local s = Game.new({ seed = 30, players = 2 })
     while s.phase == "setup_hq" do Game.apply(s, Game.legal(s)[1]) end
     s.phase = "action"
-    s.rebel = { q = -99, r = -99 }
+    require("tests.park_rebel")(s)
     local pid = Game.actor(s)
     local p = s.players[pid]
     p.hqLevel, p.votes = 2, 5

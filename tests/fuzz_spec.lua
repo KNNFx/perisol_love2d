@@ -124,11 +124,11 @@ local function collect()
         local actor = Game.actor(base)
         local other = actor % base.playerCount + 1
         local a = cloneState(base)
-        Game.openPrompt(a, { kind = "trade", pid = other, from = actor, give = "gold", get = "science", fee = 0,
+        Game.openPrompt(a, { kind = "trade", pid = other, from = actor, give = { gold = 1 }, get = { science = 1 }, fee = 0,
                              options = { "accept", "decline" }, resume = "action" })
         add(a)
         local b = cloneState(base)
-        Game.openPrompt(b, { kind = "cancel7", pid = actor, roller = actor, rest = {}, options = { "cancel", "pass" }, resume = "roll" })
+        Game.openPrompt(b, { kind = "cancel7", pid = actor, roller = actor, rest = {}, options = { "cancel", "allow" }, resume = "action" })
         add(b)
     end
     return snaps

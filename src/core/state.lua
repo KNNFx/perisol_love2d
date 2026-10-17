@@ -1,7 +1,8 @@
 -- Trạng thái ván chơi: chỉ chứa dữ liệu thuần (serialize được), trừ `map` là tham chiếu sinh lại từ
 -- (seed, players) nên KHÔNG bao giờ được lưu (D-011). Thuần Lua, không gọi love.*.
 --
--- HÌNH DẠNG CỐ ĐỊNH: State.new khai MỌI trường mà một ván có thể mang; không trường nào được sinh lười giữa ván.
+-- State.new khai các trường gốc và người chơi. Entity/prompt có payload riêng và trường tùy chọn
+-- (demolishing, spawnBonus, rebel.pending...), được tạo bởi module sở hữu và kiểm tra khi load.
 -- Trường "chưa có giá trị" dùng `false` (không dùng nil: nil làm khóa biến mất khỏi bảng,
 -- nên save, so sánh và hash không còn thấy trường). Đọc bằng `if state.rebel then` / `not p.hq`, đừng so với nil.
 -- Thêm trường mới = thêm vào đây + tăng C.SAVE_VERSION + viết migration trong Game.load (src/core/game.lua).
@@ -21,7 +22,7 @@
 --   buildings = { [uid] = { uid, id, level, owner, tiles = {"q,r"...}, anchor, rot } },   (src/core/structures.lua)
 --   occupied  = { ["q,r"] = uid },  nextUid, lostStrategic = { ["q,r"] = true },
 --   units = {}, nextUnitUid, roads = {}, derived = {}, nextDerivedUid,
---   rebel     = { q, r, pending = { points, roller } | nil } | false,   -- false cho tới khi tổng 7 đầu tiên sinh Phiến Quân
+--   rebel     = { q, r, pending = { points, roller } | nil } | false,   -- false cho tới khi mọi người đặt HQ xong
 --   dice      = { d1, d2 } | false,                                      -- false cho tới lượt đổ đầu tiên
 --   prompt    = { kind, pid, options, resume, ... } | false,             -- chỉ có giá trị khi phase == "prompt"
 --   log = {},

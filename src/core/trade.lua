@@ -78,27 +78,31 @@ function T.route(state, a, b)
     return best
 end
 
--- Tổng số lượng của bảng tài nguyên {res = n}.
-local function total(t)
-    local n = 0
-    for _, v in pairs(t) do n = n + v end
-    return n
+-- Contract payload dùng chung cho đề xuất, trả lời và save/load; không xét khả năng trả hay tuyến đường.
+function T.checkOffer(give, get)
+    if type(give) ~= "table" or type(get) ~= "table" then return false, "Mỗi bên phải đưa bảng tài nguyên" end
+    for _, offer in ipairs({ give, get }) do
+        local total = 0
+        for res, n in pairs(offer) do
+            if not CORE[res] or type(n) ~= "number" or n < 0 or n >= math.huge or n ~= math.floor(n) then
+                return false, "Tài nguyên không hợp lệ"
+            end
+            total = total + n
+        end
+        if total < 1 or total >= math.huge then return false, "Mỗi bên phải đưa ít nhất 1 tài nguyên (không cho không)" end
+    end
+    for res, n in pairs(give) do
+        if n > 0 and (get[res] or 0) > 0 then return false, "Không đổi cùng loại tài nguyên" end
+    end
+    return true
 end
 
 -- Kiểm tra đề xuất `from` -> `to`: give = { [res] = n } người đề xuất đưa, get = { [res] = n } người đề xuất nhận.
 -- Dùng cả lúc đề xuất lẫn lúc người nhận chấp nhận. Trả ok, lý do, route.
 function T.check(state, from, to, give, get)
-    if from == to or not state.players[to] then return false, "Chọn một người chơi khác" end
-    if type(give) ~= "table" or type(get) ~= "table" or total(give) < 1 or total(get) < 1 then
-        return false, "Mỗi bên phải đưa ít nhất 1 tài nguyên (không cho không)"
-    end
-    for res, n in pairs(give) do
-        if not CORE[res] or n < 0 or n ~= math.floor(n) then return false, "Tài nguyên không hợp lệ" end
-        if get[res] and get[res] > 0 and n > 0 then return false, "Không đổi cùng loại tài nguyên" end
-    end
-    for res, n in pairs(get) do
-        if not CORE[res] or n < 0 or n ~= math.floor(n) then return false, "Tài nguyên không hợp lệ" end
-    end
+    if from == to or not state.players[from] or not state.players[to] then return false, "Chọn một người chơi khác" end
+    local valid, why = T.checkOffer(give, get)
+    if not valid then return false, why end
     local f, t = state.players[from].res, state.players[to].res
     for res, n in pairs(give) do
         if (f[res] or 0) < n then return false, "Bạn không đủ tài nguyên để đưa" end

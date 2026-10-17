@@ -4,6 +4,33 @@
 
 local Serialize = {}
 
+-- Sao chép payload ở ranh giới command/prompt/load. Chỉ nhận dữ liệu thuần, không metatable,
+-- khóa chuỗi/số nguyên hữu hạn, không vòng. Lỗi lập trình ném lỗi; caller bên ngoài bọc pcall.
+-- Tách quyền sở hữu bảng để người gửi không thể sửa history/prompt sau khi lệnh đã được nhận.
+function Serialize.copy(value)
+    local visiting = {}
+    local function copy(v)
+        local t = type(v)
+        if t == "nil" or t == "boolean" or t == "string" then return v end
+        if t == "number" then
+            assert(v == v and v > -math.huge and v < math.huge, "dữ liệu có số không hữu hạn")
+            return v
+        end
+        assert(t == "table" and getmetatable(v) == nil, "cần dữ liệu thuần, không hàm/metatable")
+        assert(not visiting[v], "dữ liệu có vòng tham chiếu")
+        visiting[v] = true
+        local out = {}
+        for k, item in pairs(v) do
+            assert(type(k) == "string" or (type(k) == "number" and k > -math.huge and k < math.huge
+                and k == math.floor(k)), "khóa phải là chuỗi hoặc số nguyên hữu hạn")
+            out[k] = copy(item)
+        end
+        visiting[v] = nil
+        return out
+    end
+    return copy(value)
+end
+
 local function keyOrder(a, b)
     local ta, tb = type(a), type(b)
     if ta ~= tb then return ta == "number" end   -- số trước chuỗi

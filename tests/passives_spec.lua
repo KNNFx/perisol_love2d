@@ -13,7 +13,7 @@ local arena      = require("tests.arena")
 local key = State.key
 
 -- Phiến Quân đứng rất xa: có mặt trên bản đồ nhưng không phong tỏa gì.
-local function farRebel(s) s.rebel = { q = -99, r = -99 } end
+local farRebel = require("tests.park_rebel")
 
 -- Đặt công trình `id` cấp `level` theo hình của cấp đó, ô gốc (q, r), xoay 0.
 local function placeShaped(s, pid, id, level, q, r)

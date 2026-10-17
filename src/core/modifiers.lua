@@ -28,10 +28,13 @@ end
 
 -- Áp dụng mọi modifier theo thứ tự stage rồi floor. `base` là giá trị gốc (số >= 0).
 function Modifiers:apply(base, ctx)
+    local function finite(v) return type(v) == "number" and v > -math.huge and v < math.huge end
+    assert(finite(base), "modifier: giá trị gốc phải là số hữu hạn")
     local value = base
     for _, stage in ipairs(Modifiers.STAGES) do
         for _, fn in ipairs(self.byStage[stage]) do
             value = fn(value, ctx)
+            assert(finite(value), "modifier stage " .. stage .. " phải trả số hữu hạn")
         end
     end
     return math.floor(value)

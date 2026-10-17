@@ -12,7 +12,7 @@ local arena      = require("tests.arena")
 
 local key = State.key
 
-local function farRebel(s) s.rebel = { q = -99, r = -99 } end
+local farRebel = require("tests.park_rebel")
 
 -- Ô cách `t` đúng `dq, dr` theo toạ độ axial.
 local function off(s, t, dq, dr) return s.map:get(t.q + dq, t.r + dr) end
