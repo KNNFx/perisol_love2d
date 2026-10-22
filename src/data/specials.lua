@@ -40,7 +40,7 @@ S.list = {
     },
     {
         id = "S-03", name = "Bảo Tàng Quốc Gia", en = "National Museum", icon = "BT", main = "culture",
-        shape = "triangle", terrains = { ["DH-01"] = true, ["DH-05"] = true },
+        shape = "triangle", terrains = { ["DH-01"] = true, ["DH-05"] = true, ["DH-10"] = true },
         prereq = { { id = "B-03", level = 3, radius = 2 } }, needsDerived = "D-02",
         levels = {
             { cost = { silk = 2, paper = 3, culture = 6, gold = 4 }, aura = 2, voteMul = 1.5 },

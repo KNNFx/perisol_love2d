@@ -82,7 +82,8 @@ local function buildTip(b)
     end
     local names = {}
     for _, t in ipairs(Terrains.list) do
-        if lv.terrains[t.id] then names[#names + 1] = t.name end
+        local allow = lv.terrains[t.id]
+        if allow then names[#names + 1] = allow == "pref" and (t.name .. " (-1 TN chính)") or t.name end
     end
     return string.format("%s (cấp 1)\nChi phí: %s\nSản xuất: %s\nĐịa hình: %s",
         b.name, costText(lv.cost), table.concat(prod, ", "), table.concat(names, ", "))
@@ -1016,12 +1017,26 @@ function Scene:drawInfo(x, y, w, h)
     local t, state, ui = self.hover, self.state, self.ui
     if not t then return end
     local def = Terrains.byId[t.terrain]
-    local parts = { string.format("(%d,%d) %s", t.q, t.r, def.name) }
+    local cluster = (t.settlement and state.map.settlements and state.map.settlements[t.settlement])
+        or (t.landmark and state.map.landmarks and state.map.landmarks[t.landmark])
+    local terrainLabel = def.name
+    if cluster then
+        if cluster.cityState then
+            terrainLabel = string.format("%s · Thành Bang Tự Do (%d ô)", def.name, #cluster.tiles)
+        else
+            terrainLabel = string.format("%s #%d (%d ô)", def.name, cluster.id or (t.settlement or t.landmark), #cluster.tiles)
+        end
+    end
+    local parts = { string.format("(%d,%d) %s", t.q, t.r, terrainLabel) }
     local tn = Structures.strategicAt(state, t)
     if tn then parts[#parts + 1] = Strategic.byId[tn].name end
     local k = Hex.key(t)
     local owner = state.owner[k]
     parts[#parts + 1] = owner and ("Chủ: P" .. owner) or "Chưa có chủ"
+    if cluster then
+        local ctrl = Territory.clusterController(state, cluster)
+        parts[#parts + 1] = ctrl and ("Chi phối: P" .. ctrl) or "Chưa ai chi phối"
+    end
     local v = state.votes[k]
     if v then
         local vs = {}

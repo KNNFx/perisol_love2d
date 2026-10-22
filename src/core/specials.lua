@@ -44,8 +44,6 @@ end
 
 -- ─── Xây ────────────────────────────────────────────────────────────────────
 
-local BLOCKED_TERRAIN = { ["DH-10"] = true, ["DH-11"] = true }   -- Khu Dân Cư / Danh Thắng: chỉ Chi Phối
-
 -- Có công trình Cơ Bản đủ cấp trong bán kính quanh `centre` không?
 local function hasPrereq(state, pid, centre, req)
     for _, b in ipairs(Structures.list(state)) do
@@ -82,7 +80,8 @@ function S.checkBuild(state, pid, id, q, r, rot)
         if state.owner[key(t)] ~= pid then return false, "Mọi ô phải là lãnh thổ thực hữu của bạn" end
         if Structures.at(state, t) or Territory.isAnchorTile(state, t) then return false, "Có ô đã có công trình" end
         if Rebel.isBlockaded(state, t) then return false, "Có ô đang bị Phiến Quân phong tỏa" end
-        if BLOCKED_TERRAIN[t.terrain] then return false, "Không xây trên Khu Dân Cư / Danh Thắng" end
+        if t.terrain == "DH-11" then return false, "Không xây trên Danh Thắng" end
+        if t.terrain == "DH-10" and not def.terrains["DH-10"] then return false, "Không xây trên Khu Dân Cư" end
         if def.sameTerrain and t.terrain ~= centre.terrain then return false, "Mọi ô phải cùng một loại địa hình" end
         if not def.sameTerrain and not def.terrains[t.terrain] and not Terrains.byId[t.terrain].canBuild then
             return false, "Có ô địa hình không xây được"

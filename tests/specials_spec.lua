@@ -146,6 +146,32 @@ describe("specials: điều kiện xây", function()
         ok, why = Specials.checkBuild(s, pid, "S-03", c.q - 1, c.r - 1, 0)
         expect.truthy(ok, why)
 
+        -- GDD v1.3 §3.1 & §8.3: Bảo Tàng Quốc Gia (S-03) xây được trên Khu Dân Cư (DH-10), các Đặc Biệt khác thì không
+        for _, o in ipairs(TRI(-1, -1)) do
+            local st = at(s, c, o[1], o[2])
+            st.terrain = "DH-10"
+            st.settlement = 1
+        end
+        ok, why = Specials.checkBuild(s, pid, "S-03", c.q - 1, c.r - 1, 0)
+        expect.truthy(ok, why)
+        ok, why = Specials.checkBuild(s, pid, "S-02", c.q - 1, c.r - 1, 0)   -- tâm trên DH-10
+        expect.falsy(ok)
+        expect.truthy(why:find("Khu Dân Cư", 1, true))
+        at(s, c, -1, -1).terrain = "DH-01"
+        ok, why = Specials.checkBuild(s, pid, "S-02", c.q - 1, c.r - 1, 0)   -- ô phụ (0,-1) trên DH-10
+        expect.falsy(ok)
+        expect.eq(why, "Không xây trên Khu Dân Cư")
+        -- Danh Thắng (DH-11) cấm mọi công trình Đặc Biệt kể cả S-03
+        at(s, c, 0, -1).terrain = "DH-11"
+        ok, why = Specials.checkBuild(s, pid, "S-03", c.q - 1, c.r - 1, 0)
+        expect.falsy(ok)
+        expect.eq(why, "Không xây trên Danh Thắng")
+        for _, o in ipairs(TRI(-1, -1)) do
+            local st = at(s, c, o[1], o[2])
+            st.terrain = "DH-01"
+            st.settlement = nil
+        end
+
         ok, why = Specials.checkBuild(s, pid, "S-04", c.q + 6, c.r - 1, 0)
         expect.falsy(ok); expect.truthy(why:find("Viện Nghiên Cứu cấp 2", 1, true))
 

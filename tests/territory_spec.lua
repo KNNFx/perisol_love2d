@@ -222,6 +222,29 @@ describe("territory: mua ô", function()
         Territory.addVote(s, 2, t)
         expect.eq(Territory.ownerOf(s, t), 2)
     end)
+
+    it("không mua được ô Khu Dân Cư hoặc Danh Thắng bằng tài nguyên (chỉ dùng phiếu Chi Phối)", function()
+        local s = twoPlayerState(2)
+        local t = tileAtDistance(s, 1, 2)
+        expect.truthy(Territory.canBuyTile(s, 1, t))
+        t.settlement = 1
+        t.terrain = "DH-10"
+        local ok, why = Territory.canBuyTile(s, 1, t)
+        expect.falsy(ok)
+        expect.eq(why, "Khu Dân Cư / Danh Thắng chỉ chiếm bằng phiếu Chi Phối")
+        for _, bt in ipairs(Territory.buyTargets(s, 1)) do
+            expect.falsy(bt == t, "buyTargets không được chứa ô Khu Dân Cư")
+        end
+        t.settlement = nil
+        t.landmark = 1
+        t.terrain = "DH-11"
+        ok, why = Territory.canBuyTile(s, 1, t)
+        expect.falsy(ok)
+        expect.eq(why, "Khu Dân Cư / Danh Thắng chỉ chiếm bằng phiếu Chi Phối")
+        -- nhưng đặt phiếu Chi Phối thì được phép
+        s.players[1].votes = 2
+        expect.truthy(Territory.canVote(s, 1, t))
+    end)
 end)
 
 describe("territory: Khu Trực Thuộc", function()

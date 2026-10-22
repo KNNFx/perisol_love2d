@@ -325,10 +325,12 @@ function T.buyTileCost(state, pid, tile)
 end
 
 -- Mua được ô chưa có chủ trong vùng ảnh hưởng? (Chưa tính tiền.) Trả ok, lý do.
+-- GDD v1.3 §7.2 & §13.2: Khu Dân Cư và Danh Thắng không mua được bằng tài nguyên, chỉ chiếm bằng phiếu Chi Phối.
 function T.canBuyTile(state, pid, tile)
     if not tile then return false, "Không có ô này" end
     if not state.players[pid].hq then return false, "Chưa đặt Nhà Chính" end
     if Rebel.isBlockaded(state, tile) then return false, "Ô đang bị Phiến Quân phong tỏa" end
+    if tile.settlement or tile.landmark then return false, "Khu Dân Cư / Danh Thắng chỉ chiếm bằng phiếu Chi Phối" end
     if not T.inInfluence(state, pid, tile) then return false, "Chỉ mua ô trong vùng ảnh hưởng của bạn" end
     if T.isAnchorTile(state, tile) then return false, "Không mua ô Nhà Chính / Khu Trực Thuộc" end
     if state.owner[key(tile)] then return false, "Ô đã có chủ" end

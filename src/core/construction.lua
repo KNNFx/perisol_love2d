@@ -40,6 +40,11 @@ function K.cost(state, id, level, anchorTile)
         and Structures.strategicAt(state, anchorTile) == Strategic.FERTILE then
         cost.engineering = math.max(0, cost.engineering - 1)
     end
+    -- Địa hình ưu tiên (GDD v1.3 §9.4 ⭐): giảm 1 tài nguyên chính khi xây Cấp 1 (tối thiểu còn 1, không áp dụng khi nâng cấp)
+    if level == 1 and anchorTile and Buildings.allowedOn(id, 1, anchorTile.terrain) == "pref" then
+        local main = Buildings.byId[id] and Buildings.byId[id].main
+        if main and cost[main] then cost[main] = math.max(1, cost[main] - 1) end
+    end
     return cost
 end
 

@@ -125,6 +125,41 @@ describe("construction: nâng cấp tại chỗ", function()
         expect.eq(cost.engineering, 3)    -- 4 - 1
         expect.eq(cost.science, 2)
     end)
+
+    it("địa hình ưu tiên (⭐): giảm 1 tài nguyên chính khi xây C1 (tối thiểu 1), không áp dụng khi nâng cấp", function()
+        local s, pid, center = arena()
+        -- Khu Dân Cư (DH-10) ưu tiên cho Nhà Văn Hóa (B-03) và Khu Chợ (B-05)
+        center.terrain = "DH-10"
+        center.settlement = 1
+        local cB03 = Construction.cost(s, "B-03", 1, center)
+        expect.eq(cB03.culture, 1)        -- 2 - 1 = 1 VH
+        expect.eq(cB03.gold, 1)
+        local cB05 = Construction.cost(s, "B-05", 1, center)
+        expect.eq(cB05.gold, 2)           -- 3 - 1 = 2 Vàng
+        expect.eq(cB05.engineering, 1)
+
+        -- Rừng (DH-02) ưu tiên cho Viện Nghiên Cứu (B-02) và Đền Thờ (B-04)
+        local forest = s.map:get(center.q + 1, center.r)
+        forest.terrain = "DH-02"
+        local cB02 = Construction.cost(s, "B-02", 1, forest)
+        expect.eq(cB02.science, 1)        -- 2 - 1 = 1 KH
+        expect.eq(cB02.gold, 1)
+        local cB04 = Construction.cost(s, "B-04", 1, forest)
+        expect.eq(cB04.faith, 1)          -- 2 - 1 = 1 TN
+        expect.eq(cB04.gold, 1)
+
+        -- Thực tế xây B-03 C1 trên Khu Dân Cư chỉ trừ 1 VH + 1 Vàng; nâng cấp C2 vẫn tốn đủ 3 VH + 1 TN + 2 Vàng
+        local beforeVH = s.players[pid].res.culture
+        local beforeGold = s.players[pid].res.gold
+        Game.apply(s, { type = "build", id = "B-03", q = center.q, r = center.r })
+        expect.eq(s.players[pid].res.culture, beforeVH - 1)
+        expect.eq(s.players[pid].res.gold, beforeGold - 1)
+        local b = Structures.at(s, center)
+        local upCost = Game.upgradeCost(s, b)
+        expect.eq(upCost.culture, 3)
+        expect.eq(upCost.faith, 1)
+        expect.eq(upCost.gold, 2)
+    end)
 end)
 
 describe("construction: sản xuất theo footprint", function()
