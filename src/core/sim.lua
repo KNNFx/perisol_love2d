@@ -15,7 +15,7 @@ local MAX_TOTAL_COMMANDS    = 100000
 -- Trọng số chọn loại lệnh trong pha action (kiểu lệnh nào có thì mới được chọn).
 local TYPE_WEIGHT = { build = 6, buyTile = 4, placeVote = 3, foundSub = 2, trade = 1,
                          upgrade = 12, buyUnit = 3, moveUnit = 4, suppress = 3, garrison = 1, buildDerived = 8, redeemBond = 2,
-                         upgradeHQ = 6, upgradeSub = 6, buildSpecial = 10, upgradeSpecial = 6, fortressStrike = 3 }
+                         upgradeHQ = 6, upgradeSub = 6, buildSpecial = 10, upgradeSpecial = 6, fortressStrike = 3, expelRebel = 8 }
 local P_END_TURN  = 0.12
 local P_DEMOLISH  = 0.01   -- xác suất mỗi lệnh action chọn dỡ công trình hoặc giải thể đơn vị
 

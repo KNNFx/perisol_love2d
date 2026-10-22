@@ -10,6 +10,7 @@
 local Construction = require("src.core.construction")
 local Passives     = require("src.core.passives")
 local Units        = require("src.core.units")
+local Rebel        = require("src.core.rebel")
 
 local Upkeep = {}
 
@@ -17,6 +18,7 @@ Upkeep.steps = {
     Construction.completeDemolitions,   -- 1. demolish
     Passives.step,                      -- 2. passives
     Units.startTurn,                    -- 3. units
+    Rebel.onTurnStart,                  -- 4. đếm lượt bị Phiến Quân quấy phá (GDD §6.2)
 }
 
 -- Chạy mọi bước cho `pid`. Trả events.

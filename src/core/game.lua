@@ -112,6 +112,11 @@ end
 -- Khâu Giải Quyết (GDD §5.3): Phiến Quân (đã xong) -> Sự Kiện Tổng -> Sắc Lệnh -> kỹ năng nhân vật.
 -- M1 chỉ ghi nhận mốc sự kiện (stub); Sắc Lệnh / kỹ năng ở M2 / M3.
 local function resolution(state, events)
+    if state.rebel and state.rebel.fromAction then
+        state.rebel.fromAction = nil
+        state.phase = "action"
+        return
+    end
     if state.turn == 1 and isEventRound(state.round) then
         events[#events + 1] = { kind = "global_event", stub = true }
     end
@@ -294,6 +299,10 @@ H.roll = {
 H.rebelStep = {
     phase = "rebel_move",
     check = function(state, cmd)
+        if type(cmd.q) == "number" and type(cmd.r) == "number" then
+            local tile = state.map:get(cmd.q, cmd.r)
+            if tile and Rebel.isHQ(state, tile) then return false, "Không thể đi vào Nhà Chính" end
+        end
         for _, t in ipairs(Rebel.legalSteps(state)) do
             if t.q == cmd.q and t.r == cmd.r then return true end
         end
@@ -316,6 +325,18 @@ H.chooseLoss = {
     apply = function(state, cmd, pid, events)
         for _, e in ipairs(Rebel.resolveLoss(state, cmd.res)) do events[#events + 1] = e end
         settleRebel(state, events)
+    end,
+}
+
+-- Lệnh Đuổi Phiến Quân (GDD v1.3 §6.2, §6.3): mở khóa khi bị quấy phá > 3 lượt liên tiếp (từ lượt thứ 4).
+H.expelRebel = {
+    phase = "action",
+    check = function(state, cmd, pid) return Rebel.checkExpel(state, pid) end,
+    apply = function(state, cmd, pid, events)
+        state.players[pid].harassTurns = 0
+        state.rebel.fromAction = true
+        events[#events + 1] = { kind = "rebel_expel", pid = pid }
+        runRebel(state, pid, events)
     end,
 }
 
@@ -861,6 +882,9 @@ function Game.legal(state)
         if Territory.canUpgradeHQ(state, actor) and Game.afford(state, actor, "hq") then
             out[#out + 1] = { type = "upgradeHQ", pid = actor }
         end
+        if Rebel.checkExpel(state, actor) then
+            out[#out + 1] = { type = "expelRebel", pid = actor }
+        end
         for _, sub in ipairs(p.subs) do
             local tile = state.map:get(sub.q, sub.r)
             if Territory.canUpgradeSub(state, actor, tile) and Game.afford(state, actor, "sub", sub.level + 1) then
@@ -1072,6 +1096,15 @@ local MIGRATIONS = {
             if p.cancel7Used == nil then p.cancel7Used = 0 end
         end
         data.version = 4
+        return data
+    end,
+    -- v4 -> v5 (GDD v1.3 §6.2): thêm bộ đếm lượt bị Phiến Quân quấy phá (harassTurns).
+    [4] = function(data)
+        local s = data.state
+        for _, p in ipairs(s.players or {}) do
+            if p.harassTurns == nil then p.harassTurns = 0 end
+        end
+        data.version = 5
         return data
     end,
 }

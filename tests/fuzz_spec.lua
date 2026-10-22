@@ -18,7 +18,7 @@ local TEMPL = {
     moveUnit = { uid = 1, q = 1, r = 1 }, upgradeRoad = { q = 1, r = 1 }, proposeTrade = { to = 2, give = "gold", get = "science" },
     suppress = { uid = 1, dir = 1, pay = false }, garrison = { uid = 1 }, disband = { uid = 1 }, placeVote = { q = 1, r = 1 },
     build = { id = "B-01", q = 1, r = 1 }, upgrade = { uid = 1, q = 1, r = 1, rot = 0 }, demolish = { uid = 1 },
-    respond = { choice = "accept" }, endTurn = {},
+    expelRebel = {}, respond = { choice = "accept" }, endTurn = {},
 }
 local TYPES = {}
 for t in pairs(TEMPL) do TYPES[#TYPES + 1] = t end

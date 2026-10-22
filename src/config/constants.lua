@@ -123,6 +123,7 @@ C.BUY_TILE_GROWTH = 2
 C.REBEL_SPAWN_TERRAINS   = { "DH-01", "DH-06", "DH-07" }  -- Data §2 (U-03)
 C.REBEL_SPAWN_MIN_HQ_DIST = 2
 C.REBEL_MOUNTAIN_COST    = 3             -- sau khi hết khóa (REBEL_MOUNTAIN_LOCK_ROUNDS)
+C.REBEL_HARASS_TURNS     = 3             -- bị quấy phá quá 3 lượt liên tiếp (lượt thứ 4) nhận Lệnh Đuổi Phiến Quân (GDD §6.2)
 
 C.SCORE_TILE         = 1                 -- GDD §11.2 (D-010)
 C.SCORE_LANDMARK     = 3
@@ -157,7 +158,7 @@ C.BOND_INTEREST          = 0.5      -- Vàng lãi mỗi Tín Phiếu mỗi vòng
 C.BOND_REDEEM_GOLD       = 2        -- đổi 1 Tín Phiếu lấy 2 Vàng
 C.TN05_ALLOY_BONUS       = 1        -- TN-05 trên ô chủ của D-01: +1 Hợp Kim mỗi vòng
 
-C.SAVE_VERSION       = 4              -- version file save (D-011, v3 = D-014, v4 = State khai đủ trường, M2b-1)
+C.SAVE_VERSION       = 5              -- version file save (D-011, v3 = D-014, v4 = State khai đủ trường, v5 = harassTurns)
 
 -- ─── Render ────────────────────────────────────────────────────────────────
 -- Sprite hex pointy-top 32×32; lát gạch bước ngang 32, bước dọc 24.

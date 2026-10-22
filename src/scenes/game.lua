@@ -125,7 +125,7 @@ function Scene:enter(opts)
     self.trade = {}
     self.rollAnim = nil
     self.dieScale = { 1, 1 }
-    self.pop, self.pulses, self.logLines = {}, {}, {}
+    self.pop, self.pulses, self.floats, self.logLines = {}, {}, {}, {}
     self.trauma, self.flash, self.time = 0, { a = 0 }, 0
     self.toast = nil
     self.reduceMotion, self.debug, self.showZones = false, false, false
@@ -213,10 +213,26 @@ function Scene:onEvents(events)
         elseif k == "rebel_stop" then
             self:addTrauma(0.35)
             self:pulseAt(e.q, e.r)
+            if e.roller and state.players[e.roller] and state.players[e.roller].hq then
+                local hq = state.players[e.roller].hq
+                self:focusTile(state.map:get(hq.q, hq.r))
+            end
         elseif k == "rebel_loss" then
             self:addTrauma(0.3)
             self:popValue(e.victim, e.res)
             self:popValue(e.roller, e.res)
+            if e.q and e.r then
+                local t = state.map:get(e.q, e.r)
+                if t then
+                    self:pulseAt(e.q, e.r)
+                    self.floats[#self.floats + 1] = {
+                        tile = t, text = string.format("-%d %s", e.lost, Fmt.res(e.res)),
+                        color = { 1, 0.35, 0.3 }, t = 0, d = 1.4,
+                    }
+                end
+            end
+        elseif k == "rebel_expel" then
+            self:say("Lệnh Đuổi Phiến Quân! Chọn đường đi cho Phiến Quân")
         elseif k == "claim" or k == "build" or k == "place_hq" or k == "found_sub" or k == "upgrade_hq"
             or k == "upgrade" or k == "demolished" or k == "upgrade_sub" or k == "unit_transform"
             or k == "unit_retreat" then
@@ -317,6 +333,11 @@ function Scene:update(dt)
         local p = self.pulses[i]
         p.t = p.t + dt
         if p.t >= p.d then table.remove(self.pulses, i) end
+    end
+    for i = #self.floats, 1, -1 do
+        local fl = self.floats[i]
+        fl.t = fl.t + dt
+        if fl.t >= fl.d then table.remove(self.floats, i) end
     end
     if self.toast then
         self.toast.t = self.toast.t - dt
@@ -591,6 +612,7 @@ function Scene:drawMap()
         end
     end
     Layers.drawPulses(self.pulses, zoom)
+    Layers.drawFloats(self.floats)
 
     self.camera:detach()
     love.graphics.pop()
@@ -954,6 +976,14 @@ function Scene:drawActions(x, y, w)
         onClick = function() self.popup = "special" end,
     })
     y = y + bh + gap
+    if inAction and Game.check(state, { type = "expelRebel" }) then
+        ui:button("expelrebel", x, y, w, bh, "Đuổi Phiến Quân", {
+            enabled = true, color = { 0.55, 0.22, 0.20 }, font = Theme.font(11, true),
+            tip = "Bạn đã bị Phiến Quân quấy phá quá 3 lượt liên tiếp: đổ 1d6 và điều khiển Phiến Quân đi nơi khác (GDD §6.2).",
+            onClick = function() self.mode = nil; self:cmd({ type = "expelRebel" }) end,
+        })
+        y = y + bh + gap
+    end
     ui:button("end", x, y, w, Theme.px(28), "Kết thúc lượt (" .. Actions.label("endTurn") .. ")", {
         enabled = inAction, color = inAction and { 0.42, 0.30, 0.18 } or nil, font = Theme.font(12, true),
         onClick = function() self.mode = nil; self:cmd({ type = "endTurn" }) end,
@@ -1718,7 +1748,7 @@ function Scene:draw()
         self:drawPausePopup(W, H)
     elseif self.popup == "trade" then
         self:drawTradePopup(W, H)
-    elseif self.ghostReason and self.mode then
+    elseif self.ghostReason and (self.mode or state.phase == "rebel_move") then
         ui.tip = self.ghostReason
     end
     ui:finish()

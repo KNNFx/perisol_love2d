@@ -59,6 +59,7 @@ function Invariants.shape(s)
             if not isStampOrFalse(p[k]) then return false, "P" .. pid .. " sai " .. k end
         end
         if not isInt(p.cancel7Used) then return false, "P" .. pid .. " sai cancel7Used" end
+        if not isInt(p.harassTurns) or p.harassTurns < 0 then return false, "P" .. pid .. " sai harassTurns" end
     end
 
     for _, k in ipairs({ "rebel", "dice", "prompt" }) do

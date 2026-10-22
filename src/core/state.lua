@@ -15,7 +15,8 @@
 --   players = { [pid] = {
 --       id, res = {science=..}, votes = n, hq = {q,r} | false, hqLevel = n, subs = {}, carry = {},
 --       strikeRound, broadcastRound, knightRetreatRound = vòng dùng gần nhất | false,   -- S-0x "Pháo" / "Phát Sóng", Knight rút lui
---       cancel7Used = số lần đã hủy tổng 7 nhờ Thiên Đình } },
+--       cancel7Used = số lần đã hủy tổng 7 nhờ Thiên Đình,
+--       harassTurns = số lượt liên tiếp bị Phiến Quân quấy phá (GDD §6.2) } },
 --   owner     = { ["q,r"] = pid },
 --   votes     = { ["q,r"] = { [pid] = n } },
 --   buildings = { [uid] = { uid, id, level, owner, tiles = {"q,r"...}, anchor, rot } },   (src/core/structures.lua)
@@ -45,7 +46,8 @@ function State.new(map, playerCount, seed)
         for _, r in ipairs(Resources.core) do res[r.key] = 0 end
         for _, r in ipairs(Resources.materials) do res[r.key] = 0 end
         players[pid] = { id = pid, res = res, votes = 0, hq = false, hqLevel = 1, subs = {}, carry = {},
-                         strikeRound = false, broadcastRound = false, knightRetreatRound = false, cancel7Used = 0 }
+                         strikeRound = false, broadcastRound = false, knightRetreatRound = false, cancel7Used = 0,
+                         harassTurns = 0 }
     end
     local order = {}
     for pid = 1, playerCount do order[pid] = pid end

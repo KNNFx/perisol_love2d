@@ -347,6 +347,23 @@ function L.drawRebel(state, opts)
         end
     end
 
+    if state.phase == "rebel_move" then   -- GDD §12.4: tô tối ô Nhà Chính (HQ) thể hiện trạng thái bị khóa
+        for _, p in ipairs(state.players) do
+            if p.hq then
+                local hqTile = state.map:get(p.hq.q, p.hq.r)
+                if hqTile then
+                    local hx, hy = tileCenter(hqTile)
+                    love.graphics.setColor(0.05, 0.05, 0.08, 0.62)
+                    love.graphics.polygon("fill", hexPolygon(hx, hy))
+                    love.graphics.setColor(0.75, 0.2, 0.2, 0.85)
+                    love.graphics.setLineWidth(1.5 / zoom)
+                    love.graphics.polygon("line", hexPolygon(hx, hy))
+                    love.graphics.setLineWidth(1)
+                end
+            end
+        end
+    end
+
     local cx, cy = tileCenter(rb)
     love.graphics.setColor(0, 0, 0, 0.5)
     love.graphics.ellipse("fill", cx, cy + 7, 8, 3)
@@ -358,6 +375,22 @@ function L.drawRebel(state, opts)
     love.graphics.setLineWidth(1)
     love.graphics.setColor(1, 1, 1)
     worldText("PQ", cx, cy - 1, 0.5)
+
+    -- GDD §6.2, §12.4: trên đầu Phiến Quân hiện số bước còn lại và người điều khiển lần cuối
+    local pend = rb.pending
+    local ctrl = (pend and pend.roller) or rb.controller
+    local left = (pend and pend.stage == "move") and pend.points or nil
+    local badge = left and (ctrl and string.format("P%d:%d", ctrl, left) or tostring(left))
+        or (ctrl and string.format("P%d", ctrl) or nil)
+    if badge then
+        local bw = love.graphics.getFont():getWidth(badge) * 0.42 + 6
+        love.graphics.setColor(0, 0, 0, 0.78)
+        love.graphics.rectangle("fill", cx - bw / 2, cy - 18, bw, 8, 2, 2)
+        local pc = ctrl and PLAYER[ctrl] or { 1, 0.85, 0.4 }
+        love.graphics.setColor(pc[1], pc[2], pc[3], 0.95)
+        worldText(badge, cx, cy - 14, 0.42)
+    end
+    love.graphics.setColor(1, 1, 1)
 end
 
 -- Tô sáng danh sách ô. items = { { tile, color = {r,g,b}, alpha, outline = bool } }
@@ -411,6 +444,23 @@ function L.drawPulses(pulses, zoom)
         love.graphics.setLineWidth(2 / zoom)
         love.graphics.circle("line", cx, cy, 6 + 16 * k)
         love.graphics.setLineWidth(1)
+    end
+    love.graphics.setColor(1, 1, 1)
+end
+
+-- Chữ bay lên trên ô (popup -x khi bị cướp phá...). floats = { { tile, text, color, t, d } }
+function L.drawFloats(floats)
+    for _, fl in ipairs(floats or {}) do
+        local cx, cy = tileCenter(fl.tile)
+        local k = fl.t / fl.d
+        local y = cy - 6 - 14 * k
+        local a = math.max(0, math.min(1, (1 - k) * 1.4))
+        local tw = love.graphics.getFont():getWidth(fl.text) * 0.48 + 6
+        love.graphics.setColor(0, 0, 0, 0.72 * a)
+        love.graphics.rectangle("fill", cx - tw / 2, y - 4.5, tw, 9, 2, 2)
+        local c = fl.color or { 1, 0.35, 0.3 }
+        love.graphics.setColor(c[1], c[2], c[3], a)
+        worldText(fl.text, cx, y, 0.48)
     end
     love.graphics.setColor(1, 1, 1)
 end

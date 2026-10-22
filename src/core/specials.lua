@@ -289,13 +289,14 @@ function S.pushHolders(state)
     return out
 end
 
--- Ô ngoài aura trong 2 bước quanh Phiến Quân mà Phiến Quân đứng được (Núi khóa không tính), theo thứ tự (r, q).
+-- Ô ngoài aura trong 2 bước quanh Phiến Quân mà Phiến Quân đứng được (Núi khóa và ô HQ không tính), theo thứ tự (r, q).
 function S.pushCandidates(state, b)
     local out = {}
     local rb = state.rebel
     for _, h in ipairs(Hex.range(rb, 2)) do
         local t = state.map:get(h.q, h.r)
-        if t and not Aura.covers(state, b, t) and Movement.stepCost("rebel", t.terrain, state.round) < math.huge then
+        if t and not Aura.covers(state, b, t) and not Rebel.isHQ(state, t)
+            and Movement.stepCost("rebel", t.terrain, state.round) < math.huge then
             out[#out + 1] = t
         end
     end

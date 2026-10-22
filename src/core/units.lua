@@ -314,7 +314,7 @@ function U.checkSuppress(state, pid, u, dir, pay)
     if Hex.distance(u, state.rebel) ~= 1 then return false, "Đơn vị phải đứng kề Phiến Quân" end
     if not Hex.DIRECTIONS[dir or 0] then return false, "Hướng đẩy không hợp lệ" end
     if #Rebel.pushPath(state, dir, C.SUPPRESS_PUSH_TILES) == 0 then
-        return false, "Không đẩy Phiến Quân theo hướng này được (ngoài bản đồ hoặc vào Núi đang khóa)"
+        return false, "Không đẩy Phiến Quân theo hướng này được (ngoài bản đồ, ô Nhà Chính hoặc Núi đang khóa)"
     end
     if pay and state.players[pid].res.faith < C.SUPPRESS_GUARANTEE_FAITH then
         return false, "Không đủ Tín Ngưỡng để chắc thắng"
@@ -344,6 +344,7 @@ function U.suppress(state, u, dir, pay)
         local to = path[#path]
         local from = Rebel.moveTo(state, to.q, to.r)
         state.rebel.suppressedRound = state.round
+        Rebel.refreshHarass(state)
         Wallet.gain(state.players[pid].res, "faith", C.SUPPRESS_REWARD_FAITH)
         events[#events + 1] = { kind = "suppress", pid = pid, uid = u.uid, ok = true, roll = roll, threshold = threshold,
                                 paid = pay or false, from = from, to = { q = to.q, r = to.r }, q = to.q, r = to.r }

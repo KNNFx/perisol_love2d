@@ -71,6 +71,8 @@ function Fmt.line(e)
     elseif k == "rebel_choose" then
         return { text = string.format("%s phải chọn loại tài nguyên mất (%d)", P(e.victim), e.amount),
                  pid = e.victim, tier = "medium" }
+    elseif k == "rebel_expel" then
+        return { text = string.format("%s dùng Lệnh Đuổi Phiến Quân!", P(e.pid)), pid = e.pid, tier = "large" }
     elseif k == "trade" then
         return { text = string.format("%s đổi %d %s lấy 1 %s", P(e.pid), e.rate, Fmt.res(e.give), Fmt.res(e.get)),
                  pid = e.pid, tier = "small" }
