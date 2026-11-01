@@ -4,47 +4,67 @@
 
 ## Sheet: Địa hình
 
-|PERISOL — BẢNG ĐỊA HÌNH||||||||||||||
-|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-|ID|Tên|EN|Hình ảnh (chờ art)|Icon (chờ art)|Rarity|Flavor text|HQ|Sub|Công trình|CT ĐB|Movement|Mov Penalty|Ghi Chú|
-|DH-01|Đồng Bằng|Plains||🌾|Phổ biến|Cỏ xanh, đất nâu nhạt, cảm giác mở rộng|✅|✅|✅|❌|✅|—|Tile cơ bản, không penalty|
-|DH-02|Rừng|Forest||🌲|Phổ biến|Tán cây dày, ánh sáng lọc qua lá, nền đất ẩm|✅|✅|✅|✅|✅|−1 bước|Đền Thờ, Yến Đình ưu tiên; VNC Cấp 1 +1 KH thụ động|
-|DH-03|Núi|Mountain||⛰|Phổ biến|Đá xám trắng, tuyết đỉnh, dốc đứng|❌|❌|❌|✅|❌|❌|Chỉ CT Đặc Biệt & Pháo Đài, về sau có nâng cấp cho đi qua|
-|DH-04|Sông|River||🌊|Phổ biến|Dòng nước xanh, bờ cát hai bên|❌|❌|❌|✅|✅|−1 bước|Đền Thờ, Xưởng Dệt Lụa được xây|
-|DH-05|Bờ Biển|Coast||🏖|Phổ biến|Cát vàng, sóng nhỏ, ánh nắng lấp lánh|✅|✅|✅|✅|✅|—|Khu Chợ Cấp 3 miễn ĐV Giao Thương|
-|DH-06|Lãnh nguyên|Tundra||❄|Không phổ biến|Mặt đất đóng băng trắng xám|✅|✅|✅|❌|✅|—|Vàng −1 sản lượng; xây CT −1 KT|
-|DH-07|Sa Mạc|Desert||🏜|Không phổ biến|Cát vàng cam, nắng gay gắt, khô khan|✅|✅|✅|❌|✅|—|Không sản xuất Tín Ngưỡng|
-|DH-08|Đầm Lầy|Swamp||🌿|Không phổ biến|Nước tù đọng, bùn xám xanh, cây um tùm|❌|✅|✅|❌|✅|−1 bước|Không đặt HQ; TN & VH cao|
-|DH-09|Đồi Cỏ|Grassland Hills||🏔|Không phổ biến|Đồi nhấp nhô xanh, hoa dại, gió nhẹ|✅|✅|✅|✅|✅|—|Trại KT Cấp 2 +1 KT|
-|DH-10|Khu Dân Cư|Settlement||🏘|Hiếm|Nhà san sát, đường đất, chợ nhỏ, đông đúc|❌|❌|❌|❌|✅|—|Chỉ Chi Phối; cho điểm cuối ván|
-|DH-11|Danh Thắng|Landmark||🗿|Hiếm|Công trình cổ đại hoặc địa hình nổi bật|❌|❌|❌|❌|✅|—|Chỉ Chi Phối; 3 điểm cuối ván|
-|DH-12|Núi Tuyết|Snow Peak||⛰⛰|Phổ biến|Núi nhưng phủ nhiều tuyết|❌|❌|❌|✅|❌|❌|Như Núi|
+|PERISOL — BẢNG ĐỊA HÌNH|||||||||||||||
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+|ID|Tên|EN|Hình ảnh (chờ art)|Icon (chờ art)|Rarity|Flavor text|HQ|Sub|Công trình|CT ĐB|Movement|Mov Penalty|Ghi Chú||
+|DH-01|Đồng Bằng|Plains||🌾|Phổ biến|Cỏ xanh, đất nâu nhạt, cảm giác mở rộng|✅|✅|✅|❌|✅|—|Tile cơ bản, không penalty||
+|DH-02|Rừng|Forest||🌲|Phổ biến|Tán cây dày, ánh sáng lọc qua lá, nền đất ẩm|✅|✅|✅|✅|✅|−1 bước|Đền Thờ, Yến Đình ưu tiên; VNC Cấp 1 +1 KH thụ động||
+|DH-03|Núi|Mountain||⛰|Phổ biến|Đá xám trắng, tuyết đỉnh, dốc đứng|❌|❌|❌|✅|❌|❌|Chỉ CT Đặc Biệt & Pháo Đài, về sau có nâng cấp cho đi qua||
+|DH-04|Sông|River||🌊|Phổ biến|Dòng nước xanh, bờ cát hai bên|❌|❌|❌|✅|✅|−1 bước|Mở khóa (nghiên cứu/nâng cấp) xây được Đền Thờ,Thiên Đàn|Mới|
+|DH-05|Bờ Biển|Coast||🏖|Phổ biến|Cát vàng, sóng nhỏ, ánh nắng lấp lánh|✅|✅|✅|✅|✅|—|Khu Chợ Cấp 3 miễn ĐV Giao Thương||
+|DH-06|Lãnh nguyên|Tundra||❄|Không phổ biến|Mặt đất đóng băng trắng xám|✅|✅|✅|❌|✅|—|Vàng −1 sản lượng; xây CT −1 KT||
+|DH-07|Sa Mạc|Desert||🏜|Không phổ biến|Cát vàng cam, nắng gay gắt, khô khan|✅|✅|✅|❌|✅|—|Không sản xuất Tín Ngưỡng||
+|DH-08|Đầm Lầy|Swamp||🌿|Không phổ biến|Nước tù đọng, bùn xám xanh, cây um tùm|❌|✅|✅|❌|✅|−1 bước|Không đặt HQ; TN & VH cao||
+|DH-09|Đồi Cỏ|Grassland Hills||🏔|Không phổ biến|Đồi nhấp nhô xanh, hoa dại, gió nhẹ|✅|✅|✅|✅|✅|—|Trại KT Cấp 2 +1 KT||
+|DH-10|Khu Dân Cư|Settlement||🏘|Hiếm|Nhà san sát, đường đất, chợ nhỏ, đông đúc|❌|❌|❌|❌|✅|—|Chỉ Chi Phối; cho điểm cuối ván||
+|DH-11|Danh Thắng|Landmark||🗿|Hiếm|Công trình cổ đại hoặc địa hình nổi bật|❌|❌|❌|❌|✅|—|Chỉ Chi Phối; 3 điểm cuối ván||
+|DH-12|Núi Tuyết|Snow Peak||⛰⛰|Phổ biến|Núi nhưng phủ nhiều tuyết|❌|❌|❌|✅|❌|❌|Như Núi||
+||Địa hình|KH|VH|KT|TN|Vàng|Số loại TB|Tile trống|||||||
+||Đồng Bằng|—|20%|30%|15%|25%|0.9|36%|||||||
+||Rừng|25%|10%|15%|30%|—|0.8|40%|||||||
+||Núi|35%|—|45%|10%|15%|1.05|27%|||||||
+||Sông|—|15%|—|35%|20%|0.7|44%|||||||
+||Bờ Biển|10%|20%|10%|10%|40%|0.9|35%|||||||
+||Lãnh Nguyên|10%|5%|20%|15%|10%|0.6|52%|||||||
+||Sa Mạc|20%|5%|25%|—|30%|0.8|40%|||||||
+||Đầm Lầy|15%|40%|10%|45%|—|1.1|25%|||||||
+||Đồi Cỏ|10%|20%|35%|15%|20%|1|32%|||||||
+||Khu Dân Cư|—|50%|—|20%|40%|1.1|24%|||||||
+||Núi Tuyết|40%|—|30%|15%|10%|0.95|32%|||||||
+|Mỗi tile (trừ Danh Thắng — xem ghi chú ở bảng) mang sẵn từ 0 đến vài loại Tài Nguyên Cơ Bản (CB) thuộc 5 tài nguyên cốt lõi: Khoa Học (KH), Văn Hóa (VH), Kỹ Thuật (KT), Tín Ngưỡng (TN) và Vàng (V).<br>Đây là lớp nền của bản đồ: tile càng giàu TNCB càng đáng tranh chấp. TNCB độc lập với công trình và với Tài Nguyên Chiến Lược (mục 3.4).|||||||||||||||
+|Quy tắc sinh khi tạo bản đồ:|||||||||||||||
+|• Mỗi tile tung xác suất riêng cho từng loại trong 5 loại tài nguyên theo bảng bên dưới (tỉ lệ xuất hiện tính độc lập). Ô ghi “—” nghĩa là địa hình đó không có loại tài nguyên ấy.|||||||||||||||
+|• Loại nào xuất hiện thì có lượng 1 hoặc 2 (mặc định 70% ra 1, 30% ra 2; ngoại lệ ghi dưới bảng).|||||||||||||||
+|• Vì tung độc lập nên số loại trên một tile dao động từ 0 đến số loại địa hình cho phép. Với bảng này khoảng 95–99% tile chỉ có 0–2 loại; tile có 3 loại trở lên là “tile giàu” hiếm (khoảng 1–5% tùy địa hình).<br>Tham số MaxKindsPerTile (mặc định: không giới hạn) cho phép khóa cứng, ví dụ đặt 2 để mọi tile tối đa 2 loại (loại dư bị bỏ ngẫu nhiên).|||||||||||||||
+|• Mức 1–2 chỉ áp dụng lúc sinh bản đồ. Sau đó lượng TNCB của tile có thể tăng không giới hạn nhờ công trình, aura Danh Thắng, Tài Nguyên Chiến Lược và hiệu ứng thẻ (xem “Nguồn cộng dồn”).|||||||||||||||
+|Mỗi Danh Thắng gắn cố định 1 loại TNCB theo chỉ định của danh sách các loại danh thắng, mỗi tile của nó có lượng loại đó.|||||||||||||||
+||Bảng Danh sách các Danh Thắng và tài nguyên cơ bản (Bổ sung sau)||||||||||||||
 
 
 ---
 
 ## Sheet: Tài nguyên Chiến lược
 
-|PERISOL — TÀI NGUYÊN CHIẾN LƯỢC|||||||||||
-|---|---|---|---|---|---|---|---|---|---|---|
-|ID|Tên|EN|Hình ảnh (chờ art)|Icon (chờ art)|Rarity|Địa Hình|Flavor text|Bonus ô|Hiệu Ứng Tile|Bonus Công Trình|
-|TN-01|Đá Granite|Granite||🪨|Phổ biến|Núi, Đồi Cỏ|Khối đá xám xanh lớn, vân đen trắng|Kỹ Thuật|Tile +1 KT bổ sung khi xúc xắc ra KT|Pháo Đài: −2 KT chi phí xây|
-|TN-02|Rừng Cổ Thụ|Ancient Forest||🌳|Phổ biến|Rừng|Cây cao vút, rễ lồi, ánh sáng xanh huyền ảo|TN + KH|Thêm 1 TN và 1 KH thụ động/vòng|Thiên Đình: bỏ yêu cầu địa hình Rừng|
-|TN-03|Cá|Fishing Ground||🐟|Phổ biến|Bờ Biển, Sông|Mặt nước lấp lánh, vảy cá, lưới đánh cá|Vàng|Khu Chợ: +2V khi ra Vàng; kết nối HQ ảo|Khu Chợ: không cần Đường Đất đến HQ|
-|TN-04|Ngựa|Horse Pasture||🐎|Không phổ biến|Đồng Bằng, Đồi Cỏ, Tundra|Đàn ngựa trên cánh đồng rộng, hàng rào gỗ|Di Chuyển|Viễn Chinh +2 bước nếu HQ trong bán kính 2|Chuồng Ngựa: −2 TN chi phí Viễn Chinh|
-|TN-05|Quặng Lộ Thiên|Open-cast Ore||⛏|Không phổ biến|Núi, Đồi Cỏ, Đồng Bằng|Vết nứt cam đỏ, quặng lộ ra, ánh kim|Kỹ Thuật|Tile +2 KT khi ra KT; Hợp Kim tỷ lệ 1:1|Phòng TN Vật Liệu: +1 Hợp Kim thụ động/vòng|
-|TN-06|Vàng Sa Khoáng|Alluvial Gold||✨|Hiếm|Sông, Bờ Biển, Đồng Bằng|Hạt vàng lấp lánh trong lòng suối, bãi cát|Vàng|Tile +3V khi ra Vàng; Chi Phối −1 ngưỡng|Khu Chợ Cấp 2+: tỷ lệ đổi 1:1 tất cả|
-|TN-07|Đá Thiêng|Sacred Stone||🔮|Hiếm|Núi, Rừng, Đồi Cỏ|Phiến đá đen phát ánh tím xanh, khắc ký tự cổ|Tín Ngưỡng|Tile +2 TN khi ra TN; Đền Thờ: miễn cooldown 1v/5v|Thiên Đình: aura +1 ô nếu trên tile này|
-|TN-08|Đất Màu Mỡ|Fertile Land||🌱|Phổ biến|Đồng Bằng, Đồi Cỏ|Đất nâu sẫm bóng, mầm xanh nhú, trù phú|Mọi tài nguyên|+1 sản lượng cơ bản cho mọi CT trên tile|CT Cấp 1 trên tile: −1 KT chi phí xây|
-|TN-09|Suối Nước Nóng|Hot Spring||♨|Hiếm|Núi, Đồi Cỏ, Đồng Bằng|Hơi nước bốc lên, ao nước xanh ngọc, hoa dại|Văn Hóa|Tile liền kề: +1 VH thụ động/vòng không cần CT|Đền Thờ Cấp 2+ kề: aura +1 TN bán kính 1|
-|TN-10|Cảng Tự Nhiên|Natural Harbor||⚓|Không phổ biến|Bờ Biển|Vũng biển kín gió, vách đá hai bên hình móng ngựa|Di Chuyển|Giao Thương miễn phí Vàng/tile; ĐV +3 bước|Khu Chợ Cấp 1 = Cấp 3 khi trên tile này|
-|TN-11|Gió Mạnh|Wind Corridor||💨|Không phổ biến|Bờ Biển, Đồng Bằng, Tundra|Cỏ nghiêng, mây cuộn, địa hình trống trải|Di Chuyển|Viễn Chinh +1 bước qua tile; PQ +2 bước ngẫu nhiên|Tháp Thiên Văn kề: aura +1 ô|
-|TN-12|Địa Linh|Ley Line Node||⭕|Rất hiếm|Bất kỳ (1–2 tile/ván)|Vòng sáng vàng trắng mờ trên mặt đất|Mọi tài nguyên|Long Mạch +1 ô; CT nhận sản lượng từ cả 2 viên|Đài LM: Phát Sóng Toàn Cầu 2 lần/3 vòng|
-|Dự kiến có thay đổi trong tương lai.|||||||||||
-|Ghi chú:|||||||||||
-|Các tài nguyên ĐB không cần phải sở hữu, nhận bonus ô với các loại tài nguyên, với loại di chuyển thì không cần phải sở hữu.|||||||||||
-|Một số loại công trình xây lên sẽ gây mất tài nguyên, người chơi sẽ được thông báo về thay đổi này.|||||||||||
-|Phá dỡ công trình đã xây lên tài nguyên chiến lược sẽ làm mất tài nguyên, cũng sẽ nhận thông báo.|||||||||||
+|PERISOL — TÀI NGUYÊN CHIẾN LƯỢC||||||||||||
+|---|---|---|---|---|---|---|---|---|---|---|---|
+|ID|Tên|EN|Hình ảnh (chờ art)|Icon (chờ art)|Rarity|Địa Hình|Flavor text|Bonus ô|Hiệu Ứng Tile|Bonus Công Trình|Ghi chú|
+|TN-01|Đá Granite|Granite||🪨|Phổ biến|Núi, Đồi Cỏ|Khối đá xám xanh lớn, vân đen trắng|Kỹ Thuật|Tile +1 KT bổ sung khi xúc xắc ra KT|Pháo Đài: −2 KT chi phí xây||
+|TN-02|Rừng Cổ Thụ|Ancient Forest||🌳|Phổ biến|Rừng|Cây cao vút, rễ lồi, ánh sáng xanh huyền ảo|TN + KH|Thêm 1 TN và 1 KH thụ động/vòng|Thiên Đàn: bỏ yêu cầu địa hình Rừng||
+|TN-03|Cá|Fishing Ground||🐟|Phổ biến|Bờ Biển, Sông|Mặt nước lấp lánh, vảy cá, lưới đánh cá|Vàng|Khu Chợ: +2V khi ra Vàng; kết nối HQ ảo|Khu Chợ: không cần Đường Đất đến HQ||
+|TN-04|Ngựa|Horse Pasture||🐎|Không phổ biến|Đồng Bằng, Đồi Cỏ, Tundra|Đàn ngựa trên cánh đồng rộng, hàng rào gỗ|Di Chuyển|Viễn Chinh +2 bước nếu HQ trong bán kính 2|Chuồng Ngựa: −2 TN chi phí Viễn Chinh|Bổ sung Công trình sau|
+|TN-05|Quặng Lộ Thiên|Open-cast Ore||⛏|Không phổ biến|Núi, Đồi Cỏ, Đồng Bằng|Vết nứt cam đỏ, quặng lộ ra, ánh kim|Kỹ Thuật|Tile +2 KT khi ra KT; Hợp Kim tỷ lệ 1:1|Phòng TN Vật Liệu: +1 Hợp Kim thụ động/vòng||
+|TN-06|Vàng Sa Khoáng|Alluvial Gold||✨|Hiếm|Sông, Bờ Biển, Đồng Bằng|Hạt vàng lấp lánh trong lòng suối, bãi cát|Vàng|Tile +3V khi ra Vàng; Chi Phối −1 ngưỡng|Khu Chợ Cấp 2+: tỷ lệ đổi 1:1 tất cả||
+|TN-07|Đá Thiêng|Sacred Stone||🔮|Hiếm|Núi, Rừng, Đồi Cỏ|Phiến đá đen phát ánh tím xanh, khắc ký tự cổ|Tín Ngưỡng|Tile +2 TN khi ra TN; Đền Thờ: miễn cooldown 1v/5v|Thiên Đàn: aura +1 ô nếu trên tile này||
+|TN-08|Đất Màu Mỡ|Fertile Land||🌱|Phổ biến|Đồng Bằng, Đồi Cỏ|Đất nâu sẫm bóng, mầm xanh nhú, trù phú|Mọi tài nguyên|+1 sản lượng cơ bản cho mọi CT trên tile|CT Cấp 1 trên tile: −1 KT chi phí xây||
+|TN-09|Suối Nước Nóng|Hot Spring||♨|Hiếm|Núi, Đồi Cỏ, Đồng Bằng|Hơi nước bốc lên, ao nước xanh ngọc, hoa dại|Văn Hóa|Tile liền kề: +1 VH thụ động/vòng không cần CT|Đền Thờ Cấp 2+ kề: aura +1 TN bán kính 1||
+|TN-10|Cảng Tự Nhiên|Natural Harbor||⚓|Không phổ biến|Bờ Biển|Vũng biển kín gió, vách đá hai bên hình móng ngựa|Di Chuyển|Giao Thương miễn phí Vàng/tile; ĐV +3 bước|Khu Chợ Cấp 1 = Cấp 3 khi trên tile này||
+|TN-11|Gió Mạnh|Wind Corridor||💨|Không phổ biến|Bờ Biển, Đồng Bằng, Tundra|Cỏ nghiêng, mây cuộn, địa hình trống trải|Di Chuyển|Viễn Chinh +1 bước qua tile; PQ +2 bước ngẫu nhiên|Tháp Thiên Văn kề: aura +1 ô||
+|TN-12|Địa Linh|Ley Line Node||⭕|Rất hiếm|Bất kỳ (1–2 tile/ván)|Vòng sáng vàng trắng mờ trên mặt đất|Mọi tài nguyên|Long Mạch +1 ô; CT nhận sản lượng từ cả 2 viên|Đài QS: Phát Sóng Toàn Cầu 2 lần/3 vòng||
+|Dự kiến có thay đổi trong tương lai.||||||||||||
+|Ghi chú:||||||||||||
+|Các tài nguyên ĐB không cần phải sở hữu, nhận bonus ô với các loại tài nguyên, với loại di chuyển thì không cần phải sở hữu.||||||||||||
+|Một số loại công trình xây lên sẽ gây mất tài nguyên, người chơi sẽ được thông báo về thay đổi này.||||||||||||
+|Phá dỡ công trình đã xây lên tài nguyên chiến lược sẽ làm mất tài nguyên, cũng sẽ nhận thông báo.||||||||||||
 
 
 ---
@@ -55,74 +75,35 @@
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 |Loại|ID|Tên|Hình ảnh (chờ art)|Icon (chờ art)|Cấp|Số Ô Hex|Loại và hình dạng ô|Địa Hình Hợp Lệ|Tài Nguyên ĐB|Phụ Thuộc Công Trình|Khoảng Cách|Chi Phí Xây|Sản Xuất|
 |Cơ Bản|B-01.1|Trại Khai Thác||⛏|1|1|Thực hữu|Đồng Bằng, Đồi Cỏ, Sa Mạc, Tundra|Quặng LT (bonus), Đất MM (bonus)|—|—|2 KT + 1V|1 KT khi ra KT|
-|Cơ Bản|B-01.2|Trại Khai Thác||⛏|2|3|Thực hữu — tam giác hex|Đồng Bằng, Đồi Cỏ, Núi, Sa Mạc, Tundra|Quặng LT (unlock Hợp Kim tối ưu)|—|—|4 KT + 2 KH + 3V|2 KT khi ra KT; +1 KT khi ra KH|
-|Cơ Bản|B-01.3|Trại Khai Thác||⛏|3|6|Thực hữu — hình thang hex|Đồng Bằng, Đồi Cỏ, Núi, Sa Mạc, Tundra|Quặng LT (+1 KT thụ động/vòng)|—|—|7 KT + 4 KH + 6V|3 KT ra KT; 2 KT ra KH; +1 KT thụ động/vòng|
+|Cơ Bản|B-01.2|Trại Khai Thác||⛏|2|3|Thực hữu — 3a|Đồng Bằng, Đồi Cỏ, Núi, Sa Mạc, Tundra|Quặng LT (unlock Hợp Kim tối ưu)|—|—|4 KT + 2 KH + 3V|2 KT khi ra KT; +1 KT khi ra KH|
+|Cơ Bản|B-01.3|Trại Khai Thác||⛏|3|6|Thực hữu — 6a|Đồng Bằng, Đồi Cỏ, Núi, Sa Mạc, Tundra|Quặng LT (+1 KT thụ động/vòng)|—|—|7 KT + 4 KH + 6V|3 KT ra KT; 2 KT ra KH; +1 KT thụ động/vòng|
 |Cơ Bản|B-02.1|Viện Nghiên Cứu||🔬|1|1|Thực hữu|Đồng Bằng, Rừng, Đồi Cỏ, Bờ Biển|Rừng CT (bonus), Đất Linh (bonus)|—|—|2 KH + 1V|1 KH khi ra KH. Rừng: +1 KH thụ động|
-|Cơ Bản|B-02.2|Viện Nghiên Cứu||🔬|2|3|Thực hữu — tam giác hex|Đồng Bằng, Rừng, Đồi Cỏ, Bờ Biển|Rừng CT, Đất Linh|—|—|4 KH + 2 KT + 3V|2 KH khi ra KH; +1 KH khi ra KT|
-|Cơ Bản|B-02.3|Viện Nghiên Cứu||🔬|3|6|Thực hữu — cụm hex|Đồng Bằng, Rừng, Đồi Cỏ, Bờ Biển|Rừng CT, Đất Linh|—|—|7 KH + 3 KT + 5V|3 KH ra KH; 2 KH ra KT; +1 KH thụ động/vòng|
+|Cơ Bản|B-02.2|Viện Nghiên Cứu||🔬|2|3|Thực hữu — 3b|Đồng Bằng, Rừng, Đồi Cỏ, Bờ Biển|Rừng CT, Đất Linh|—|—|4 KH + 2 KT + 3V|2 KH khi ra KH; +1 KH khi ra KT|
+|Cơ Bản|B-02.3|Viện Nghiên Cứu||🔬|3|6|Thực hữu — 6b|Đồng Bằng, Rừng, Đồi Cỏ, Bờ Biển|Rừng CT, Đất Linh|—|—|7 KH + 3 KT + 5V|3 KH ra KH; 2 KH ra KT; +1 KH thụ động/vòng|
 |Cơ Bản|B-03.1|Nhà Văn Hóa||🏛|1|1|Thực hữu|Đồng Bằng, Bờ Biển, Khu DC (ảnh hưởng)|Suối NN (bonus), Đất MM (bonus)|—|—|2 VH + 1V|1 VH khi ra VH|
 |Cơ Bản|B-03.2|Nhà Văn Hóa||🏛|2|2|Thực hữu — 2 ô liền|Đồng Bằng, Bờ Biển, Đồi Cỏ|Suối NN, Đất MM|—|—|3 VH + 1 TN + 2V|2 VH ra VH; +1 VH khi ra TN|
-|Cơ Bản|B-03.3|Nhà Văn Hóa||🏛|3|4|Thực hữu — 4 ô hình chữ nhật hex|Đồng Bằng, Bờ Biển, Đồi Cỏ|Suối NN, Đất MM|—|—|5 VH + 3 TN + 4V|3 VH; tile lãnh thổ kề +0.5 VH thụ động/vòng|
+|Cơ Bản|B-03.3|Nhà Văn Hóa||🏛|3|4|Thực hữu — 4a|Đồng Bằng, Bờ Biển, Đồi Cỏ|Suối NN, Đất MM|—|—|5 VH + 3 TN + 4V|3 VH; tile lãnh thổ kề +0.5 VH thụ động/vòng|
 |Cơ Bản|B-04.1|Đền Thờ||⛩|1|1|Thực hữu|Đồng Bằng, Rừng, Sông, Đầm Lầy|Đá Thiêng (bonus), Rừng CT (bonus)|—|—|2 TN + 1V|1 TN khi ra TN|
 |Cơ Bản|B-04.2|Đền Thờ||⛩|2|2|Thực hữu — 2 ô liền (kể cả Sông)|Đồng Bằng, Rừng, Sông, Đầm Lầy, Đồi Cỏ|Đá Thiêng, Suối NN|—|—|3 TN + 2 VH + 2V|2 TN ra TN; +1 TN khi ra VH|
-|Cơ Bản|B-04.3|Đền Thờ||⛩|3|3|Thực hữu — 3 ô liền|Đồng Bằng, Rừng, Sông, Đầm Lầy, Đồi Cỏ|Đá Thiêng (aura +1 tự động)|—|—|5 TN + 3 VH + 3V|3 TN ra TN; +1 TN thụ động nếu PQ hiện diện|
+|Cơ Bản|B-04.3|Đền Thờ||⛩|3|3|Thực hữu — 3b|Đồng Bằng, Rừng, Sông, Đầm Lầy, Đồi Cỏ|Đá Thiêng (aura +1 tự động)|—|—|5 TN + 3 VH + 3V|3 TN ra TN; +1 TN thụ động nếu PQ hiện diện|
 |Cơ Bản|B-05.1|Khu Chợ||💰|1|1|Thực hữu|Đồng Bằng, Bờ Biển, Khu DC (ảnh hưởng)|Cảng TN (bonus lớn), Vàng SK (bonus), Cá|—|Cần đường nếu không liền HQ|3V + 1 KT|1V khi ra Vàng|
 |Cơ Bản|B-05.2|Khu Chợ||💰|2|2|Thực hữu — 2 ô liền|Đồng Bằng, Bờ Biển, Khu DC, Sa Mạc|Cảng TN, Vàng SK, Cá|—|Đường nếu không liền HQ|5V + 3 KT|2V ra Vàng; +0.5V/vòng mỗi tuyến ĐĐ (max 3)|
-|Cơ Bản|B-05.3|Khu Chợ||💰|3|3|Thực hữu — dạng L hex|Đồng Bằng, Bờ Biển, Sa Mạc|Cảng TN, Vàng SK, Cá|—|—|8V + 5 KT + 2 VH|3V ra Vàng; GT bán kính 2 ô không cần ĐV|
+|Cơ Bản|B-05.3|Khu Chợ||💰|3|3|Thực hữu — 3c|Đồng Bằng, Bờ Biển, Sa Mạc|Cảng TN, Vàng SK, Cá|—|—|8V + 5 KT + 2 VH|3V ra Vàng; GT bán kính 2 ô không cần ĐV|
 |Phái Sinh|D-01|Phòng TN Vật Liệu||⚗|—|0|Không chiếm ô mới|Tile của Trại KT Cấp 2+|Quặng LT (tỷ lệ 1:1)|Trại KT Cấp 2+ VÀ Viện NC Cấp 2+|Tối đa 2 ô; cần ĐĐ nếu 1–2 ô|3 KT + 2 KH + 2V|1 HK khi ra KT hoặc KH; +1 HK thụ động/3 vòng|
 |Phái Sinh|D-02|Xưởng In Ấn||📄|—|0|Không chiếm ô mới|Tile của Nhà VH Cấp 1+|Rừng CT (NVH trên Rừng: +1 Giấy/vòng)|Nhà VH Cấp 1+ VÀ Trại KT Cấp 2+|Tối đa 1 ô; cần ĐĐ nếu cách 1 ô|2 VH + 2 KT + 1V|1 Giấy khi ra VH hoặc KT; có ĐĐ: +1 Giấy/vòng|
 |Phái Sinh|D-03|Xưởng Luyện Kim||🔥|—|1|Thực hữu — 1 ô trống kề Trại KT Cấp 3|Đồng Bằng, Núi, Đồi Cỏ|Quặng LT (bắt buộc giảm chi phí)|Trại KT Cấp 3 VÀ Đền Thờ Cấp 2+|Phải LIỀN KỀ — không thể dùng ĐĐ|4 KT + 2 TN + 3V|1 Thép khi ra KT; +1 Thép thụ động/4 vòng|
 |Phái Sinh|D-04|Xưởng Dệt Lụa||🪢|—|0|Không chiếm ô mới|Tile của Nhà VH Cấp 2+|Đầm Lầy hoặc Sông kề: +1 Lụa/vòng|Nhà VH Cấp 2+ VÀ Đền Thờ Cấp 2+|Tối đa 1 ô; cần ĐĐ nếu cách 1 ô|3 VH + 2 TN + 2V|1 Lụa khi ra VH hoặc TN; kề KDC: +1 Lụa/vòng|
-|Phái Sinh|D-05|Nhà Ngân Hàng||🏦|—|1|Thực hữu — 1 ô trống độc lập|Đồng Bằng, Bờ Biển, Khu DC (ảnh hưởng)|Cảng TN (bonus), Vàng SK (bonus)|Khu Chợ Cấp 2+ VÀ Xưởng In Ấn hoạt động|Tối đa 2 ô; cần ĐĐ nếu không liền|5V + 2 VH + 2 KT|Tín Phiếu khi ra Vàng; lãi 0.5V/TP/vòng|
+|Phái Sinh|D-05|Ngân Hàng||🏦|—|1|Thực hữu — 1 ô trống độc lập|Đồng Bằng, Bờ Biển, Khu DC (ảnh hưởng)|Cảng TN (bonus), Vàng SK (bonus)|Khu Chợ Cấp 2+ VÀ Xưởng In Ấn hoạt động|Tối đa 2 ô; cần ĐĐ nếu không liền|5V + 2 VH + 2 KT|Tín Phiếu khi ra Vàng; lãi 0.5V/TP/vòng|
 |Đặc Biệt|S-01|Tháp Thiên Văn||🔭|—|7|1 ô thực hữu + 6 ô xung quanh TRỐNG|Núi (ưu tiên), Đồi Cỏ, Đồng Bằng cao|Gió Mạnh kề: aura +1 ô; Đất Linh: bonus roll|Viện NC Cấp 3 trong lãnh thổ|VNC Cấp 3 trong bán kính 3 ô|3 HK + 5 KH + 2 Giấy|Aura R2: +1 KH khi xúc xắc ra KH|
-|Đặc Biệt|S-02|Pháo Đài Chiến Lược||🏰|—|4|1 ô thực hữu + 3 ô liền thực hữu (tam giác)|Núi (ưu tiên, +1 bán kính), Đồi Cỏ, Đồng Bằng|Đá Granite (bắt buộc khi xây trên Núi)|Trại KT Cấp 2+ trong lãnh thổ|Trại KT trong bán kính 2 ô|3 Thép + 6 KT + 5V|Aura R2: PQ không dừng; ĐV đối thủ −2 bước|
-|Đặc Biệt|S-03|Bảo Tàng Quốc Gia||🏺|—|3|1 ô thực hữu + 2 ô liền thực hữu|Đồng Bằng, Bờ Biển|Suối NN kề: +1 VH/vòng thêm|Nhà VH Cấp 3 + Xưởng In Ấn hoạt động|NVH Cấp 3 trong bán kính 2 ô|2 Lụa + 3 Giấy + 6 VH + 4V|Aura R2: phiếu Chi Phối ×1.5 tại DT/KDC|
-|Đặc Biệt|S-04|Đài Phát Thanh LM||📡|—|7|1 ô TH + 6 ô xung quanh ĐỀU là thực hữu|Đồng Bằng, Bờ Biển|Đất Linh (bắt buộc để tối ưu)|Viện NC Cấp 2+ VÀ Trại KT Cấp 2+|Cả hai trong bán kính 3 ô|2 HK + 2 Giấy + 4 KH + 4 KT|Long Mạch +2 ô; CT cùng loại R3: +1 sản lượng|
-|Đặc Biệt|S-05|Thiên Đình Tín Ngưỡng||🌙|—|3|1 ô TH + 2 ô cùng địa hình liền (TH)|Rừng (ưu tiên), Núi, Sông, Đầm Lầy|Đá Thiêng (aura +1 ô); Rừng CT (bonus TN)|Đền Thờ Cấp 3 trong lãnh thổ|Đền Thờ Cấp 3 trong bán kính 2 ô|8 TN + 2 Lụa + 1 Thép + 4V|Aura R2: đẩy PQ ra (2 TN); hủy tổng 7 tối đa 2 lần/ván|
-|Dự kiến có thay đổi trong tương lai.||||||||||||||
+|Đặc Biệt|S-02|Pháo Đài Chiến Lược||🏰|—|4|4c|Núi (ưu tiên, +1 bán kính), Đồi Cỏ, Đồng Bằng|Đá Granite (bắt buộc khi xây trên Núi)|Trại KT Cấp 2+ trong lãnh thổ|Trại KT trong bán kính 2 ô|3 Thép + 6 KT + 5V|Aura R2: PQ không dừng; ĐV đối thủ −2 bước|
+|Đặc Biệt|S-03|Bảo Tàng Quốc Gia||🏺|—|3|3c|Đồng Bằng, Bờ Biển|Suối NN kề: +1 VH/vòng thêm|Nhà VH Cấp 3 + Xưởng In Ấn hoạt động|NVH Cấp 3 trong bán kính 2 ô|2 Lụa + 3 Giấy + 6 VH + 4V|Aura R2: phiếu Chi Phối ×1.5 tại DT/KDC|
+|Đặc Biệt|S-04|Đài Quan Sát Khí Tượng||📡|—|7|1 ô thực hữu + 6 ô xung quanh bất kỳ|Đồng Bằng, Bờ Biển|Đất Linh (bắt buộc để tối ưu)|Viện NC Cấp 2+ VÀ Trại KT Cấp 2+|Cả hai trong bán kính 3 ô|2 HK + 2 Giấy + 4 KH + 4 KT|CT cùng loại trong R3: +1 sản lượng|
+|Đặc Biệt|S-05|Thiên Đàn||🌙|—|3|1 ô TH + 2 ô cùng địa hình liền (TH)|Rừng (ưu tiên), Núi, Sông, Đầm Lầy|Đá Thiêng (aura +1 ô); Rừng CT (bonus TN)|Đền Thờ Cấp 3 trong lãnh thổ|Đền Thờ Cấp 3 trong bán kính 2 ô|8 TN + 2 Lụa + 1 Thép + 4V|Aura R2: đẩy PQ ra (2 TN); hủy tổng 7 tối đa 2 lần/ván|
+|Dự kiến có thay đổi trong tương lai.|||Khu Dân Cư Tự Do và Danh Thắng: số lượng khu dân cư và số danh thắng trên bản đồ đều bằng số người chơi + 1.<br>Danh Thắng chỉ cho phép Chi Phối (không xây dựng); Khu Dân Cư cho phép Chi Phối và một số ít công trình (xem bảng trên và ma trận mục 9.4).||||||||||*R1 - range 1  hay vòng 1: bản thân công trình<br>R2 - tỏa ra xung quanh công tình<br>R3 - ảnh hưởng 2 vòng xung quanh công trình|
 |3.a||3.b||5.a|||5.b|5.c|5.d|||||
-|4.a||4.b||4.c|||6.a|6.b|6.c|||||
-
-
----
-
-## Sheet: Hình ảnh các đơn vị
-
-|PERISOL — Hình ảnh các đơn vị|||||
-|---|---|---|---|---|
-|⬡ NHÀCHÍNH (HQ) — Thay đổi ngoại hình mỗi 5 vòng chơi, ngẫu nhiêu các tile trong đất thực hữu sẽ có các hình ảnh mini rải rác|||||
-|Vòng|Hình ảnh|Tên Giai Đoạn|Mô Tả|Ghi Chú Art|
-|Vòng 1–5||Định Cư|Lều vải, hàng rào gỗ thô, lửa trại nhỏ. Màu xám nâu.|2–3 tòa nhà nhỏ. Không có tường. Cờ hiệu nhỏ màu phe.|
-|Vòng 6–10||Làng Xã|Nhà gỗ lợp rơm, giếng nước, chợ nhỏ. Tường đất bắt đầu hình thành.|5–6 công trình. Tường đất bao quanh. Cờ lớn hơn.|
-|Vòng 11–15||Thị Trấn|Nhà đá, tháp canh, đường lát đá. Đèn lồng, sinh hoạt tấp nập.|Tường đá thấp. Tháp canh 2 góc. Đèn lồng ban đêm.|
-|Vòng 16–20||Thành Phố|Tường thành cao, cổng lớn, tháp cao, nhiều đèn, tráng lệ.|Tường thành đầy đủ. Cổng có biểu tượng phe. Tháp 4 góc. Ánh sáng rực.|
-|⬡ KHU TRỰC THUỘC (SUBSIDIARY) — Luôn trông có vẻ nhỏ hơn về quy mô hoặc kích cỡ so với HQ, ngẫu nhiêu các tile trong đất thực hữu sẽ có các hình ảnh mini rải rác|||||
-|HQ Giai Đoạn|Hình ảnh|Tên Sub|Mô Tả|Ghi Chú Art|
-|HQ Giai Đoạn 1 (v1–5)||Trại Tiền Tiêu|Lều nhỏ, cọc phân vùng, lửa nhỏ.|Giống HQ Định Cư nhưng nhỏ hơn 50%.|
-|HQ Giai Đoạn 2 (v6–10)||Làng Nhỏ|2–3 nhà gỗ, hàng rào. Cờ nhỏ màu phe.|Không có giếng nước, không chợ.|
-|HQ Giai Đoạn 3 (v11–15)||Tiền Đồn|Tường đất, tháp canh 1 góc. Nhà đá nhỏ.|Bằng HQ Làng Xã về quy mô.|
-|HQ Giai Đoạn 4 (v16–20)||Thị Trấn|Có tường thấp, cổng nhỏ. Bằng HQ Thị Trấn.|Không có tháp canh 4 góc như HQ Thành Phố.|
-|⚔ ĐƠN VỊ VIỄN CHINH — Thay đổi theo cấp HQ (giai đoạn)|||||
-|Cấp HQ|Hình ảnh|Tên|Mô Tả Ngoại Hình|Ghi Chú Art|
-|HQ Giai Đoạn 1||Thám Tử|Người đi bộ đơn độc, áo vải thô, ba lô đơn. Vũ khí: gậy gỗ.|Nhỏ nhắn, do dự. Không mặc giáp.|
-|HQ Giai Đoạn 2||Lính Bộ|Áo giáp da, khiên gỗ, kiếm ngắn. Màu chủ đạo của phe.|Tư thế tự tin hơn. Có huy hiệu phe nhỏ.|
-|HQ Giai Đoạn 3||Hiệp Sĩ|Giáp sắt, khiên kim loại, giáo dài. Huy hiệu phe ngực.|Oai vệ. Áo choàng ngắn. Bóng bẩy hơn.|
-|HQ Giai Đoạn 4||Vệ Binh Elite|Giáp toàn thân, vũ khí rực sáng, áo choàng dài màu phe.|Aura phát sáng nhẹ. Kích thước lớn hơn 20%.|
-|🛒 ĐƠN VỊ GIAO THƯƠNG — Thay đổi theo cấp HQ (giai đoạn)|||||
-|Cấp HQ|Hình ảnh|Tên|Mô Tả Ngoại Hình|Ghi Chú Art|
-|HQ Giai Đoạn 1||Lái Buôn Bộ|Người đội nón lá, gánh hàng trên vai. Đơn giản, khiêm tốn.|Chuyển động chậm. Hàng hóa nhỏ.|
-|HQ Giai Đoạn 2||Xe Ngựa|Xe gỗ 2 bánh kéo bởi 1 ngựa. Hàng chất đống sau xe.|Có bảng hiệu thương hội nhỏ.|
-|HQ Giai Đoạn 3||Xe Hàng Lớn|Xe 4 bánh, 2 ngựa. Mái che, biểu tượng thương hội lớn.|Đồ sộ, chuyên nghiệp. Lái buôn mặc áo vest.|
-|HQ Giai Đoạn 4||Đoàn Tàu Hỏa|Đầu tàu nhỏ hơi nước, 2 toa hàng. Khói bốc lên.|Tốc độ animation cao. Còi tàu effect.|
-|💀 PHIẾN QUÂN — Thay đổi theo Cấp Leo Thang mỗi 5 vòng, nếu có event up PQ thì sẽ có thể lên cấp 5|||||
-|Cấp PQ|Hình ảnh|Tên|Mô Tả Ngoại Hình|Ghi Chú Art|
-|Cấp 1 — Kẻ Quấy Phá||Kẻ Quấy Phá|Nhỏ bé, áo rách, côn gỗ. Hành động rụt rè.|Kích thước nhỏ hơn đơn vị thường. Màu xám tối.|
-|Cấp 2 — Kẻ Cướp Bóc||Kẻ Cướp Bóc|To hơn, áo da, rìu nhỏ. Biểu cảm hung hăng.|Kích thước bằng đơn vị thường. Màu nâu đỏ.|
-|Cấp 3 — Kẻ Phá Hoại||Kẻ Phá Hoại|Lớn hơn đáng kể, giáp da thô, búa nặng. Màu đỏ sẫm.|Kích thước 1.5× đơn vị. Aura đỏ nhẹ. Bụi bốc khi di chuyển.|
-|Cấp 4 — Kẻ Chinh Phạt||Kẻ Chinh Phạt|Khổng lồ, giáp sắt hoen gỉ, vũ khí hai tay. Aura đen.|Kích thước 2×. Aura đen rực. Đất rung khi bước.|
-|Cấp 5 — Kẻ Hủy Diệt||Kẻ Hủy Diệt|Quái vật, cao bằng CT Cấp 2. Tay cầm cả công trình.|Kích thước 3×. Aura đỏ đen rực. Hiệu ứng phá hủy khi tiến vào tile.|
-|Lưu ý, nhân vật chơi/phe phái, quyết định kiểu ngoại hình của các properties người chơi|||||
-|Dự kiến có thay đổi trong tương lai.|||||
+|3.c||4.a||4.c|||6.a|6.b|6.c|||||
+|||4.b||4.d||||||||||
+||||||||6.d|6.e|6.f|||||
 
 
 ---
@@ -163,7 +144,7 @@
 ||Nhà Chính (HQ)|Cấp 4|1||8 KT + 3 Thép + 8 Vàng|Đạt mốc vòng 11+|Tự động nâng cấp Đơn Vị Viễn Chinh lên Hiệp Sĩ.||
 ||Nhà Chính (HQ)|Cấp 5|1||10 KT + 4 Thép + 4 Hợp Kim + 12 Vàng|Cần sở hữu ít nhất 1 Cảng/Chợ Cấp 3|Mở khóa aura thủ đô: +1 sản lượng cho tất cả công trình nội đô.||
 ||Khu Trực Thuộc (Sub)|Cấp 1|1||3 TN + 3 Vàng + 3 KT|Cách HQ/Sub khác 1 vòng chu vi|Hoạt động như nhà phụ, mở vùng ảnh hưởng 7 ô.||
-||Khu Trực Thuộc (Sub)|Cấp 2|1||4 KT + 3 Vàng|Lãnh thổ thực hữu|Mở rộng ảnh hưởng thêm 1 vòng bán kính; giảm ngưỡng Chi Phối ô xa.||
+||Khu Trực Thuộc (Sub)|Cấp 2|1||4 KT + 3 Vàng|Lãnh thổ thực hữu|Mở rộng ảnh hưởng thêm 1 vòng bán kính||
 ||Khu Trực Thuộc (Sub)|Cấp 3|1||6 KT + 2 Thép + 5 Vàng|Đạt mốc vòng 16+|Biến Sub thành Đô Thị Vệ Tinh (miễn nhiễm phong tỏa 1 ô tâm).||
 |Mạng Lưới Giao Thông|Đường Giao Thông|Cấp 1: Đường Đất|1 / tile||1 Vàng / tile|Đồng Bằng, Rừng, Bờ Biển, Đồi Cỏ|Kết nối Chợ để Trade; Đơn vị đi trên đường +1 di chuyển.||
 ||Đường Giao Thông|Cấp 2: Đường Lát Đá|1 / tile||1 KT + 1 Vàng / tile|Nâng từ Đường Đất|Đơn vị +2 di chuyển; giảm 50% phí Vàng khi thực hiện Giao Thương.||
@@ -201,11 +182,11 @@
 |Đơn vị được sinh ra ở đâu, lúc nào, tốn gì, và bị chặn khi nào.|||||||||
 |ID|Tên|Chi phí mua|Nơi spawn hợp lệ|Điều kiện spawn|Khâu được spawn|Hành động ngay khi spawn|Thời gian hồi (cooldown)|Hành vi khi vượt giới hạn|
 |U-01|Viễn Chinh|3 TN + 3 V + 3 KT|Ô HQ (mọi cấp), ô Subsidiary C1+, ô Pháo Đài Chiến Lược (S-02)|Ô spawn không bị PQ phong tỏa; còn quota (<3 đơn vị); đủ tài nguyên|Khâu Hành Động (lượt của mình)|Không|Không (mua bao nhiêu lần/lượt cũng được, miễn đủ tài nguyên và quota)|Nút mua bị khóa (disabled) + tooltip 'Đã đạt giới hạn 3 Viễn Chinh'|
-|U-01K|Hiệp Sĩ|Miễn phí (tự động)|Tại chỗ — mọi U-01 đang tồn tại chuyển thành Hiệp Sĩ|HQ đạt Cấp 4 (8 KT + 3 Thép + 8 V, mốc vòng 11+)|Ngay khi HQ hoàn tất nâng cấp (Khâu Hành Động)|Giữ nguyên trạng thái/điểm di chuyển còn lại của U-01||n/a — không tăng quota|
+|U-01K|Hiệp Sĩ|Miễn phí (tự động)|Tại chỗ — mọi U-01 đang tồn tại chuyển thành Hiệp Sĩ|HQ đạt Cấp 4 (8 KT + 3 Thép + 8 V, mốc vòng 11+)|Ngay khi HQ hoàn tất nâng cấp (Khâu Hành Động)|Giữ nguyên trạng thái/điểm di chuyển còn lại của U-01|n/a|n/a — không tăng quota|
 |U-02|Giao Thương|5 V|Ô Khu Chợ C1+ thuộc sở hữu; nếu chưa có chợ nào thì spawn ở HQ|Còn quota (<2); ô spawn không bị PQ phong tỏa|Khâu Hành Động (lượt của mình)|Có — di chuyển ngay với đủ 5 bước|Không|Nút mua bị khóa|
-|U-02T|Đoàn Tàu Hỏa|Miễn phí (chuyển trạng thái)|Tại chỗ — khi U-02 đứng trên ô có Đường Ray Xe Lửa|Đã học Công Nghệ 'Mạng Lưới Giao Thông'; tuyến ray liên tục ≥ 2 ô|Tự động, đầu Khâu Hành Động|Có — nhận ngay bộ bước mới của Tàu|Trở lại U-02 khi rời khỏi ray||
+|U-02T|Đoàn Tàu Hỏa|Miễn phí (chuyển trạng thái)|Tại chỗ — khi U-02 đứng trên ô có Đường Ray Xe Lửa|Đã học Công Nghệ 'Mạng Lưới Giao Thông'; tuyến ray liên tục ≥ 2 ô|Tự động, đầu Khâu Hành Động|Có — nhận ngay bộ bước mới của Tàu|Trở lại U-02 khi rời khỏi ray|n/a|
 |U-03|Phiến Quân|Không mua được|Vị trí ngẫu nhiên, hoặc ô bất kì ở tile Đồng Bằng, Tundra, Hoang Mạc cách HQ các người chơi tối thiểu 2 ô|Luôn có đúng 1 PQ khi ván bắt đầu. PQ thứ 2 spawn ở tile Khu Dân Cư xa nhất nếu Sự Kiện vòng 10 'Phong Trào Ly Khai' được lật|Setup / Khâu Giải Quyết (bước 1)|Không di chuyển ở vòng 0|Chỉ kích hoạt khi có người đổ tổng 7 (hoặc kỹ năng Tướng Quân: 1 lần/vòng)|Không thể vượt — hard cap 2|
-|U-04|Dòng Vận Ống|Chi phí đường ống: 1 HK + 1 KT + 2 V / tile|Tuyến ống nối Mỏ Than/Giếng Dầu đến HQ|Tuyến ống liên tục, không bị đứt đoạn; không cần đơn vị vật lý|Tự động, đầu Khâu Sản Xuất||Không||
+|U-04|Dòng Vận Ống|Chi phí đường ống: 1 HK + 1 KT + 2 V / tile|Tuyến ống nối Mỏ Than/Giếng Dầu đến HQ|Tuyến ống liên tục, không bị đứt đoạn; không cần đơn vị vật lý|Tự động, đầu Khâu Sản Xuất|n/a|Không|n/a|
 |U-05|Sứ Giả|2 VH + 2 V (ĐỀ XUẤT)|Ô HQ hoặc Nhà Văn Hóa C1+|Còn quota (<1); mục tiêu Khu Dân Cư phải nằm cách ≤ 6 ô|Khâu Hành Động|Có|3 vòng sau khi Sứ Giả trước tiêu hao|Nút mua bị khóa|
 |3 · CHI PHÍ DI CHUYỂN THEO ĐỊA HÌNH|||||||||
 |Số = điểm di chuyển tiêu tốn để ĐI VÀO ô đó. '∞' = không thể vào (pathfinding loại bỏ ô).|||||||||
@@ -222,8 +203,8 @@
 |Khu Dân Cư|1|1|1|1 (chỉ trên ray)|1|1|ĐVVC dừng ở đây để Chi Phối Thành Bang||
 |Danh Thắng|1|1|1|∞ (cấm đặt ray)|1|1|Không được xây đường qua Danh Thắng||
 |Núi Tuyết|∞ (cấm)|3|∞ (cấm)|∞|∞ trong 10 vòng đầu, sau đó 3|∞ (cấm)|Như Núi||
-|— Đường Đất (C1)|−1 (tối thiểu 1)|−1|−1||0 (PQ không dùng đường)|−1|mọi đơn vị đi trên Đường +1 di chuyển||
-|— Đường Lát Đá (C2)|−1 và +1 bước/lượt|−1 và +1 bước/lượt|−1 và +1 bước/lượt||0|−1 và +1 bước/lượt|Cộng dồn tối đa +2 bước/lượt||
+|— Đường Đất (C1)|−1 (tối thiểu 1)|−1|−1|n/a|0 (PQ không dùng đường)|−1|mọi đơn vị đi trên Đường +1 di chuyển||
+|— Đường Lát Đá (C2)|−1 và +1 bước/lượt|−1 và +1 bước/lượt|−1 và +1 bước/lượt|n/a|0|−1 và +1 bước/lượt|Cộng dồn tối đa +2 bước/lượt||
 |— Đường Ray (C3)|Đi như Đường Lát Đá|Đi như Đường Lát Đá|Chuyển thành Đoàn Tàu|1/ô|0|Đi như Đường Lát Đá|Chỉ ĐVGT được hưởng +4 bước||
 |4 · CÁCH THỨC ĐIỀU KHIỂN — BẢNG HÀNH ĐỘNG|||||||||
 |Mỗi đơn vị chỉ thực hiện 1 hành động/lượt (trừ A-06 Giải Thể). Điểm di chuyển reset đầu lượt, không dồn.|||||||||
@@ -277,7 +258,7 @@
 |Sửa thủ công (A-06)|U-02 Giao Thương, U-02T, U-01, U-01K đứng trên ô|Đường Đất/Lát Đá: 1 V · Đường Ray: 1 Thép + 1 V · Đường Ống: 1 HK + 1 V|Tối đa 2 điểm/lượt, tốn toàn bộ lượt của đơn vị|Ô không bị PQ phong tỏa; đơn vị phải đứng đúng ô|||||
 |Tự sửa từ HQ|Tự động, không cần đơn vị|2 V mỗi điểm (đắt hơn vì tiện)|1 điểm/vòng, mỗi vòng chỉ sửa 1 ô (ô hỏng gần HQ nhất trước)|Ô nằm trong Lãnh thổ thực hữu VÀ còn tuyến liên tục nối về HQ; bật/tắt bằng công tắc trong UI|||||
 |Công Nghệ 'Mạng Lưới Giao Thông' Cấp 2|Tự động|Miễn phí|1 điểm/vòng cho toàn bộ mạng lưới|Đã nâng thẻ lên Cấp 2|||||
-|Công Nghệ 'Kiến Trúc Kiên Cố'|Thụ động|||+1 ĐB TỐI ĐA cho mọi hạ tầng của mình — phòng bệnh thay vì chữa bệnh|||||
+|Công Nghệ 'Kiến Trúc Kiên Cố'|Thụ động|n/a|n/a|+1 ĐB TỐI ĐA cho mọi hạ tầng của mình — phòng bệnh thay vì chữa bệnh|||||
 |Xây lại từ đầu|U-02 Giao Thương|Chi phí xây mới đầy đủ (sheet GDD 9.2)|Theo hành động xây đường thường|Tile trống|||||
 |7 · MODIFIER TỪ TNCL / CÔNG TRÌNH / NHÂN VẬT / CÔNG NGHỆ|||||||||
 |Thứ tự áp dụng: Gốc → Nhân vật → Công Nghệ → Công Trình (aura) → TNCL → Hạ tầng (đường). Làm tròn xuống ở bước cuối.|||||||||
@@ -293,7 +274,7 @@
 |S-05 Thiên Đình|Công Trình Đặc Biệt (aura R2)|U-03, U-01|Trả 2 TN đẩy PQ ra ngoài aura; chi phí 'chắc thắng' khi Trấn Áp giảm từ 2 TN xuống 1 TN trong bán kính 3|Không|||||
 |Thương Nhân (nhân vật)|Kỹ năng gốc|U-02, U-02T|+2 bước; giảm 1 V chi phí xây đường/di chuyển mỗi ô; quota ĐVGT tăng lên 3|Có|||||
 |Tướng Quân (nhân vật)|Kỹ năng gốc|U-01, U-03|Điều khiển PQ không cần đổ 7 (1 lần/vòng, 3 bước); ngưỡng Trấn Áp −1|Có|||||
-|Học Sĩ (nhân vật)|Kỹ năng gốc|Hạ tầng|Không ảnh hưởng trực tiếp — nhưng mở Công Nghệ nhanh hơn nên đạt tự-sửa-miễn-phí sớm hơn||||||
+|Học Sĩ (nhân vật)|Kỹ năng gốc|Hạ tầng|Không ảnh hưởng trực tiếp — nhưng mở Công Nghệ nhanh hơn nên đạt tự-sửa-miễn-phí sớm hơn|n/a|||||
 |HQ Cấp 4|Hạ tầng|U-01 → U-01K|Tự động nâng toàn bộ Viễn Chinh thành Hiệp Sĩ|Một lần duy nhất|||||
 |HQ Cấp 5|Hạ tầng|Hạ tầng nội đô|Aura thủ đô +1 sản lượng; ĐỀ XUẤT: hạ tầng trong lãnh thổ được tự sửa miễn phí 1 điểm/vòng|Có|||||
 |Công Nghệ 'Mạng Lưới Giao Thông'|Thẻ Công Nghệ (⚙)|U-02, HT-03|C1: mở khóa Đường Ray · C2: tự sửa hạ tầng 1 điểm/vòng miễn phí · C3: ĐVGT không tốn Vàng khi đi trên đường của mình|Có|||||
@@ -362,6 +343,47 @@
 |CONSUMED|Bị tiêu thụ có chủ ý (biến thành thứ khác)|A-02 Lập Sub · A-09 Nâng Hảo Cảm|Trạng thái cuối — xóa khỏi bộ nhớ|Không|||||
 |DESTROYED|Bị xóa ngoài ý muốn|PQ dừng lên ô · Trấn Áp thất bại · Sắc Lệnh · không trả nổi upkeep|Trạng thái cuối — phát VFX rồi xóa|Không|||||
 |TRANSFORMED|Đổi loại đơn vị|U-01 → U-01K khi HQ Cấp 4 · U-02 ⇄ U-02T khi lên/xuống Đường Ray còn ĐB ≥ 2|Ngay sau khi thay model + chỉ số|Kế thừa trạng thái trước đó|||||
+
+
+---
+
+## Sheet: Hình ảnh các đơn vị
+
+|PERISOL — Hình ảnh các đơn vị|||||
+|---|---|---|---|---|
+|⬡ NHÀCHÍNH (HQ) — Thay đổi ngoại hình mỗi 5 vòng chơi, ngẫu nhiêu các tile trong đất thực hữu sẽ có các hình ảnh mini rải rác|||||
+|Vòng|Hình ảnh|Tên Giai Đoạn|Mô Tả|Ghi Chú Art|
+|Vòng 1–5||Định Cư|Lều vải, hàng rào gỗ thô, lửa trại nhỏ. Màu xám nâu.|2–3 tòa nhà nhỏ. Không có tường. Cờ hiệu nhỏ màu phe.|
+|Vòng 6–10||Làng Xã|Nhà gỗ lợp rơm, giếng nước, chợ nhỏ. Tường đất bắt đầu hình thành.|5–6 công trình. Tường đất bao quanh. Cờ lớn hơn.|
+|Vòng 11–15||Thị Trấn|Nhà đá, tháp canh, đường lát đá. Đèn lồng, sinh hoạt tấp nập.|Tường đá thấp. Tháp canh 2 góc. Đèn lồng ban đêm.|
+|Vòng 16–20||Thành Phố|Tường thành cao, cổng lớn, tháp cao, nhiều đèn, tráng lệ.|Tường thành đầy đủ. Cổng có biểu tượng phe. Tháp 4 góc. Ánh sáng rực.|
+|⬡ KHU TRỰC THUỘC (SUBSIDIARY) — Luôn trông có vẻ nhỏ hơn về quy mô hoặc kích cỡ so với HQ, ngẫu nhiêu các tile trong đất thực hữu sẽ có các hình ảnh mini rải rác|||||
+|HQ Giai Đoạn|Hình ảnh|Tên Sub|Mô Tả|Ghi Chú Art|
+|HQ Giai Đoạn 1 (v1–5)||Trại Tiền Tiêu|Lều nhỏ, cọc phân vùng, lửa nhỏ.|Giống HQ Định Cư nhưng nhỏ hơn 50%.|
+|HQ Giai Đoạn 2 (v6–10)||Làng Nhỏ|2–3 nhà gỗ, hàng rào. Cờ nhỏ màu phe.|Không có giếng nước, không chợ.|
+|HQ Giai Đoạn 3 (v11–15)||Tiền Đồn|Tường đất, tháp canh 1 góc. Nhà đá nhỏ.|Bằng HQ Làng Xã về quy mô.|
+|HQ Giai Đoạn 4 (v16–20)||Thị Trấn|Có tường thấp, cổng nhỏ. Bằng HQ Thị Trấn.|Không có tháp canh 4 góc như HQ Thành Phố.|
+|⚔ ĐƠN VỊ VIỄN CHINH — Thay đổi theo cấp HQ (giai đoạn)|||||
+|Cấp HQ|Hình ảnh|Tên|Mô Tả Ngoại Hình|Ghi Chú Art|
+|HQ Giai Đoạn 1||Thám Tử|Người đi bộ đơn độc, áo vải thô, ba lô đơn. Vũ khí: gậy gỗ.|Nhỏ nhắn, do dự. Không mặc giáp.|
+|HQ Giai Đoạn 2||Lính Bộ|Áo giáp da, khiên gỗ, kiếm ngắn. Màu chủ đạo của phe.|Tư thế tự tin hơn. Có huy hiệu phe nhỏ.|
+|HQ Giai Đoạn 3||Hiệp Sĩ|Giáp sắt, khiên kim loại, giáo dài. Huy hiệu phe ngực.|Oai vệ. Áo choàng ngắn. Bóng bẩy hơn.|
+|HQ Giai Đoạn 4||Vệ Binh Elite|Giáp toàn thân, vũ khí rực sáng, áo choàng dài màu phe.|Aura phát sáng nhẹ. Kích thước lớn hơn 20%.|
+|🛒 ĐƠN VỊ GIAO THƯƠNG — Thay đổi theo cấp HQ (giai đoạn)|||||
+|Cấp HQ|Hình ảnh|Tên|Mô Tả Ngoại Hình|Ghi Chú Art|
+|HQ Giai Đoạn 1||Lái Buôn Bộ|Người đội nón lá, gánh hàng trên vai. Đơn giản, khiêm tốn.|Chuyển động chậm. Hàng hóa nhỏ.|
+|HQ Giai Đoạn 2||Xe Ngựa|Xe gỗ 2 bánh kéo bởi 1 ngựa. Hàng chất đống sau xe.|Có bảng hiệu thương hội nhỏ.|
+|HQ Giai Đoạn 3||Xe Hàng Lớn|Xe 4 bánh, 2 ngựa. Mái che, biểu tượng thương hội lớn.|Đồ sộ, chuyên nghiệp. Lái buôn mặc áo vest.|
+|HQ Giai Đoạn 4||Đoàn Tàu Hỏa|Đầu tàu nhỏ hơi nước, 2 toa hàng. Khói bốc lên.|Tốc độ animation cao. Còi tàu effect.|
+|💀 PHIẾN QUÂN — Thay đổi theo Cấp Leo Thang mỗi 5 vòng, nếu có event up PQ thì sẽ có thể lên cấp 5|||||
+|Cấp PQ|Hình ảnh|Tên|Mô Tả Ngoại Hình|Ghi Chú Art|
+|Cấp 1 — Kẻ Quấy Phá||Kẻ Quấy Phá|Nhỏ bé, áo rách, côn gỗ. Hành động rụt rè.|Kích thước nhỏ hơn đơn vị thường. Màu xám tối.|
+|Cấp 2 — Kẻ Cướp Bóc||Kẻ Cướp Bóc|To hơn, áo da, rìu nhỏ. Biểu cảm hung hăng.|Kích thước bằng đơn vị thường. Màu nâu đỏ.|
+|Cấp 3 — Kẻ Phá Hoại||Kẻ Phá Hoại|Lớn hơn đáng kể, giáp da thô, búa nặng. Màu đỏ sẫm.|Kích thước 1.5× đơn vị. Aura đỏ nhẹ. Bụi bốc khi di chuyển.|
+|Cấp 4 — Kẻ Chinh Phạt||Kẻ Chinh Phạt|Khổng lồ, giáp sắt hoen gỉ, vũ khí hai tay. Aura đen.|Kích thước 2×. Aura đen rực. Đất rung khi bước.|
+|Cấp 5 — Kẻ Hủy Diệt||Kẻ Hủy Diệt|Quái vật, cao bằng CT Cấp 2. Tay cầm cả công trình.|Kích thước 3×. Aura đỏ đen rực. Hiệu ứng phá hủy khi tiến vào tile.|
+|Lưu ý, nhân vật chơi/phe phái, quyết định kiểu ngoại hình của các properties người chơi|||||
+|Dự kiến có thay đổi trong tương lai.|||||
 
 
 ---
