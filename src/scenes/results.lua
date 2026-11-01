@@ -1,6 +1,7 @@
 -- Màn hình điểm cuối ván: bảng xếp hạng chi tiết (GDD §11.2) đè lên bản đồ cuối cùng.
 -- Mở bằng manager.switch(scene, state).
 
+local C           = require("src.config.constants")
 local Scoring     = require("src.core.scoring")
 local Tileset     = require("src.render.tileset")
 local Camera      = require("src.render.camera")
@@ -43,7 +44,8 @@ function Results:update(dt)
 end
 
 function Results:newGame()
-    manager.switch(require("src.scenes.game"), { seed = love.math.random(1, 999999), players = self.state.playerCount })
+    manager.switch(require("src.scenes.game"), { seed = love.math.random(1, 999999), players = self.state.playerCount,
+                                                 rounds = self.state.rounds })
 end
 
 function Results:draw()
@@ -63,7 +65,7 @@ function Results:draw()
     local nRows = #self.ranking
     local rowH = Theme.px(30)
     local w = math.min(W - Theme.px(20), Theme.px(760))
-    local h = Theme.px(150) + nRows * rowH
+    local h = Theme.px(190) + nRows * rowH
     local x, y = (W - w) / 2, (H - h) / 2 - Theme.px(10) * (1 - self.reveal.a)
 
     ui:panel(x, y, w, h)
@@ -102,6 +104,10 @@ function Results:draw()
         end
     end
 
+    -- chú thích cách ghi điểm (GDD §11.2, §12.4)
+    local legend = string.format("Ô thực hữu %d đ/ô · Danh Thắng chi phối %d đ · công trình C2+ và Đặc Biệt %d đ · mỗi %d tài nguyên dư 1 đ · Bảo Tàng +1 đ mỗi Khu Dân Cư chi phối gần đó",
+        C.SCORE_TILE, C.SCORE_LANDMARK, C.SCORE_BUILDING_C2, C.SCORE_RES_PER_POINT)
+    ui:label(legend, x + Theme.px(16), ty + Theme.px(22) + nRows * rowH, { font = Theme.font(10), color = Theme.color.dim, width = w - Theme.px(32), align = "center" })
     local by = y + h - Theme.px(42)
     local bw = Theme.px(180)
     ui:button("again", x + w / 2 - bw - Theme.px(6), by, bw, Theme.px(32), "Ván mới", {

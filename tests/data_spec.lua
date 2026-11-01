@@ -88,7 +88,6 @@ describe("data: movement + constants M1", function()
         expect.eq(#C.CHI_PHOI_THRESHOLD, 3)
         expect.eq(C.ROUNDS_PER_PLAYER, 10)
         expect.eq(C.ROUNDS_REFERENCE, 20)
-        for _, r in ipairs(C.REBEL_SPAWN_TERRAINS) do expect.truthy(Terrains.byId[r], r) end
         for key in pairs(C.BUY_TILE_COST) do expect.truthy(Resources.byKey[key], key) end
         for key in pairs(C.SUB_COST) do expect.truthy(Resources.byKey[key], key) end
         expect.eq(#C.INFLUENCE_RADIUS_HQ, C.HQ_MAX_LEVEL)

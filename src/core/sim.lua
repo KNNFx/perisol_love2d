@@ -7,6 +7,7 @@ local Rng       = require("src.core.rng")
 local State     = require("src.core.state")
 local Territory = require("src.core.territory")
 local Rounds    = require("src.core.rounds")
+local Rebel     = require("src.core.rebel")
 local Units     = require("src.core.units")
 local Buildings = require("src.data.buildings")
 local Resources = require("src.data.resources")
@@ -117,6 +118,17 @@ function Sim.invariants(state)
         end
     end
 
+    if not Rounds.valid(state.rounds) then return false, "số vòng không hợp lệ " .. tostring(state.rounds) end
+    for pid, p in ipairs(state.players) do
+        if type(p.harass) ~= "number" or p.harass < 0 then return false, "P" .. pid .. " bộ đếm quấy phá hỏng" end
+        if p.expelReady and p.harass <= C.REBEL_HARASS_BEFORE_EXPEL then return false, "P" .. pid .. " có Lệnh Đuổi sớm" end
+        if (p.bondAllow or 0) < 0 or (p.bondAllow or 0) > C.BOND_ALLOW_MAX then return false, "P" .. pid .. " hạn mức Tín Phiếu hỏng" end
+    end
+    for k, r in pairs(state.plundered) do
+        if type(r) ~= "number" or r > state.round then return false, "bảng cướp phá hỏng tại " .. tostring(k) end
+    end
+    local rebelTile = state.rebel and state.map:get(state.rebel.q, state.rebel.r)   -- test có thể đặt Phiến Quân ngoài bản đồ
+    if rebelTile and Rebel.isHQTile(state, rebelTile) then return false, "Phiến Quân đứng trên ô HQ" end
     if state.phase == "over" and state.round ~= Rounds.total(state) + 1 then
         return false, "ván kết thúc sai vòng " .. state.round
     end
@@ -151,12 +163,13 @@ local RICH_FLOOR = 25
 
 function Sim.play(seed, players, opts)
     opts = opts or {}
-    local state = Game.new({ seed = seed, players = players })
+    local state = Game.new({ seed = seed, players = players, rounds = opts.rounds })
     local prng = Rng.new("sim:" .. tostring(seed) .. ":" .. players)
     local stats = { sevens = 0, builds = 0, claims = 0, commands = 0, rebelStops = 0, losses = 0,
                     upgrades = 0, demolishes = 0, tnLost = 0, unitsBought = 0, unitMoves = 0, suppressWins = 0,
                     suppressLosses = 0, unitsLost = 0, subsFounded = 0, roadsBuilt = 0, roadUpgrades = 0,
-                    tradesProposed = 0, tradesAccepted = 0, derivedBuilt = 0, specialsBuilt = 0, sevensCancelled = 0 }
+                    tradesProposed = 0, tradesAccepted = 0, derivedBuilt = 0, specialsBuilt = 0, sevensCancelled = 0,
+                    expels = 0, rerolls = 0, bondsConverted = 0, tileProduce = 0 }
     local perTurn = 0
 
     while state.phase ~= "over" do
@@ -188,6 +201,10 @@ function Sim.play(seed, players, opts)
             elseif e.kind == "derived_built" then stats.derivedBuilt = stats.derivedBuilt + 1
             elseif e.kind == "special_built" then stats.specialsBuilt = stats.specialsBuilt + 1
             elseif e.kind == "seven_cancelled" then stats.sevensCancelled = stats.sevensCancelled + 1
+            elseif e.kind == "expel" then stats.expels = stats.expels + 1
+            elseif e.kind == "dice_reroll" or e.kind == "dice_setface" or e.kind == "dice_hold" then stats.rerolls = stats.rerolls + 1
+            elseif e.kind == "bond_converted" then stats.bondsConverted = stats.bondsConverted + 1
+            elseif e.kind == "tile_produce" then stats.tileProduce = stats.tileProduce + 1
             elseif e.kind == "trade_proposed" then stats.tradesProposed = stats.tradesProposed + 1
             elseif e.kind == "trade_accepted" then stats.tradesAccepted = stats.tradesAccepted + 1
             elseif e.kind == "suppress" then
@@ -235,7 +252,8 @@ function Sim.batch(count, firstSeed, onGame, opts)
     local sum = { games = 0, sevens = 0, builds = 0, claims = 0, commands = 0, rebelStops = 0, losses = 0,
                   upgrades = 0, demolishes = 0, tnLost = 0, unitsBought = 0, unitMoves = 0, suppressWins = 0,
                   suppressLosses = 0, unitsLost = 0, subsFounded = 0, roadsBuilt = 0, roadUpgrades = 0,
-                  tradesProposed = 0, tradesAccepted = 0, derivedBuilt = 0, specialsBuilt = 0, sevensCancelled = 0, score = 0, tiles = 0, winnerTiles = 0 }
+                  tradesProposed = 0, tradesAccepted = 0, derivedBuilt = 0, specialsBuilt = 0, sevensCancelled = 0, expels = 0, rerolls = 0,
+                  bondsConverted = 0, tileProduce = 0, score = 0, tiles = 0, winnerTiles = 0 }
     for i = 0, count - 1 do
         local seed = (firstSeed or 1) + i
         local players = 2 + (i % 3)

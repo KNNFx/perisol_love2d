@@ -2,6 +2,8 @@
 -- Điều khiển được bằng chuột lẫn bàn phím: lên/xuống đổi mục, trái/phải đổi số người, Enter kích hoạt.
 
 local Cli     = require("src.cli")
+local C       = require("src.config.constants")
+local Rounds  = require("src.core.rounds")
 local Save    = require("src.save")
 local Actions = require("src.input.actions")
 local Theme   = require("src.ui.theme")
@@ -16,13 +18,17 @@ function Menu:enter()
     self.ui = UI.new()
     self.players = math.max(1, math.min(4, tonumber(Cli.option("--players")) or 2))
     self.seedText = Cli.option("--seed") and tostring(Cli.option("--seed")) or ""
+    local r = tonumber(Cli.option("--rounds"))
+    self.rounds = r and Rounds.valid(r) and r or nil   -- nil = mặc định 10 x số người chơi (GDD 1.6 §11.3)
     self.focus = 3
     self.message = nil
 end
 
+function Menu:roundsValue() return self.rounds or Rounds.defaultFor(self.players) end
+
 function Menu:startGame()
     local seed = tonumber(self.seedText)
-    manager.switch(require("src.scenes.game"), { seed = seed or love.math.random(1, 999999), players = self.players })
+    manager.switch(require("src.scenes.game"), { seed = seed or love.math.random(1, 999999), players = self.players, rounds = self.rounds })
 end
 
 function Menu:continueGame()
@@ -45,11 +51,11 @@ function Menu:draw()
     ui:begin()
     ui.focusId = ITEMS[self.focus]
 
-    local w, h = Theme.px(380), Theme.px(400)
+    local w, h = Theme.px(380), Theme.px(448)
     local x, y = (W - w) / 2, (H - h) / 2
     ui:panel(x, y, w, h)
     ui:label("PERISOL", x, y + Theme.px(14), { font = Theme.font(34, true), width = w, align = "center", color = Theme.color.accent })
-    ui:label("Long Mạch · lãnh thổ lục giác", x, y + Theme.px(60), { font = Theme.font(12), width = w, align = "center", color = Theme.color.dim })
+    ui:label("Sản Xuất Chung · lãnh thổ lục giác", x, y + Theme.px(60), { font = Theme.font(12), width = w, align = "center", color = Theme.color.dim })
 
     local bx, bw = x + Theme.px(30), w - Theme.px(60)
     local by = y + Theme.px(96)
@@ -66,6 +72,24 @@ function Menu:draw()
             onClick = function() self.players = n; self.focus = 1 end,
         })
     end
+    by = by + bh + gap
+
+    -- số vòng: mặc định 10 x số người chơi, tùy chỉnh theo bội của 10 (GDD 1.6 §11.3)
+    ui:label(string.format("Số vòng: %d%s", self:roundsValue(), self.rounds and "" or " (mặc định)"), bx, by,
+        { font = Theme.font(11), color = Theme.color.dim })
+    by = by + Theme.px(16)
+    local rw = (bw - 2 * Theme.px(6)) / 3
+    ui:button("rounds_minus", bx, by, rw, bh, "-10", {
+        font = Theme.font(13, true), enabled = self:roundsValue() > C.ROUND_STEP,
+        onClick = function() self.rounds = self:roundsValue() - C.ROUND_STEP end,
+    })
+    ui:button("rounds_default", bx + rw + Theme.px(6), by, rw, bh, "Mặc định", {
+        font = Theme.font(12), enabled = self.rounds ~= nil, onClick = function() self.rounds = nil end,
+    })
+    ui:button("rounds_plus", bx + 2 * (rw + Theme.px(6)), by, rw, bh, "+10", {
+        font = Theme.font(13, true), enabled = self:roundsValue() < C.MAX_ROUNDS,
+        onClick = function() self.rounds = self:roundsValue() + C.ROUND_STEP end,
+    })
     by = by + bh + gap
 
     -- seed

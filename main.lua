@@ -25,6 +25,8 @@ if simCount then
         print(string.format("Đường xây %.1f · nâng Lát Đá %.2f · đề xuất trao đổi %.2f · chấp nhận %.2f (mỗi ván)",
             sum.roadsBuilt / g, sum.roadUpgrades / g, sum.tradesProposed / g, sum.tradesAccepted / g))
         print(string.format("Phái Sinh lập %.2f · Đặc Biệt xây %.2f · tổng 7 bị hủy %.2f (mỗi ván)", sum.derivedBuilt / g, sum.specialsBuilt / g, sum.sevensCancelled / g))
+        print(string.format("Phiến Quân cướp phá %.1f · Lệnh Đuổi %.2f · đổ lại/giữ/chọn mặt %.2f · chuyển Tín Phiếu %.2f · lần ô nhả tài nguyên %.0f (mỗi ván)",
+            sum.losses / g, sum.expels / g, sum.rerolls / g, sum.bondsConverted / g, sum.tileProduce / g))
         print(string.format("Điểm trung bình/người: %.1f · ô thực hữu trung bình/người: %.1f · ô của người thắng: %.1f",
             sum.score / sum.players, sum.tiles / sum.players, sum.winnerTiles / g))
         io.stdout:flush()

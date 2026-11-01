@@ -182,16 +182,56 @@ function Demo.specialpopup(state)
     return { focus = best, popup = "special" }
 end
 
--- Khu Trực Thuộc C2 đang chọn (bảng nâng cấp) và một Hiệp Sĩ bên cạnh.
+-- Khu Trực Thuộc C2 đang chọn (bảng nâng cấp) và một Viễn Chinh bên cạnh.
 function Demo.sub(state)
     local best, pid, built = upgradeArena(state)
     for _, b in ipairs(built) do Structures.remove(state, b.uid) end
     local p = state.players[pid]
     p.subs[#p.subs + 1] = { q = best.q, r = best.r, level = 2 }
     p.hqLevel = 4
-    local k = require("src.core.units").spawn(state, pid, "knight", state.map:get(best.q + 1, best.r))
+    local k = require("src.core.units").spawn(state, pid, "expedition", state.map:get(best.q + 1, best.r))
     state.round = 17
     return { focus = best, selectedSub = state.map:get(best.q, best.r), selectedUnit = nil, hover = state.map:get(best.q, best.r) }
+end
+
+-- Tìm RNG (theo tag) sao cho lần đổ kế tiếp thỏa `want(d1, d2)`.
+local function rigDice(state, want)
+    local Rng, Dice = require("src.core.rng"), require("src.core.dice")
+    for i = 1, 5000 do
+        local tag = "demo" .. i
+        local d = Dice.roll(Rng.new(tag))
+        if want(d[1], d[2]) then state.rng = Rng.new(tag) return end
+    end
+end
+
+-- Đài Khí Tượng +2 của người đang lượt: vừa đổ xong, popup đổ lại / chọn mặt đang mở.
+function Demo.reroll(state)
+    local best, pid, tiles = specialArena(state)
+    Structures.place(state, { id = "S-04", level = 3, owner = pid },
+        tiles({ { 1, -1 }, { 2, -1 }, { 2, -2 }, { 1, -2 }, { 0, -1 }, { 0, 0 }, { 1, 0 } }))
+    state.phase = "roll"
+    rigDice(state, function(a, b) return a + b ~= 7 and a ~= 6 and b ~= 6 end)
+    Game.apply(state, { type = "roll" })
+    return { focus = best }
+end
+
+-- Ô Địa Linh của người đang lượt đứng sẵn Trại Khai Thác; vừa đổ ra một viên Hex nên popup chọn tài nguyên đang mở.
+function Demo.ley(state)
+    local best, pid = upgradeArena(state)
+    best.strategic = "TN-12"
+    state.phase = "roll"
+    rigDice(state, function(a, b) return (a == 6) ~= (b == 6) and a + b ~= 7 end)
+    Game.apply(state, { type = "roll" })
+    return { focus = best }
+end
+
+-- Người đang lượt bị Phiến Quân quấy phá hơn 3 lượt: nút Lệnh Đuổi Phiến Quân hiện ở khung hành động.
+function Demo.expel(state)
+    local best, pid = upgradeArena(state)
+    local p = state.players[pid]
+    p.harass, p.expelReady = 4, true
+    state.rebel = { q = best.q + 1, r = best.r, lastRoller = pid % state.playerCount + 1 }
+    return { focus = best }
 end
 
 -- Trả bảng gợi ý cho scene (selected / selectedUnit / mode / confirm / hover / focus) hoặc nil.

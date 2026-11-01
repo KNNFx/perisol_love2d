@@ -26,6 +26,8 @@ local SpecialsData = require("src.data.specials")
 local DerivedData = require("src.data.derived")
 local Trade       = require("src.core.trade")
 local Hex         = require("src.core.hex")
+local Rounds      = require("src.core.rounds")
+local BaseRes     = require("src.data.baseresources")
 local Camera      = require("src.render.camera")
 local Tileset     = require("src.render.tileset")
 local MapRenderer = require("src.render.map_renderer")
@@ -41,7 +43,7 @@ local Scene = {}
 
 local PHASE_NAME = {
     setup_hq = "Đặt Nhà Chính", roll = "Sản xuất", rebel_move = "Phiến Quân",
-    rebel_loss = "Phiến Quân", prompt = "Trao đổi", action = "Hành động", over = "Kết thúc",
+    rebel_loss = "Phiến Quân", prompt = "Lựa chọn", action = "Hành động", over = "Kết thúc",
 }
 local FACE_COLOR_HEX = { 0.45, 0.47, 0.52 }
 local LOG_MAX = 200
@@ -61,16 +63,20 @@ local function costText(cost)
 end
 
 -- Hiệu ứng của từng cấp Nhà Chính (cho tooltip nút nâng cấp), Data §9.1.
-local HQ_EFFECT = {
-    [2] = "Mở rộng vùng ảnh hưởng thêm 1 vòng (18 ô quanh Nhà Chính).",
-    [3] = "Mở khóa Công Trình Đặc Biệt. Cần Khu Chợ liền hoặc nối đường tới Nhà Chính.",
-    [4] = "Từ vòng " .. C.HQ_C4_MIN_ROUND .. ": mọi Viễn Chinh tự thành Hiệp Sĩ (6 bước, leo Núi).",
-    [5] = "Cần Khu Chợ cấp 3. Aura thủ đô: +1 sản lượng cho công trình trong bán kính " .. C.HQ_C5_AURA_RADIUS .. " ô.",
-}
-local SUB_EFFECT = {
-    [2] = "Mở rộng vùng ảnh hưởng thêm 1 vòng (18 ô quanh Khu Trực Thuộc).",
-    [3] = "Từ vòng " .. C.SUB_C3_MIN_ROUND .. ": Đô Thị Vệ Tinh, ô tâm miễn nhiễm phong tỏa.",
-}
+local function hqEffect(state, level)
+    return ({
+        [2] = "Mở rộng vùng ảnh hưởng thêm 1 vòng (18 ô quanh Nhà Chính).",
+        [3] = "Mở khóa Công Trình Đặc Biệt. Cần Khu Chợ liền hoặc nối đường tới Nhà Chính.",
+        [4] = "Từ vòng " .. Rounds.scale(state, C.HQ_C4_MIN_ROUND) .. ": Viễn Chinh +" .. C.HQ_C4_EXPEDITION_BONUS .. " bước mỗi vòng.",
+        [5] = "Cần Khu Chợ cấp 3. Aura thủ đô: +1 sản lượng cho công trình trong bán kính " .. C.HQ_C5_AURA_RADIUS .. " ô.",
+    })[level]
+end
+local function subEffect(state, level)
+    return ({
+        [2] = "Mở rộng vùng ảnh hưởng thêm 1 vòng (18 ô quanh Khu Trực Thuộc).",
+        [3] = "Từ vòng " .. Rounds.scale(state, C.SUB_C3_MIN_ROUND) .. ": Đô Thị Vệ Tinh, ô tâm miễn nhiễm phong tỏa.",
+    })[level]
+end
 
 local function buildTip(b)
     local lv = b.levels[1]
@@ -97,13 +103,15 @@ end
 
 function Scene:enter(opts)
     opts = opts or {}
-    self.state = opts.state or Game.new({ seed = opts.seed or os.time() % 1000000, players = opts.players or 2 })
+    self.state = opts.state or Game.new({ seed = opts.seed or os.time() % 1000000, players = opts.players or 2, rounds = opts.rounds })
+    self.devEdited = false   -- true khi dev cộng tài nguyên / dựng thế cờ ngoài history: khi đó không Hoàn tác được
     -- dev: `--play N` tự chơi N lệnh ngẫu nhiên để dựng thế cờ cho ảnh chụp màn hình
     local play = tonumber(Cli.option("--play"))
     if play and not opts.state then Sim.advance(self.state, play) end
     local demo = Cli.option("--demo")           -- dev: thế cờ dựng sẵn (src/dev/demo.lua)
     -- dev: `--give gold=20,alloy=5` cộng tài nguyên cho mọi người chơi (không đi qua lệnh, không vào history)
     local give = Cli.option("--give")
+    if (give or demo) and not opts.state then self.devEdited = true end
     if give and not opts.state then
         for res, n in give:gmatch("(%a+)=(%d+)") do
             for _, p in ipairs(self.state.players) do
@@ -130,7 +138,8 @@ function Scene:enter(opts)
     self.trade = {}
     self.rollAnim = nil
     self.dieScale = { 1, 1 }
-    self.pop, self.pulses, self.logLines = {}, {}, {}
+    self.pop, self.pulses, self.logLines, self.floats = {}, {}, {}, {}
+    self.hold, self.autoRoll, self.rollDelay = nil, true, 0.6   -- S-01 +2: viên được giữ; tự đổ xúc xắc đầu lượt (GDD 1.6 §12.4)
     self.trauma, self.flash, self.time = 0, { a = 0 }, 0
     self.toast = nil
     self.reduceMotion, self.debug, self.showZones = false, false, false
@@ -183,6 +192,12 @@ function Scene:pulseAt(q, r)
     if t then self.pulses[#self.pulses + 1] = { tile = t, t = 0, d = 0.7 } end
 end
 
+-- Chữ nổi (+x tài nguyên, -x bị cướp) bay lên từ một ô trên bản đồ (GDD 1.6 §12.4).
+function Scene:floatAt(q, r, text, kind)
+    local t = self.state.map:get(q, r)
+    if t and #self.floats < 80 then self.floats[#self.floats + 1] = { tile = t, text = text, kind = kind, t = 0, d = 1.3 } end
+end
+
 -- Số vừa đổi "nảy" lên rồi về cỡ thường.
 function Scene:popValue(pid, res)
     local k = pid .. res
@@ -205,6 +220,9 @@ function Scene:onEvents(events)
         local k = e.kind
         if k == "produce" then
             self:popValue(e.pid, e.res)
+        elseif k == "tile_produce" then
+            self:popValue(e.pid, e.res)
+            self:floatAt(e.q, e.r, "+" .. e.amount .. " " .. Fmt.res(e.res), e.res)
         elseif k == "votes" then
             self:popValue(e.pid, "votes")
         elseif k == "seven" then
@@ -222,6 +240,14 @@ function Scene:onEvents(events)
             self:addTrauma(0.3)
             self:popValue(e.victim, e.res)
             self:popValue(e.roller, e.res)
+            if e.q then self:floatAt(e.q, e.r, "-" .. e.lost .. " " .. Fmt.res(e.res), "bad") end
+        elseif k == "expel_ready" then
+            self:say("Bạn nhận Lệnh Đuổi Phiến Quân (bấm nút ở khung hành động)")
+        elseif k == "dice_reroll" or k == "dice_setface" or k == "dice_hold" then
+            for i = 1, 2 do
+                self.dieScale[i] = 1.4
+                self.tween:to(self.dieScale, i, 1, 0.4, "outBack")
+            end
         elseif k == "claim" or k == "build" or k == "place_hq" or k == "found_sub" or k == "upgrade_hq"
             or k == "upgrade" or k == "demolished" or k == "upgrade_sub" or k == "unit_transform"
             or k == "unit_retreat" then
@@ -272,14 +298,31 @@ end
 
 function Scene:finishRoll()
     self.rollAnim = nil
-    local broadcast = self.broadcast and true or nil
-    self.broadcast = false
-    if self:cmd({ type = "roll", broadcast = broadcast }) then
+    local hold = self.hold
+    self.hold = nil
+    if self:cmd({ type = "roll", hold = hold }) then
         for i = 1, 2 do
             self.dieScale[i] = 1.4
             self.tween:to(self.dieScale, i, 1, 0.4, "outBack")
         end
     end
+end
+
+-- Hoàn tác lệnh cuối bằng cách chơi lại từ đầu tới lệnh áp chót (seed + history; GDD 1.6 §12.4). Không dùng được khi dev đã
+-- cộng tài nguyên / dựng thế cờ ngoài history.
+function Scene:undo()
+    local st = self.state
+    if self.devEdited then self:say("Không hoàn tác được: thế cờ có thay đổi ngoài lịch sử lệnh (--give / --demo)") return end
+    if st.phase == "over" or #st.history == 0 then self:say("Không còn lệnh để hoàn tác") return end
+    local hist = {}
+    for i = 1, #st.history - 1 do hist[i] = st.history[i] end
+    local ok, new = pcall(Game.replay, st.seed, st.playerCount, hist, st.rounds)
+    if not ok then self:say("Hoàn tác thất bại: " .. tostring(new)) return end
+    self.state = new
+    self.mode, self.confirm, self.rollAnim, self.selected, self.selectedUnit, self.selectedSub = nil, nil, nil, nil, nil, nil
+    self.hold, self.rollDelay = nil, 1.2
+    self:rebuildLog()
+    self:say("Đã hoàn tác lệnh cuối")
 end
 
 function Scene:quicksave()
@@ -306,6 +349,23 @@ function Scene:update(dt)
 
     if not self.popup then self.camera:update(dt) end
     self.trauma = math.max(0, self.trauma - 1.4 * dt)
+
+    for i = #self.floats, 1, -1 do
+        local f = self.floats[i]
+        f.t = f.t + dt
+        if f.t >= f.d then table.remove(self.floats, i) end
+    end
+
+    -- Tự đổ xúc xắc ở đầu lượt (GDD 1.6 §12.4), trừ khi chủ Tháp +2 cần chọn giữ viên nào
+    if self.state.phase == "roll" and self.autoRoll and not self.rollAnim and not self.popup and not self.confirm then
+        local actor = Game.actor(self.state)
+        if actor and not Specials.checkHold(self.state, actor) then
+            self.rollDelay = (self.rollDelay or 0.6) - dt
+            if self.rollDelay <= 0 then self:startRoll(); self.rollDelay = 0.6 end
+        end
+    else
+        self.rollDelay = 0.6
+    end
 
     if self.rollAnim then
         local a = self.rollAnim
@@ -556,6 +616,7 @@ function Scene:drawMap()
         thresholdFn = function(tile, pid) return Territory.threshold(state, pid, tile) end,
     })
     MapRenderer.drawMarkers(state.map, { zoom = zoom, showZones = self.showZones, lostStrategic = state.lostStrategic })
+    Layers.drawBaseResources(state, { zoom = zoom })
     Layers.drawRoads(state, { zoom = zoom })
     Layers.drawBuildings(state, { zoom = zoom })
     Layers.drawUnits(state, { zoom = zoom, selected = self.selectedUnit })
@@ -596,6 +657,7 @@ function Scene:drawMap()
         end
     end
     Layers.drawPulses(self.pulses, zoom)
+    Layers.drawFloats(self.floats, zoom)
 
     self.camera:detach()
     love.graphics.pop()
@@ -631,10 +693,10 @@ function Scene:hintText()
         elseif self.mode and self.mode.kind == "build" then
             return "Chọn ô để xây " .. Buildings.byId[self.mode.id].name .. " (Esc để hủy)"
         elseif self.mode and self.mode.kind == "vote" then
-            return string.format("Chọn ô trong vùng ảnh hưởng để đặt phiếu Chi Phối — còn %d phiếu (Esc để hủy)",
+            return string.format("Chọn ô để đặt phiếu Chi Phối — còn %d phiếu (Esc để hủy)",
                 state.players[actor].votes)
         elseif self.mode and self.mode.kind == "buy" then
-            return "Chọn ô sáng trong vùng ảnh hưởng để mua (di chuột để xem giá, Esc để hủy)"
+            return "Chọn ô sáng để mua (vùng ảnh hưởng hoặc kề lãnh thổ; di chuột để xem giá, Esc để hủy)"
         elseif self.mode and self.mode.kind == "buyunit" then
             return "Chọn Nhà Chính hoặc Khu Trực Thuộc để sinh Viễn Chinh (Esc để hủy)"
         elseif self.mode and self.mode.kind == "buytrade" then
@@ -670,8 +732,9 @@ function Scene:drawTopBar(W)
     local f = Theme.font(12, true)
     ui:label("Perisol", Theme.px(10), (h - f:getHeight()) / 2, { font = f, color = Theme.color.accent })
 
-    local round = math.min(state.round, C.ROUNDS_PER_GAME)
-    local text = string.format("Vòng %d/%d   ·   Lượt: %s   ·   %s", round, C.ROUNDS_PER_GAME,
+    local total = Rounds.total(state)
+    local round = math.min(state.round, total)
+    local text = string.format("Vòng %d/%d   ·   Lượt: %s   ·   %s", round, total,
         actor and Theme.playerName(actor) or "-", PHASE_NAME[state.phase] or "")
     ui:label(text, 0, (h - f:getHeight()) / 2, { font = f, width = W, align = "center" })
     if actor then
@@ -793,12 +856,14 @@ function Scene:drawActions(x, y, w)
             ui:label("Tháp xem trước: " .. table.concat(faces, " + "), x + Theme.px(8), y + diceH - Theme.px(46),
                 { font = Theme.font(9, true), color = Theme.color.accent, width = w - Theme.px(90) })
         end
-        if Specials.checkBroadcast(state, actor) then   -- S-04 +2 "Phát Sóng"
-            ui:button("broadcast", x + w - Theme.px(78), y + diceH - Theme.px(54), Theme.px(70), Theme.px(18), "Phát Sóng", {
-                focused = self.broadcast, font = Theme.font(9, true),
-                tip = "Cả hai viên thành mặt cao hơn của viên bạn đổ (1 lần mỗi 3 vòng).",
-                onClick = function() self.broadcast = not self.broadcast end,
-            })
+        if Specials.checkHold(state, actor) then   -- S-01 +2: giữ 1 viên đã xem trước, đổ lại viên còn lại
+            for i = 1, 2 do
+                ui:button("hold" .. i, x + w - Theme.px(78) + (i - 1) * Theme.px(36), y + diceH - Theme.px(54), Theme.px(34), Theme.px(18), "Giữ " .. i, {
+                    focused = self.hold == i, font = Theme.font(9, true),
+                    tip = "Giữ viên " .. i .. " theo lần xem trước, đổ lại viên còn lại. Bấm lại để bỏ chọn; rồi bấm Đổ xúc xắc.",
+                    onClick = function() self.hold = (self.hold == i) and nil or i end,
+                })
+            end
         end
     end
     ui:button("roll", x + Theme.px(8), y + diceH - Theme.px(32), w - Theme.px(16), Theme.px(26),
@@ -843,15 +908,13 @@ function Scene:drawActions(x, y, w)
     local votes = p and p.votes or 0
     ui:button("vote", x, y, w, bh, string.format("Đặt phiếu Chi Phối (%d)", votes), {
         enabled = inAction and votes > 0, focused = isMode("vote"), font = Theme.font(11, true),
-        tip = "Đặt 1 phiếu lên ô trong vùng ảnh hưởng của bạn. Ô cần 1 / 2 / 3 phiếu tùy khoảng cách tới Nhà Chính. Muốn cướp ô của người khác cần gấp đôi ngưỡng và hơn phiếu của chủ.",
+        tip = "Đặt phiếu lên ô trong vùng ảnh hưởng hoặc kề lãnh thổ của bạn. Ô cần 1 / 2 / 3 phiếu tùy khoảng cách tới Nhà Chính, ngoài vùng ảnh hưởng +1. Muốn cướp ô giá trị cao của người khác phải có sẵn gấp đôi ngưỡng trong tay và đặt trọn một lần.",
         onClick = function() toggle("vote") end,
     })
     y = y + bh + gap
-    local buyBase = costText(C.BUY_TILE_BASE)
-    ui:button("buytile", x, y, w, bh, "Mua ô trong vùng ảnh hưởng", {
+    ui:button("buytile", x, y, w, bh, "Mua ô", {
         enabled = inAction, focused = isMode("buy"), font = Theme.font(11, true),
-        tip = "Mua ô chưa có chủ trong vùng ảnh hưởng bằng tài nguyên. Giá cơ bản " .. buyBase
-            .. " ở ô sát mốc, gấp đôi mỗi vòng xa hơn.",
+        tip = "Mua ô chưa có chủ trong vùng ảnh hưởng hoặc kề lãnh thổ của bạn. Giá = (1+d) VH + (2+d) V, d là khoảng cách tới Nhà Chính / Khu Trực Thuộc gần nhất (d = 1: 2 VH + 3 V). Khu Dân Cư và Danh Thắng chỉ lấy bằng phiếu.",
         onClick = function() toggle("buy") end,
     })
     y = y + bh + gap
@@ -860,7 +923,7 @@ function Scene:drawActions(x, y, w)
     local upCost = C.HQ_UPGRADE_COST[hqLevel + 1]
     local upTip
     if upCost then
-        upTip = "Nâng Nhà Chính lên cấp " .. hqLevel + 1 .. ": " .. costText(upCost) .. ".\n" .. HQ_EFFECT[hqLevel + 1]
+        upTip = "Nâng Nhà Chính lên cấp " .. hqLevel + 1 .. ": " .. costText(upCost) .. ".\n" .. hqEffect(state, hqLevel + 1)
         local okGate, whyGate = Territory.canUpgradeHQ(state, actor or 1)
         if p and not okGate then upTip = upTip .. "\nChưa được: " .. whyGate
         elseif p and not canAfford(p.res, upCost) then upTip = upTip .. "\n(Không đủ tài nguyên)" end
@@ -952,11 +1015,19 @@ function Scene:drawActions(x, y, w)
     y = y + bh + gap    local hqOk = p and (p.hqLevel or 1) >= Specials.MIN_HQ_LEVEL
     ui:button("special", x, y, w, bh, "Công trình Đặc Biệt", {
         enabled = inAction and hqOk and true or false, focused = self.popup == "special", font = Theme.font(11, true),
-        tip = hqOk and "Xây Tháp Thiên Văn, Pháo Đài, Bảo Tàng, Đài Phát Thanh Long Mạch hoặc Thiên Đình: aura mạnh nhưng cần vật liệu phái sinh và công trình tiên quyết."
+        tip = hqOk and "Xây Tháp Quan Sát Thiên Văn, Pháo Đài, Bảo Tàng, Đài Khí Tượng hoặc Thiên Đàn: aura mạnh nhưng cần vật liệu phái sinh và công trình tiên quyết."
             or "Cần nâng Nhà Chính lên cấp 3 (cần Khu Chợ nối đường và Hợp Kim).",
         onClick = function() self.popup = "special" end,
     })
     y = y + bh + gap
+    if inAction and p and p.expelReady and state.rebel then   -- Lệnh Đuổi Phiến Quân (GDD 1.6 §6.2)
+        ui:button("expel", x, y, w, bh, "Lệnh Đuổi Phiến Quân", {
+            color = { 0.55, 0.25, 0.20 }, font = Theme.font(11, true),
+            tip = "Bạn bị Phiến Quân quấy phá hơn " .. C.REBEL_HARASS_BEFORE_EXPEL .. " lượt liên tiếp: đổ 1 viên xúc xắc để tự điều khiển Phiến Quân đi chỗ khác, không tốn gì.",
+            onClick = function() self.mode = nil; self:cmd({ type = "expelRebel" }) end,
+        })
+        y = y + bh + gap
+    end
     ui:button("end", x, y, w, Theme.px(28), "Kết thúc lượt (" .. Actions.label("endTurn") .. ")", {
         enabled = inAction, color = inAction and { 0.42, 0.30, 0.18 } or nil, font = Theme.font(12, true),
         onClick = function() self.mode = nil; self:cmd({ type = "endTurn" }) end,
@@ -992,6 +1063,13 @@ function Scene:drawInfo(x, y, w, h)
     local parts = { string.format("(%d,%d) %s", t.q, t.r, def.name) }
     local tn = Structures.strategicAt(state, t)
     if tn then parts[#parts + 1] = Strategic.byId[tn].name end
+    if t.base then   -- Tài Nguyên Cơ Bản của ô (GDD 1.6 §3.3)
+        local items = {}
+        for _, r in ipairs(Resources.core) do
+            if t.base[r.key] then items[#items + 1] = t.base[r.key] .. " " .. r.abbr end
+        end
+        parts[#parts + 1] = "CB " .. table.concat(items, " + ")
+    end
     local k = t.q .. "," .. t.r
     local owner = state.owner[k]
     parts[#parts + 1] = owner and ("Chủ: P" .. owner) or "Chưa có chủ"
@@ -1005,7 +1083,13 @@ function Scene:drawInfo(x, y, w, h)
     end
     local actor = Game.actor(state)
     if actor and state.players[actor].hq and not owner then
-        parts[#parts + 1] = string.format("Ngưỡng P%d: %d", actor, Territory.threshold(state, actor, t))
+        parts[#parts + 1] = string.format("Ngưỡng P%d: %d phiếu", actor, Territory.threshold(state, actor, t))
+        if Territory.canBuyTile(state, actor, t) then
+            parts[#parts + 1] = "Mua: " .. costText(Territory.buyTileCost(state, actor, t))
+        end
+    elseif actor and owner and owner ~= actor and state.players[actor].hq and not Territory.isCluster(t)
+        and Territory.isHighValue(state, t) and Territory.inInfluence(state, actor, t) then
+        parts[#parts + 1] = string.format("Tranh lại: %d phiếu trong tay", Territory.voteCost(state, actor, t))
     end
     local b = Structures.at(state, t)
     if b then parts[#parts + 1] = Buildings.byId[b.id].name .. " C" .. b.level end
@@ -1191,7 +1275,7 @@ function Scene:drawSubPanel(x, y, w)
     local tip, can = "Đã ở cấp tối đa", false
     if cost then
         local ok, why = Territory.canUpgradeSub(state, actor, tile)
-        tip = string.format("Nâng lên C%d: %s.\n%s", nextLevel, costText(cost), SUB_EFFECT[nextLevel])
+        tip = string.format("Nâng lên C%d: %s.\n%s", nextLevel, costText(cost), subEffect(state, nextLevel))
         if not ok then tip = tip .. "\nChưa được: " .. why
         elseif not canAfford(state.players[actor].res, cost) then tip = tip .. "\n(Không đủ tài nguyên)"
         else can = true end
@@ -1334,10 +1418,12 @@ function Scene:drawPausePopup(W, H)
     local ui = self.ui
     ui:blockBelow()
     dim(W, H)
-    local w, h = Theme.px(300), Theme.px(250)
+    local w, h = Theme.px(300), Theme.px(340)
     local x, y = (W - w) / 2, (H - h) / 2
     ui:panel(x, y, w, h)
     ui:label("Tạm dừng", x, y + Theme.px(8), { font = Theme.font(15, true), width = w, align = "center", color = Theme.color.accent })
+    ui:label(string.format("Seed %s  ·  %d người  ·  %d vòng", tostring(self.state.seed), self.state.playerCount, Rounds.total(self.state)),
+        x, y + h - Theme.px(22), { font = Theme.font(10), width = w, align = "center", color = Theme.color.dim })
     local bw, bh, bx = w - Theme.px(40), Theme.px(30), x + Theme.px(20)
     local by = y + Theme.px(40)
     local function btn(id, text, opts)
@@ -1350,6 +1436,14 @@ function Scene:drawPausePopup(W, H)
     btn("p_save", "Lưu nhanh (" .. Actions.label("quicksave") .. ")", { onClick = function() self:quicksave(); self.popup = nil end })
     btn("p_load", "Nạp bản lưu nhanh (" .. Actions.label("quickload") .. ")", {
         enabled = Save.exists(QUICKSAVE), onClick = function() self:quickload() end,
+    })
+    btn("p_undo", "Hoàn tác lệnh cuối", {
+        enabled = not self.devEdited and #self.state.history > 0 and self.state.phase ~= "over",
+        tip = "Chơi lại từ đầu tới lệnh áp chót. Không dùng được khi dùng --give / --demo.",
+        onClick = function() self:undo(); self.popup = nil end,
+    })
+    btn("p_auto", "Tự đổ xúc xắc đầu lượt: " .. (self.autoRoll and "Bật" or "Tắt"), {
+        onClick = function() self.autoRoll = not self.autoRoll end,
     })
     btn("p_shake", "Rung màn hình: " .. (self.reduceMotion and "Tắt" or "Bật"), {
         tip = "Tắt để giảm rung và nhấp nháy khi ra 7.",
@@ -1551,7 +1645,7 @@ function Scene:promptCover(W, H, line)
     return true
 end
 
--- Thiên Đình S-05: hỏi chủ có hủy tổng 7 không.
+-- Thiên Đàn S-05: hỏi chủ có hủy tổng 7 không.
 function Scene:drawCancel7(W, H)
     local ui, state = self.ui, self.state
     local pr = state.prompt
@@ -1563,7 +1657,7 @@ function Scene:drawCancel7(W, H)
     ui:panel(x, y, w, h, { borderColor = Theme.player[pr.pid] })
     ui:label(string.format("P%d đổ ra tổng 7", pr.roller), x, y + Theme.px(8),
         { font = Theme.font(14, true), width = w, align = "center", color = Theme.color.bad })
-    ui:label(string.format("Thiên Đình của bạn (P%d) có thể hủy tổng 7: Phiến Quân không di chuyển và P%d nhận 1 TN. Còn %d lần hủy.",
+    ui:label(string.format("Thiên Đàn của bạn (P%d) có thể hủy tổng 7: Phiến Quân không di chuyển và P%d nhận 1 TN. Còn %d lần hủy.",
         pr.pid, pr.roller, Specials.cancel7Left(state, pr.pid)), x + Theme.px(16), y + Theme.px(38),
         { font = Theme.font(11), width = w - Theme.px(32), align = "center" })
     local bw = Theme.px(170)
@@ -1576,12 +1670,12 @@ function Scene:drawCancel7(W, H)
     })
 end
 
--- Thiên Đình S-05: Phiến Quân dừng trong aura, hỏi chủ có trả TN đẩy ra không.
+-- Thiên Đàn S-05: Phiến Quân dừng trong aura, hỏi chủ có trả TN đẩy ra không.
 function Scene:drawPushRebel(W, H)
     local ui, state = self.ui, self.state
     local pr = state.prompt
     ui:blockBelow()
-    if self:promptCover(W, H, "Phiến Quân dừng trong aura Thiên Đình của P" .. pr.pid .. ".") then return end
+    if self:promptCover(W, H, "Phiến Quân dừng trong aura Thiên Đàn của P" .. pr.pid .. ".") then return end
     dim(W, H)
     local choose = pr.options[2] ~= "decline" and pr.options[1] == "decline"
     local n = #pr.options - 1
@@ -1590,7 +1684,7 @@ function Scene:drawPushRebel(W, H)
     local h = Theme.px(150) + rows * Theme.px(30)
     local x, y = (W - w) / 2, (H - h) / 2
     ui:panel(x, y, w, h, { borderColor = Theme.player[pr.pid] })
-    ui:label("Phiến Quân dừng trong aura Thiên Đình", x, y + Theme.px(8),
+    ui:label("Phiến Quân dừng trong aura Thiên Đàn", x, y + Theme.px(8),
         { font = Theme.font(14, true), width = w, align = "center", color = Theme.color.accent })
     ui:label(string.format("Phiến Quân đang ở (%d,%d). Trả %d TN để đẩy nó ra ngoài aura%s?", state.rebel.q, state.rebel.r, pr.cost,
         choose and " (chọn ô)" or " (ô ngẫu nhiên)"), x + Theme.px(16), y + Theme.px(36),
@@ -1616,6 +1710,82 @@ function Scene:drawPushRebel(W, H)
     })
 end
 
+-- Đài Khí Tượng S-04 (GDD 1.6 §8.3): chủ vừa đổ xong, được đổ lại 1 viên hoặc (+2) chọn mặt cho 1 viên.
+function Scene:drawReroll(W, H)
+    local ui, state = self.ui, self.state
+    local pr = state.prompt
+    ui:blockBelow()
+    dim(W, H)
+    local reroll, face = {}, { {}, {} }
+    for _, o in ipairs(pr.options) do
+        local i = o:match("^reroll:(%d)$")
+        if i then reroll[tonumber(i)] = o end
+        local d, f = o:match("^face:(%d):(%d)$")
+        if d then face[tonumber(d)][tonumber(f)] = o end
+    end
+    local hasFace = next(face[1]) ~= nil or next(face[2]) ~= nil
+    local w = Theme.px(470)
+    local h = Theme.px(130) + (hasFace and Theme.px(96) or 0)
+    local x, y = (W - w) / 2, (H - h) / 2
+    ui:panel(x, y, w, h, { borderColor = Theme.player[pr.pid] })
+    ui:label("Đài Khí Tượng", x, y + Theme.px(8), { font = Theme.font(14, true), width = w, align = "center", color = Theme.color.accent })
+    ui:label(string.format("P%d vừa đổ %s + %s. Đổ lại 1 viên (bắt buộc dùng kết quả mới)%s?", pr.pid, Fmt.face(state.dice[1]),
+        Fmt.face(state.dice[2]), hasFace and " hoặc chọn mặt cho 1 viên (1 lần/ván, không tạo tổng 7)" or ""),
+        x + Theme.px(16), y + Theme.px(34), { font = Theme.font(11), width = w - Theme.px(32), align = "center" })
+    local by = y + Theme.px(70)
+    local bw = Theme.px(130)
+    ui:button("rr_keep", x + Theme.px(16), by, bw, Theme.px(28), "Giữ nguyên", {
+        font = Theme.font(11, true), color = { 0.25, 0.45, 0.30 }, onClick = function() self:cmd({ type = "respond", choice = "keep" }) end,
+    })
+    for i = 1, 2 do
+        ui:button("rr_" .. i, x + Theme.px(16) + i * (bw + Theme.px(8)), by, bw, Theme.px(28), "Đổ lại viên " .. i .. " (" .. Fmt.face(state.dice[i]) .. ")", {
+            font = Theme.font(11, true), enabled = reroll[i] ~= nil,
+            tip = reroll[i] and nil or "Đã dùng trong chu kỳ hồi",
+            onClick = function() self:cmd({ type = "respond", choice = reroll[i] }) end,
+        })
+    end
+    if hasFace then
+        for i = 1, 2 do
+            local row = by + Theme.px(36) + (i - 1) * Theme.px(30)
+            ui:label("Chọn mặt viên " .. i .. ":", x + Theme.px(16), row + Theme.px(6), { font = Theme.font(10, true) })
+            for f = 1, 6 do
+                local choice = face[i][f]
+                ui:button("rf_" .. i .. "_" .. f, x + Theme.px(120) + (f - 1) * Theme.px(52), row, Theme.px(48), Theme.px(24), Fmt.face(f), {
+                    font = Theme.font(10, true), enabled = choice ~= nil,
+                    onClick = function() self:cmd({ type = "respond", choice = choice }) end,
+                })
+            end
+        end
+    end
+end
+
+-- Địa Linh TN-12 (GDD 1.6 §3.4): chủ ô đổi một viên Hex thành tài nguyên mà ô (hoặc công trình trên ô) sản xuất.
+function Scene:drawLeyChoice(W, H)
+    local ui, state = self.ui, self.state
+    local pr = state.prompt
+    ui:blockBelow()
+    if pr.pid ~= pr.roller and self:promptCover(W, H, string.format("Ô Địa Linh (%d,%d) của P%d vừa nhận một viên Hex.", pr.q, pr.r, pr.pid)) then return end
+    dim(W, H)
+    local w, h = Theme.px(460), Theme.px(150)
+    local x, y = (W - w) / 2, (H - h) / 2
+    ui:panel(x, y, w, h, { borderColor = Theme.player[pr.pid] })
+    ui:label("Địa Linh", x, y + Theme.px(8), { font = Theme.font(14, true), width = w, align = "center", color = Theme.color.accent })
+    ui:label(string.format("Một viên Hex (lựa chọn %d/%d): đổi thành tài nguyên nào cho ô (%d,%d)?", pr.idx, #pr.choices, pr.q, pr.r),
+        x + Theme.px(16), y + Theme.px(34), { font = Theme.font(11), width = w - Theme.px(32), align = "center" })
+    local n = #pr.options
+    local bw = math.min(Theme.px(72), (w - Theme.px(32)) / n - Theme.px(4))
+    local startX = x + (w - n * (bw + Theme.px(4))) / 2
+    for i, choice in ipairs(pr.options) do
+        local isSkip = choice == "skip"
+        ui:button("ley_" .. choice, startX + (i - 1) * (bw + Theme.px(4)), y + Theme.px(78), bw, Theme.px(40),
+            isSkip and "Bỏ qua" or Fmt.res(choice), {
+                font = Theme.font(12, true), color = (not isSkip) and Theme.resource[choice] or nil,
+                textColor = (not isSkip) and { 0.07, 0.08, 0.1 } or nil,
+                onClick = function() self:cmd({ type = "respond", choice = choice }); self.replyShown = nil end,
+            })
+    end
+end
+
 function Scene:drawLossPopup(W, H)
     local ui, state = self.ui, self.state
     ui:blockBelow()
@@ -1624,7 +1794,7 @@ function Scene:drawLossPopup(W, H)
     local w, h = Theme.px(380), Theme.px(150)
     local x, y = (W - w) / 2, (H - h) / 2
     ui:panel(x, y, w, h, { borderColor = Theme.color.bad })
-    ui:label(string.format("P%d: Phiến Quân cướp phá!", pend.owner), x, y + Theme.px(8),
+    ui:label(string.format("P%d: Phiến Quân cướp phá công trình tại (%d,%d)!", pend.owner, pend.q or 0, pend.r or 0), x, y + Theme.px(8),
         { font = Theme.font(14, true), width = w, align = "center", color = Theme.color.bad })
     ui:label(string.format("Chọn loại tài nguyên mất %d (các loại đang bằng nhau):", pend.amount), x, y + Theme.px(34),
         { font = Theme.font(11), width = w, align = "center" })
@@ -1711,6 +1881,10 @@ function Scene:draw()
         self:drawCancel7(W, H)
     elseif state.phase == "prompt" and state.prompt.kind == "pushrebel" then
         self:drawPushRebel(W, H)
+    elseif state.phase == "prompt" and state.prompt.kind == "reroll" then
+        self:drawReroll(W, H)
+    elseif state.phase == "prompt" and state.prompt.kind == "ley" then
+        self:drawLeyChoice(W, H)
     elseif self.popup == "special" then
         self:drawSpecialPopup(W, H)
     elseif self.popup == "propose" then

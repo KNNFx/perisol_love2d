@@ -114,7 +114,6 @@ C.BUY_TILE_COST = { culture = { base = 1, step = 1 }, gold = { base = 2, step = 
 C.VOTE_OUTSIDE_BONUS    = 1   -- ngưỡng phiếu +1 cho ô ngoài vùng ảnh hưởng (mở rộng liền kề)
 C.HIGH_VALUE_BASE_TOTAL = 3   -- ô giá trị cao: tổng Tài Nguyên Cơ Bản từ mức này (hoặc có TN) mới bị tranh lại được
 
-C.REBEL_SPAWN_TERRAINS   = { "DH-01", "DH-06", "DH-07" }  -- Data §2 (U-03)
 C.REBEL_SPAWN_MIN_HQ_DIST = 2
 C.REBEL_MOUNTAIN_COST    = 3             -- sau khi hết khóa (REBEL_MOUNTAIN_LOCK_ROUNDS)
 
