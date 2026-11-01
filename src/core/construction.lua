@@ -30,6 +30,11 @@ function K.cost(state, id, level, anchorTile)
     local def = Buildings.level(id, level)
     local cost = {}
     for k, n in pairs(def.cost) do cost[k] = n end
+    -- Ô ưu tiên (⭐, GDD 1.6 §9.4): xây C1 giảm 1 tài nguyên chính, tối thiểu còn 1; không áp dụng khi nâng cấp
+    if level == 1 and anchorTile and def.terrains[anchorTile.terrain] == "pref" then
+        local main = Buildings.byId[id].main
+        if cost[main] then cost[main] = math.max(1, cost[main] - 1) end
+    end
     local fx = anchorTile and Terrains.byId[anchorTile.terrain].effects
     if fx and fx.buildDiscount then
         for k, n in pairs(fx.buildDiscount) do
@@ -185,6 +190,7 @@ function K.completeDemolitions(state, pid, events)
                 local tn = Structures.strategicAt(state, t)
                 if tn then
                     state.lostStrategic[t.q .. "," .. t.r] = true
+                    Territory.syncVotes(state, t)   -- mất TN-06 thì ngưỡng tăng: chủ ô giữ ô
                     events[#events + 1] = { kind = "strategic_lost", pid = pid, tn = tn, q = t.q, r = t.r }
                 end
             end

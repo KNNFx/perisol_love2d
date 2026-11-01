@@ -29,7 +29,7 @@ function State.new(map, playerCount, seed)
         local res = {}
         for _, r in ipairs(Resources.core) do res[r.key] = 0 end
         for _, r in ipairs(Resources.materials) do res[r.key] = 0 end
-        players[pid] = { id = pid, res = res, votes = 0, hq = nil, hqLevel = 1, subs = {}, carry = {} }
+        players[pid] = { id = pid, res = res, votes = 0, hq = nil, hqLevel = 1, subs = {}, carry = {}, harass = 0 }
     end
     local order = {}
     for pid = 1, playerCount do order[pid] = pid end
@@ -41,6 +41,7 @@ function State.new(map, playerCount, seed)
         owner = {}, votes = {}, buildings = {}, occupied = {}, nextUid = 1, lostStrategic = {},
         units = {}, nextUnitUid = 1, roads = {},
         derived = {}, nextDerivedUid = 1,   -- công trình Phái Sinh (src/core/derived.lua)
+        plundered = {},                     -- khóa công trình/Sub -> vòng bị Phiến Quân cướp gần nhất (mỗi vòng 1 lần)
         rebel = nil, dice = nil, log = {},
     }
 end

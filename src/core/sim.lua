@@ -6,6 +6,7 @@ local Game      = require("src.core.game")
 local Rng       = require("src.core.rng")
 local State     = require("src.core.state")
 local Territory = require("src.core.territory")
+local Rounds    = require("src.core.rounds")
 local Units     = require("src.core.units")
 local Buildings = require("src.data.buildings")
 local Resources = require("src.data.resources")
@@ -116,7 +117,7 @@ function Sim.invariants(state)
         end
     end
 
-    if state.phase == "over" and state.round ~= C.ROUNDS_PER_GAME + 1 then
+    if state.phase == "over" and state.round ~= Rounds.total(state) + 1 then
         return false, "ván kết thúc sai vòng " .. state.round
     end
     return true

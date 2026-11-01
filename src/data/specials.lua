@@ -1,5 +1,5 @@
 -- Công trình Đặc Biệt S-01..S-05 (M1.5 phase H). Nguồn: docs/Perisol_Data.md sheet "Công trình" (bản chuẩn),
--- docs/Perisol_GDD_v1.2_Full.md §8.3. Quyết định cụ thể hóa ở docs/Decisions.md D-019.
+-- docs/Perisol_GDD_v1.6_Full.md §8.3. Quyết định cụ thể hóa ở docs/Decisions.md D-019, sửa theo GDD 1.6 ở D-020.
 --
 --   shape     = tên hình trong src/data/shapes.lua (chiếm đủ các ô, tất cả phải là ô thực hữu của chủ)
 --   terrains  = địa hình hợp lệ của ô TRUNG TÂM (ô neo): true | "pref" (ưu tiên)
@@ -15,7 +15,7 @@ local S = {}
 
 S.list = {
     {
-        id = "S-01", name = "Tháp Thiên Văn", en = "Observatory", icon = "TV", main = "science",
+        id = "S-01", name = "Tháp Quan Sát Thiên Văn", en = "Observatory", icon = "TV", main = "science",
         shape = "hex7", terrains = { ["DH-03"] = "pref", ["DH-09"] = true, ["DH-01"] = true },
         prereq = { { id = "B-02", level = 3, radius = 3 } },
         levels = {
@@ -23,7 +23,7 @@ S.list = {
             { cost = { alloy = 2, gold = 4 },               aura = 3, peek = 1 },
             { cost = { alloy = 3, paper = 3, gold = 6 },    aura = 3, peek = 2, reroll = true },
         },
-        note = "Aura: +1 KH mỗi viên KH cho công trình của bạn trong bán kính. Xem trước viên xúc xắc kế tiếp.",
+        note = "Aura: +1 KH mỗi viên KH cho công trình của bạn trong bán kính. Xem trước viên xúc xắc kế tiếp; +2: giữ 1 viên, đổ lại viên còn lại.",
     },
     {
         id = "S-02", name = "Pháo Đài Chiến Lược", en = "Fortress", icon = "PD", main = "engineering",
@@ -40,7 +40,7 @@ S.list = {
     },
     {
         id = "S-03", name = "Bảo Tàng Quốc Gia", en = "National Museum", icon = "BT", main = "culture",
-        shape = "triangle", terrains = { ["DH-01"] = true, ["DH-05"] = true },
+        shape = "triangle", terrains = { ["DH-01"] = true, ["DH-10"] = true },   -- GDD 1.6: Đồng Bằng, Khu Dân Cư
         prereq = { { id = "B-03", level = 3, radius = 2 } }, needsDerived = "D-02",
         levels = {
             { cost = { silk = 2, paper = 3, culture = 6, gold = 4 }, aura = 2, voteMul = 1.5 },
@@ -51,24 +51,24 @@ S.list = {
         note = "Aura: phiếu Chi Phối trên Khu Dân Cư/Danh Thắng ×1.5. +2 VH mỗi vòng; +1 điểm cuối ván mỗi Khu Dân Cư bạn chi phối trong bán kính 3.",
     },
     {
-        id = "S-04", name = "Đài Phát Thanh Long Mạch", en = "Ley Broadcast Tower", icon = "DP", main = "science",
+        id = "S-04", name = "Đài Khí Tượng", en = "Weather Station", icon = "KT", main = "science",
         shape = "hex7", terrains = { ["DH-01"] = true, ["DH-05"] = true },
         prereq = { { id = "B-02", level = 2, radius = 3 }, { id = "B-01", level = 2, radius = 3 } },
-        levels = {
-            { cost = { alloy = 2, paper = 2, science = 4, engineering = 4 }, aura = 3 },
-            { cost = { alloy = 2, science = 3, gold = 4 },                   aura = 3 },
-            { cost = { alloy = 3, paper = 3, gold = 6 },                     aura = 3, broadcast = true },
+        levels = {   -- rerollEvery: chu kỳ đổ lại 1 viên (vòng); setFace: 1 lần/ván chọn mặt cho 1 viên (không tạo tổng 7)
+            { cost = { alloy = 2, paper = 2, science = 4, engineering = 4 }, aura = 2, rerollEvery = 5 },
+            { cost = { alloy = 2, science = 3, gold = 4 },                   aura = 3, rerollEvery = 3 },
+            { cost = { alloy = 3, paper = 3, gold = 6 },                     aura = 3, rerollEvery = 3, setFace = true },
         },
         yield = { { res = "science", n = 1 }, { res = "engineering", n = 1 } },
-        note = "Khi bạn đổ: công trình trong bán kính 3 (kể cả của đối thủ) sản xuất +1 mỗi viên. +1 KH +1 KT mỗi vòng.",
+        note = "Aura: miễn nhiễm Sự Kiện thời tiết (M2). +1 KH +1 KT mỗi vòng. Sau khi đổ, được đổ lại 1 viên (1 lần mỗi 5 vòng, +1: 3 vòng); +2: 1 lần/ván chọn mặt cho 1 viên.",
     },
     {
-        id = "S-05", name = "Thiên Đình Tín Ngưỡng", en = "Celestial Temple", icon = "TD", main = "faith",
+        id = "S-05", name = "Thiên Đàn", en = "Celestial Temple", icon = "TD", main = "faith",
         shape = "triangle", sameTerrain = true,
-        terrains = { ["DH-02"] = "pref", ["DH-03"] = true, ["DH-04"] = true, ["DH-08"] = true },
+        terrains = { ["DH-02"] = "pref", ["DH-03"] = true, ["DH-04"] = true },   -- GDD 1.6: Rừng, Núi, Sông (mở khóa)
         prereq = { { id = "B-04", level = 3, radius = 2 } },
         levels = {
-            { cost = { faith = 8, silk = 2, steel = 1, gold = 4 }, aura = 2, cancel7 = 1, pushPay = 2 },
+            { cost = { faith = 6, silk = 2, steel = 1, gold = 4 }, aura = 2, cancel7 = 1, pushPay = 2 },   -- GDD 1.6: 6 TN (Data ghi 8)
             { cost = { faith = 4, gold = 3 },                      aura = 2, cancel7 = 2, pushPay = 2, pushChoose = true },
             { cost = { silk = 2, faith = 5, gold = 5 },            aura = 2, cancel7 = 2, pushPay = 2, pushChoose = true, nirvana = true },
         },
@@ -92,7 +92,7 @@ end
 S.MAX_LEVEL = 3
 S.STRIKE_COOLDOWN    = 5   -- S-02 +2 "Pháo": 1 lần mỗi 5 vòng
 S.STRIKE_RADIUS      = 3
-S.BROADCAST_COOLDOWN = 3   -- S-04 +2 "Phát Sóng": 1 lần mỗi 3 vòng
+S.FORTRESS_TOLL      = 2   -- S-02: Phiến Quân bị đẩy ra khỏi aura thì người kích hoạt nó mất ngần này Vàng (GDD 1.6 §8.3)
 S.SCORE_SETTLEMENT_RADIUS = 3   -- S-03: +1 điểm mỗi Khu Dân Cư chi phối trong bán kính này
 
 return S

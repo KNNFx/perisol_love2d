@@ -13,6 +13,8 @@
 --
 -- Mặt xúc xắc: Khoa Học 1, Văn Hóa 2, Kỹ Thuật 3, Tín Ngưỡng 4, Vàng 5 (src/data/resources.lua).
 
+local C = require("src.config.constants")
+
 local B = {}
 
 -- Rút gọn tên mặt xúc xắc cho bảng sản xuất.
@@ -31,7 +33,7 @@ B.list = {
               produces = { { ENG, R_ENG, 2 }, { SCI, R_ENG, 1 } },
               terrains = { ["DH-01"] = true, ["DH-02"] = true, ["DH-03"] = true, ["DH-05"] = true,
                            ["DH-06"] = true, ["DH-07"] = true, ["DH-09"] = true } },
-            { cost = { engineering = 7, science = 4, gold = 6 }, tiles = 6, shape = "trapezoid",
+            { cost = { engineering = 7, science = 4, gold = 6 }, tiles = 6, shape = "par33",
               produces = { { ENG, R_ENG, 3 }, { SCI, R_ENG, 2 } },
               passive = "+1 KT thụ động mỗi vòng",
               yield = { { res = R_ENG, n = 1 } },
@@ -49,7 +51,7 @@ B.list = {
             { cost = { science = 4, engineering = 2, gold = 3 }, tiles = 3, shape = "triangle",
               produces = { { SCI, R_SCI, 2 }, { ENG, R_SCI, 1 } },
               terrains = { ["DH-01"] = true, ["DH-02"] = "pref", ["DH-05"] = true, ["DH-09"] = true } },
-            { cost = { science = 7, engineering = 3, gold = 5 }, tiles = 6, shape = "cluster",
+            { cost = { science = 7, engineering = 3, gold = 5 }, tiles = 6, shape = "par33",
               produces = { { SCI, R_SCI, 3 }, { ENG, R_SCI, 2 } },
               passive = "+1 KH thụ động mỗi vòng",
               yield = { { res = R_SCI, n = 1 } },
@@ -133,8 +135,14 @@ function B.level(id, level)
 end
 
 -- true / "pref" nếu đặt được công trình `id` cấp `level` trên địa hình `terrainId`, nil nếu không.
+-- Sông bị khóa xây cho tới khi mở khóa (GDD 1.6 §3.1, D-020 #15). M2 sẽ mở bằng thẻ Công Nghệ Tuyến Vận Tải Nước.
+function B.terrainLocked(terrainId)
+    return terrainId == "DH-04" and C.BUILD_ON_RIVER_LOCKED
+end
+
 function B.allowedOn(id, level, terrainId)
     local def = B.level(id, level)
+    if B.terrainLocked(terrainId) then return nil end
     return def and def.terrains[terrainId] or nil
 end
 

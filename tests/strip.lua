@@ -47,11 +47,12 @@ local function strip(seed)
     for q = -1, 10 do
         for r = -2, 2 do
             local x = s.map:get(best.q + q, best.r + r)
-            x.terrain, x.settlement, x.landmark, x.strategic = "DH-01", nil, nil, nil
+            x.terrain, x.settlement, x.landmark, x.strategic, x.base = "DH-01", nil, nil, nil, nil
             s.owner[key(x)] = pid
             s.votes[key(x)] = { [pid] = 9 }
         end
     end
+    for _, t in ipairs(s.map.list) do t.base = nil end   -- không Tài Nguyên Cơ Bản ở đâu cả (kể cả quanh HQ)
     for k in pairs(s.players[pid].res) do s.players[pid].res[k] = 50 end
     for _, m in ipairs({ "alloy", "paper", "steel", "silk", "bond" }) do s.players[pid].res[m] = 0 end   -- vật liệu bắt đầu từ 0
     return s, pid, best

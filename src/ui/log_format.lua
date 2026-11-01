@@ -50,6 +50,9 @@ function Fmt.line(e)
     elseif k == "produce" then
         return { text = string.format("%s +%d %s từ %s nhờ lượt đổ của %s", P(e.pid), e.amount, Fmt.res(e.res),
                  buildingName(e.buildingId), P(e.roller)), pid = e.pid, tier = "small" }
+    elseif k == "tile_produce" then
+        return { text = string.format("%s +%d %s từ ô %s nhờ lượt đổ của %s", P(e.pid), e.amount, Fmt.res(e.res), at(e),
+                 P(e.roller)), pid = e.pid, tier = "small" }
     elseif k == "votes" then
         return { text = string.format("%s nhận +%d phiếu Chi Phối (mặt Hex)", P(e.pid), e.amount),
                  pid = e.pid, tier = "small" }
@@ -66,8 +69,36 @@ function Fmt.line(e)
     elseif k == "rebel_stop" then
         return { text = "Phiến Quân dừng tại " .. at(e), tier = "medium" }
     elseif k == "rebel_loss" then
-        return { text = string.format("%s mất %d %s, %s nhận %d", P(e.victim), e.lost, Fmt.res(e.res),
-                 P(e.roller), e.gained), pid = e.victim, tier = "large" }
+        return { text = string.format("%s mất %d %s bị cướp phá%s, %s nhận %d", P(e.victim), e.lost, Fmt.res(e.res),
+                 e.q and (" tại " .. at(e)) or "", P(e.roller), e.gained), pid = e.victim, tier = "large" }
+    elseif k == "rebel_bank" then
+        return { text = string.format("%s nhận %s từ ô Phiến Quân vừa dừng %s", P(e.roller), Fmt.bundle(e.gains), at(e)),
+                 pid = e.roller, tier = "medium" }
+    elseif k == "expel_ready" then
+        return { text = string.format("%s bị Phiến Quân quấy phá nhiều lượt: nhận Lệnh Đuổi Phiến Quân", P(e.pid)),
+                 pid = e.pid, tier = "large" }
+    elseif k == "expel" then
+        return { text = string.format("%s dùng Lệnh Đuổi Phiến Quân", P(e.pid)), pid = e.pid, tier = "large" }
+    elseif k == "dice_reroll" then
+        return { text = string.format("%s đổ lại viên %d bằng Đài Khí Tượng: %s thành %s", P(e.pid), e.die,
+                 Fmt.face(e.from), Fmt.face(e.to)), pid = e.pid, tier = "large" }
+    elseif k == "dice_setface" then
+        return { text = string.format("%s chọn mặt cho viên %d (Hô Phong Hoán Vũ): %s thành %s", P(e.pid), e.die,
+                 Fmt.face(e.from), Fmt.face(e.to)), pid = e.pid, tier = "large" }
+    elseif k == "dice_hold" then
+        return { text = string.format("%s giữ viên %d, đổ lại viên %d: %s thành %s", P(e.pid), e.kept, e.die,
+                 Fmt.face(e.from), Fmt.face(e.to)), pid = e.pid, tier = "large" }
+    elseif k == "ley_choice" then
+        return { text = string.format("%s đổi viên Hex thành %s cho ô Địa Linh %s", P(e.pid), Fmt.res(e.res), at(e)),
+                 pid = e.pid, tier = "medium" }
+    elseif k == "fortress_toll" then
+        return { text = string.format("%s mất %d V vì Phiến Quân bị đẩy ra khỏi aura Pháo Đài", P(e.pid), e.gold),
+                 pid = e.pid, tier = "medium" }
+    elseif k == "bond_allow" then
+        return { text = string.format("%s được chuyển thêm tối đa %d V thành Tín Phiếu (Nhà Ngân Hàng)", P(e.pid), e.amount),
+                 pid = e.pid, tier = "small" }
+    elseif k == "bond_converted" then
+        return { text = string.format("%s chuyển %d V thành Tín Phiếu", P(e.pid), e.n), pid = e.pid, tier = "small" }
     elseif k == "rebel_choose" then
         return { text = string.format("%s phải chọn loại tài nguyên mất (%d)", P(e.victim), e.amount),
                  pid = e.victim, tier = "medium" }
@@ -85,7 +116,7 @@ function Fmt.line(e)
         for _, r in ipairs(Resources.core) do
             if e.gains[r.key] then parts[#parts + 1] = "+" .. e.gains[r.key] .. " " .. r.abbr end
         end
-        return { text = string.format("%s nhận thưởng khởi đầu từ 6 ô quanh Nhà Chính: %s", P(e.pid),
+        return { text = string.format("%s nhận tài nguyên khởi đầu từ 6 ô quanh Nhà Chính: %s", P(e.pid),
             #parts > 0 and table.concat(parts, ", ") or "không có"), pid = e.pid, tier = "small" }
     elseif k == "vote" then
         local state = e.status == "owned" and "thực hữu" or (e.status == "contested" and "tranh chấp" or "chưa đủ")
@@ -151,11 +182,8 @@ function Fmt.line(e)
     elseif k == "fortress_strike" then
         return { text = string.format("Pháo Đài của %s phá %s của P%d tại %s", P(e.pid), buildingName(e.id), e.target, at(e)),
                  pid = e.pid, tier = "large" }
-    elseif k == "broadcast" then
-        return { text = string.format("%s dùng Phát Sóng: cả hai viên thành %s", P(e.pid), Fmt.face(e.face)),
-                 pid = e.pid, tier = "large" }
     elseif k == "seven_cancelled" then
-        return { text = string.format("Thiên Đình của %s hủy tổng 7 của %s (+1 TN cho người đổ)", P(e.pid), P(e.roller)),
+        return { text = string.format("Thiên Đàn của %s hủy tổng 7 của %s (+1 TN cho người đổ)", P(e.pid), P(e.roller)),
                  pid = e.pid, tier = "large" }
     elseif k == "rebel_pushed" then
         return { text = string.format("%s trả %d TN đẩy Phiến Quân tới %s", P(e.pid), e.cost, at(e)), pid = e.pid, tier = "large" }
@@ -187,7 +215,7 @@ function Fmt.line(e)
     elseif k == "end_turn" then
         return { text = "Hết lượt " .. P(e.pid), pid = e.pid, tier = "small" }
     elseif k == "global_event" then
-        return { text = "Mốc Sự Kiện Tổng (chưa có ở M1)", tier = "medium" }
+        return { text = "Mốc Sự Kiện Tổng (chưa có thẻ, M2)", tier = "medium" }
     elseif k == "game_over" then
         return { text = "Ván đấu kết thúc", tier = "large" }
     end

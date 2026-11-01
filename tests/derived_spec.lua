@@ -61,7 +61,7 @@ describe("derived: D-01 Phòng TN Vật Liệu", function()
         return s, pid, c, kt, nc
     end
 
-    it("lập khi hai công trình C2 liền kề: trừ chi phí, +1 Hợp Kim mỗi viên khớp KT hoặc KH", function()
+    it("lập khi hai công trình C2 liền kề: trừ chi phí; Hợp Kim THAY sản lượng của 1 viên (GDD 1.6 §8.2)", function()
         local s, pid, c, kt, nc = setup()
         local res = s.players[pid].res
         local before = {}
@@ -71,12 +71,14 @@ describe("derived: D-01 Phòng TN Vật Liệu", function()
         for k, n in pairs(DerivedData.byId["D-01"].cost) do expect.eq(res[k], before[k] - n, k) end
         expect.eq(next(s.derived) ~= nil, true)
         local mats = Production.run(s, { 3, 1 }, pid)
-        expect.eq(total(mats, "alloy"), 2)
+        expect.eq(total(mats, "alloy"), 1, "một lần mỗi lần đổ")
+        expect.eq(res.alloy, 1)
+        -- Trại KT C2 ra 2 KT ở mặt KT và 1 KT ở mặt KH; viên KT bị thay bằng Hợp Kim nên chỉ còn 1 KT
+        expect.eq(total(mats, "engineering"), 1)
+        Production.run(s, { 3, 3 }, 3 - pid)                 -- Sản Xuất Chung: lượt của người khác
         expect.eq(res.alloy, 2)
-        Production.run(s, { 3, 3 }, 3 - pid)                 -- Long Mạch chia sẻ: lượt của người khác
-        expect.eq(res.alloy, 4)
         Production.run(s, { 5, 4 }, pid)
-        expect.eq(res.alloy, 4, "mặt khác không ra Hợp Kim")
+        expect.eq(res.alloy, 2, "mặt khác không ra Hợp Kim")
     end)
 
     it("từ chối: thiếu cấp, trùng, đối tác của người khác, thiếu tiền", function()
@@ -198,19 +200,21 @@ describe("derived: D-03 Xưởng Luyện Kim", function()
         return s, pid, c, kt, tem
     end
 
-    it("chiếm 1 ô kề Trại KT C3, +1 Thép khi ra KT, +1 mỗi 4 lượt", function()
+    it("chiếm 1 ô kề Trại KT C3, 1 Thép thay 1 KT khi ra KT, +1 mỗi 4 lượt", function()
         local s, pid, c, kt, tem = setup()
         local site = at(s, c, 0, -1)
         local ev = Game.apply(s, { type = "buildDerived", id = "D-03", a = kt.uid, b = tem.uid, q = site.q, r = site.r })
         expect.eq(ev[1].kind, "derived_built")
         expect.eq(Structures.at(s, site).id, "D-03")
         expect.eq(s.owner[key(site)], pid)
-        expect.eq(total(Production.run(s, { 3, 3 }, pid), "steel"), 2)
         local res = s.players[pid].res
+        local out = Production.run(s, { 3, 3 }, pid)
+        expect.eq(total(out, "steel"), 1, "một lần mỗi lần đổ")
+        expect.eq(total(out, "engineering"), 5, "Trại KT C3 ra 3 KT x 2 viên, bớt 1 KT nhường cho Thép")
         for _ = 1, 3 do Upkeep.startTurn(s, pid) end
-        expect.eq(res.steel, 2)
+        expect.eq(res.steel, 1)
         Upkeep.startTurn(s, pid)
-        expect.eq(res.steel, 3)
+        expect.eq(res.steel, 2)
         expect.truthy(Sim.invariants(s))
     end)
 
@@ -263,7 +267,7 @@ describe("derived: D-05 Nhà Ngân Hàng và Tín Phiếu", function()
         return s, pid, c, nvh, kt, market
     end
 
-    it("cần Xưởng In Ấn đang hoạt động; lập xong +1 Tín Phiếu mỗi viên Vàng, tối đa 5", function()
+    it("cần Xưởng In Ấn đang hoạt động; ra Vàng thì được chuyển Vàng thành Tín Phiếu, tối đa 5", function()
         local s, pid, c, nvh, kt, market = setup()
         local site = at(s, c, 8, 0)
         local ok, why = Game.check(s, { type = "buildDerived", id = "D-05", a = market.uid, b = 1, q = site.q, r = site.r })
@@ -274,10 +278,19 @@ describe("derived: D-05 Nhà Ngân Hàng và Tín Phiếu", function()
         local ev = Game.apply(s, { type = "buildDerived", id = "D-05", a = market.uid, b = did, q = site.q, r = site.r })
         expect.eq(ev[1].kind, "derived_built")
         local res = s.players[pid].res
-        expect.eq(total(Production.run(s, { 5, 5 }, pid), "bond"), 2)
-        expect.eq(res.bond, 2)
-        for _ = 1, 5 do Production.run(s, { 5, 5 }, 3 - pid) end
+        local p = s.players[pid]
+        expect.eq(total(Production.run(s, { 5, 5 }, pid), "bond"), 0, "Tín Phiếu không còn tự sinh")
+        expect.eq(p.bondAllow, C.BOND_ALLOW_MAX, "2 viên Vàng x 2, tối đa 4")
+        expect.falsy(Game.check(s, { type = "convertBond", n = 5 }))
+        res.gold = 50
+        Game.apply(s, { type = "convertBond", n = 3 })
+        expect.eq(res.bond, 3); expect.eq(res.gold, 47); expect.eq(p.bondAllow, 1)
+        Production.run(s, { 5, 4 }, 3 - pid)                 -- lượt người khác ra Vàng cũng dồn hạn mức
+        expect.eq(p.bondAllow, 3)
+        Game.apply(s, { type = "convertBond", n = 2 })
         expect.eq(res.bond, C.BOND_MAX)
+        local ok, why = Game.check(s, { type = "convertBond", n = 1 })
+        expect.falsy(ok); expect.eq(why, "Tối đa " .. C.BOND_MAX .. " Tín Phiếu")
         expect.truthy(Sim.invariants(s))
     end)
 

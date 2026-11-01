@@ -183,7 +183,9 @@ describe("construction: dỡ công trình", function()
         expect.eq(ev[1].kind, "demolish_start")
         expect.eq(s.players[pid].res.engineering, res)
         expect.truthy(b.demolishing)
-        expect.eq(#Production.compute(s, { 3, 5 }, pid), 0)
+        local built = 0
+        for _, e in ipairs(Production.compute(s, { 3, 5 }, pid)) do if e.kind == "produce" then built = built + 1 end end
+        expect.eq(built, 0)   -- ô Tài Nguyên Cơ Bản của người khác vẫn nhả (kind tile_produce), công trình thì không
         expect.falsy(Game.check(s, { type = "demolish", uid = b.uid }))
         expect.falsy(Game.check(s, { type = "upgrade", uid = b.uid, q = center.q, r = center.r, rot = 0 }))
 

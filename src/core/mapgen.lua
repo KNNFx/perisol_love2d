@@ -8,6 +8,8 @@ local Map       = require("src.core.map")
 local Rng       = require("src.core.rng")
 local Terrains  = require("src.data.terrains")
 local Strategic = require("src.data.strategic")
+local BaseRes   = require("src.data.baseresources")
+local Resources = require("src.data.resources")
 
 local M = {}
 
@@ -324,6 +326,64 @@ local function placeStrategic(map, rng)
     for i = 1, math.min(count, #free) do free[i].strategic = Strategic.LEY_NODE end
 end
 
+-- ─── 7b. Tài Nguyên Cơ Bản trên ô (GDD 1.6 §3.3, D-020 #2) ─────────────────
+-- Gắn tile.base = { [resKey] = 1|2 } cho ô có tài nguyên (ô trống không có trường này). Dùng RNG con riêng
+-- nên không làm đổi các bước sinh bản đồ khác. Ô đặt HQ không có tài nguyên.
+local function nextToRiver(map, tile)
+    for _, n in ipairs(map:neighbors(tile)) do
+        if n.terrain == RIVER then return true end
+    end
+    return false
+end
+
+local function rollAmount(rng, terrain, res)
+    local always = BaseRes.alwaysOne[terrain]
+    if always and always[res] then return 1 end
+    local two = BaseRes.twoChance[terrain]
+    local p = two and two[res] or BaseRes.TWO_CHANCE
+    return rng:next() * 100 < p and 2 or 1
+end
+
+local function placeBaseResources(map, rng)
+    local keys = {}
+    for _, r in ipairs(Resources.core) do keys[#keys + 1] = r.key end
+
+    -- mỗi Danh Thắng gắn cố định 1 loại tài nguyên
+    for _, lm in ipairs(map.landmarks or {}) do lm.resource = rng:pick(keys) end
+
+    for _, tile in ipairs(map.list) do
+        if not tile.isStart then
+            local base = {}
+            if tile.terrain == LANDMARK then
+                local lm = map.landmarks[tile.landmark]
+                base[lm.resource] = rollAmount(rng, tile.terrain, lm.resource)
+            else
+                local table_ = BaseRes.chance[tile.terrain]
+                if table_ then
+                    local river = nextToRiver(map, tile)
+                    for _, key in ipairs(keys) do
+                        local p = table_[key]
+                        if p then
+                            if key == "faith" and river then p = p + BaseRes.RIVER_FAITH_BONUS end
+                            if rng:next() * 100 < p then base[key] = rollAmount(rng, tile.terrain, key) end
+                        end
+                    end
+                end
+            end
+            local max = BaseRes.MAX_KINDS_PER_TILE
+            if max then
+                local have = {}
+                for _, key in ipairs(keys) do if base[key] then have[#have + 1] = key end end
+                if #have > max then
+                    rng:shuffle(have)
+                    for i = max + 1, #have do base[have[i]] = nil end
+                end
+            end
+            if next(base) then tile.base = base end
+        end
+    end
+end
+
 -- ─── 8. Kiểm tra hợp lệ ───────────────────────────────────────────────────
 -- Trả về true, hoặc false + lý do. Dùng cả trong generate (để thử lại) và trong test.
 function M.validate(map, players)
@@ -395,6 +455,7 @@ local function tryGenerate(rng, players)
     if not placeSettlements(map, rng:fork("settlements"), players + 1) then return nil, "không đặt được Khu Dân Cư" end
     if not placeLandmarks(map, rng:fork("landmarks"), players + 1) then return nil, "không đặt được Danh Thắng" end
     placeStrategic(map, rng:fork("strategic"))
+    placeBaseResources(map, rng:fork("baseres"))
 
     map.terrains = chosen
     local ok, why = M.validate(map, players)

@@ -16,7 +16,7 @@ describe("ui: log_format", function()
         expect.eq(Fmt.line({ kind = "trade", pid = 1, give = "science", get = "gold", rate = 4 }).text,
             "P1 đổi 4 KH lấy 1 V")
         expect.eq(Fmt.line({ kind = "rebel_loss", victim = 2, roller = 1, res = "gold", lost = 3, gained = 2 }).text,
-            "P2 mất 3 V, P1 nhận 2")
+            "P2 mất 3 V bị cướp phá, P1 nhận 2")
         expect.eq(Fmt.line({ kind = "claim", pid = 1, from = 2, q = 4, r = 5 }).text, "P1 chiếm ô (4,5) từ P2")
         expect.eq(Fmt.line({ kind = "seven", pid = 1 }).tier, "large")
         expect.eq(Fmt.line({ kind = "không_biết" }), nil)

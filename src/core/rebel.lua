@@ -1,11 +1,14 @@
--- Phiến Quân (U-03). Luật: docs/Decisions.md D-009. Thuần Lua, không gọi love.*.
+-- Phiến Quân (U-03). Luật: docs/Decisions.md D-009, sửa theo GDD 1.6 ở D-020. Thuần Lua, không gọi love.*.
 --
 -- state.rebel = { q, r, pending = nil
---                         | { stage = "move", points = n, roller = pid }
---                         | { stage = "loss", owner = pid, roller = pid, amount = n, options = { resKey... } } }
+--                         | { stage = "move", points = n, roller = pid, visited = { ["q,r"] = true } }
+--                         | { stage = "loss", owner = pid, roller = pid, amount = n, options = { resKey... },
+--                             move = { points, roller, visited } } }
 -- Người đổ 7 điều khiển từng bước (không undo). Dừng khi hết điểm hoặc không còn ô kề đủ điểm.
--- Dừng trên công trình (kể cả HQ) của người khác: chủ mất ceil(1/2) loại tài nguyên nhiều nhất
--- (hòa -> chủ chọn), người đổ nhận ceil(1/2) số đó.
+-- Ô Nhà Chính là ô chặn: Phiến Quân không vào, không dừng (GDD 1.6 §6.2).
+-- Cướp phá khi bước lên (kể cả đi ngang) công trình / Khu Trực Thuộc của người khác: chủ mất ceil(1/2) loại tài nguyên
+-- nhiều nhất (hòa -> chủ chọn), người điều khiển nhận toàn bộ số đó; mỗi công trình chỉ bị cướp 1 lần mỗi vòng.
+-- Dừng trên ô chưa có chủ có Tài Nguyên Cơ Bản: người điều khiển nhận từ ngân hàng ceil(1/2) mỗi loại.
 
 local C         = require("src.config.constants")
 local Hex       = require("src.core.hex")
@@ -16,8 +19,16 @@ local Roads     = require("src.core.roads")
 local Aura      = require("src.core.aura")
 local Movement  = require("src.data.movement")
 local Resources = require("src.data.resources")
+local Rounds    = require("src.core.rounds")
+local SpecialsData = require("src.data.specials")
 
 local Rebel = {}
+
+-- Chi phí Phiến Quân vào ô địa hình `terrainId` ở vòng hiện tại (khóa Núi quy đổi theo số vòng của ván).
+local function rebelCost(state, terrainId)
+    return Movement.stepCost("rebel", terrainId, state.round, Rounds.scale(state, C.REBEL_MOUNTAIN_LOCK_ROUNDS))
+end
+Rebel.stepCost = rebelCost
 
 -- ─── Phong tỏa ──────────────────────────────────────────────────────────────
 
@@ -31,6 +42,32 @@ function Rebel.blockade(state)
         if t and not Rebel.isImmuneCentre(state, t) then out[#out + 1] = t end
     end
     return out
+end
+
+-- `pid` đang bị quấy phá: có ít nhất 1 ô thực hữu hoặc công trình nằm trong vùng phong tỏa (GDD 1.6 §6.2).
+function Rebel.harassed(state, pid)
+    for _, t in ipairs(Rebel.blockade(state)) do
+        if state.owner[State.key(t)] == pid then return true end
+        local b = Structures.at(state, t)
+        if b and b.owner == pid then return true end
+    end
+    return false
+end
+
+-- Phiến Quân bị đẩy từ `from` ra `to` (Trấn Áp, Thiên Đàn): nếu `from` nằm trong aura Pháo Đài mà `to` thì không, người kích
+-- hoạt Phiến Quân lần cuối mất FORTRESS_TOLL Vàng (GDD 1.6 §8.3). Trả event hoặc nil.
+function Rebel.fortressToll(state, from, to)
+    local pid = state.rebel and state.rebel.lastRoller
+    if not pid then return nil end
+    for _, b in ipairs(Aura.each(state, "S-02")) do
+        if Aura.covers(state, b, from) and not Aura.covers(state, b, to) then
+            local res = state.players[pid].res
+            local pay = math.min(SpecialsData.FORTRESS_TOLL, res.gold)
+            res.gold = res.gold - pay
+            return { kind = "fortress_toll", pid = pid, gold = pay, owner = b.owner }
+        end
+    end
+    return nil
 end
 
 -- Trấn Áp thành công hủy phong tỏa trong cả vòng đó (Data §5).
@@ -54,6 +91,14 @@ function Rebel.isBlockaded(state, tile)
     local rb = state.rebel
     return rb ~= nil and not Rebel.isSuppressed(state) and Hex.distance(rb, tile) <= 1
         and not Rebel.isImmuneCentre(state, tile)
+end
+
+-- Ô Nhà Chính của bất kỳ người chơi nào: ô chặn đối với Phiến Quân.
+function Rebel.isHQTile(state, tile)
+    for _, p in ipairs(state.players) do
+        if p.hq and p.hq.q == tile.q and p.hq.r == tile.r then return true end
+    end
+    return false
 end
 
 -- ─── Cấm dừng cạnh đơn vị Trú Đóng (A-04) ───────────────────────────────────
@@ -86,31 +131,29 @@ local function distanceToHQs(state, tile)
     return best
 end
 
--- Đặt Phiến Quân sau khi mọi HQ đã được đặt: ô Đồng Bằng / Lãnh Nguyên / Sa Mạc cách mọi HQ >= 2.
--- Không có thì lấy ô đi được bất kỳ cách HQ >= 2 (rồi >= 1). Trả ô đã chọn.
+-- Đặt Phiến Quân sau khi mọi HQ đã được đặt (GDD 1.6 §11.1 bước 4): ở ô trung tâm bản đồ; nếu cách HQ nào dưới
+-- REBEL_SPAWN_MIN_HQ_DIST bước (hoặc không đi được) thì dời tới ô hợp lệ gần nhất. Không dùng RNG. Trả ô đã chọn.
 function Rebel.spawn(state)
-    local spawnTerrain = {}
-    for _, id in ipairs(C.REBEL_SPAWN_TERRAINS) do spawnTerrain[id] = true end
-
-    local function candidates(preferred, minDist)
-        local out = {}
-        for _, t in ipairs(state.map.list) do
-            local walkable = Movement.stepCost("rebel", t.terrain, 1) < math.huge
-            if walkable and (not preferred or spawnTerrain[t.terrain])
-                and distanceToHQs(state, t) >= minDist then
-                out[#out + 1] = t
+    local map = state.map
+    local mid = Hex.fromOffset(math.floor((map.cols - 1) / 2), math.floor((map.rows - 1) / 2))
+    local function valid(t, minDist)
+        return Movement.stepCost("rebel", t.terrain, 1) < math.huge and not Rebel.isHQTile(state, t)
+            and distanceToHQs(state, t) >= minDist
+    end
+    local best
+    for _, minDist in ipairs({ C.REBEL_SPAWN_MIN_HQ_DIST, 1 }) do
+        local bestD
+        for _, t in ipairs(map.list) do
+            if valid(t, minDist) then
+                local d = Hex.distance(mid, t)
+                if not bestD or d < bestD then best, bestD = t, d end   -- hòa: ô đứng trước trong thứ tự hàng
             end
         end
-        return out
+        if best then break end
     end
-
-    local list = candidates(true, C.REBEL_SPAWN_MIN_HQ_DIST)
-    if #list == 0 then list = candidates(false, C.REBEL_SPAWN_MIN_HQ_DIST) end
-    if #list == 0 then list = candidates(false, 1) end
-    assert(#list > 0, "không có ô nào cho Phiến Quân")
-    local t = state.rng:pick(list)
-    state.rebel = { q = t.q, r = t.r }
-    return t
+    assert(best, "không có ô nào cho Phiến Quân")
+    state.rebel = { q = best.q, r = best.r }
+    return best
 end
 
 -- ─── Di chuyển ──────────────────────────────────────────────────────────────
@@ -124,8 +167,10 @@ end
 local function rawSteps(state, here, points, visited)
     local out = {}
     for _, n in ipairs(state.map:neighbors(here)) do
-        local cost = Movement.stepCost("rebel", n.terrain, state.round)
-        if not visited[State.key(n)] and cost <= points then out[#out + 1] = { tile = n, cost = cost } end
+        local cost = rebelCost(state, n.terrain)
+        if not visited[State.key(n)] and cost <= points and not Rebel.isHQTile(state, n) then
+            out[#out + 1] = { tile = n, cost = cost }
+        end
     end
     return out
 end
@@ -184,7 +229,7 @@ function Rebel.pushPath(state, dir, steps)
     for _ = 1, steps do
         local d = Hex.DIRECTIONS[dir]
         local n = state.map:get(pos.q + d.q, pos.r + d.r)
-        if not n or Movement.stepCost("rebel", n.terrain, state.round) == math.huge then break end
+        if not n or rebelCost(state, n.terrain) == math.huge or Rebel.isHQTile(state, n) then break end
         out[#out + 1] = n
         pos = n
     end
@@ -195,6 +240,7 @@ end
 function Rebel.startMove(state, roller)
     assert(state.rebel, "chưa có Phiến Quân")
     local points = Dice.rollOne(state.rng)
+    state.rebel.lastRoller = roller   -- "người kích hoạt PQ" (S-02: mất Vàng khi PQ bị đẩy ra khỏi aura)
     state.rebel.pending = { stage = "move", points = points, roller = roller,
                             visited = { [State.key(state.rebel)] = true } }
     local events = { { kind = "rebel_roll", roller = roller, points = points } }
@@ -204,7 +250,21 @@ function Rebel.startMove(state, roller)
     return points, events
 end
 
--- Bước vào ô (q, r). Trả events. Tự dừng khi hết điểm / không còn bước.
+-- Sau khi Phiến Quân bước xong một bước (và xử lý cướp phá): dừng nếu hết điểm / không còn bước, nếu không thì xử lý
+-- đường bị đi qua. Trả events.
+local function afterStep(state, target)
+    local rb = state.rebel
+    local events = {}
+    if rb.pending.points <= 0 or #Rebel.legalSteps(state) == 0 then
+        for _, e in ipairs(Rebel.stop(state)) do events[#events + 1] = e end
+    elseif Roads.damagePass(state, target) then   -- đi qua (không dừng): Đường Đất bị xóa, Lát Đá miễn nhiễm
+        events[#events + 1] = { kind = "road_damaged", q = target.q, r = target.r, lost = true }
+    end
+    return events
+end
+
+-- Bước vào ô (q, r). Trả events. Tự dừng khi hết điểm / không còn bước. Bước lên công trình của người khác là cướp phá;
+-- nếu chủ phải chọn loại tài nguyên (hòa) thì dừng ở stage "loss" và tiếp tục sau khi chọn (Rebel.resolveLoss).
 function Rebel.step(state, q, r)
     local rb = state.rebel
     assert(rb and Rebel.stage(state) == "move", "Phiến Quân không đang di chuyển")
@@ -214,7 +274,7 @@ function Rebel.step(state, q, r)
     end
     assert(target, "bước đi không hợp lệ")
 
-    local cost = Movement.stepCost("rebel", target.terrain, state.round)
+    local cost = rebelCost(state, target.terrain)
     local from = { q = rb.q, r = rb.r }
     rb.pending.points = rb.pending.points - cost
     rb.q, rb.r = target.q, target.r
@@ -222,24 +282,22 @@ function Rebel.step(state, q, r)
     rb.pending.visited[State.key(target)] = true
     local events = { { kind = "rebel_step", from = from, to = { q = target.q, r = target.r },
                        left = rb.pending.points } }
-    if rb.pending.points <= 0 or #Rebel.legalSteps(state) == 0 then
-        for _, e in ipairs(Rebel.stop(state)) do events[#events + 1] = e end
-    elseif Roads.damagePass(state, target) then   -- đi qua (không dừng): Đường Đất bị xóa, Lát Đá miễn nhiễm
-        events[#events + 1] = { kind = "road_damaged", q = target.q, r = target.r, lost = true }
-    end
+    local pe, waiting = Rebel.plunder(state, target)
+    for _, e in ipairs(pe) do events[#events + 1] = e end
+    if waiting then return events end
+    for _, e in ipairs(afterStep(state, target)) do events[#events + 1] = e end
     return events
 end
 
--- ─── Dừng và hiệu ứng ───────────────────────────────────────────────────────
+-- ─── Cướp phá và dừng ───────────────────────────────────────────────────────
 
--- Chủ của công trình / HQ tại tile, hoặc nil.
-local function ownerAt(state, tile)
+-- Chủ và khóa "đã bị cướp" của thứ đang chiếm `tile` (công trình hoặc Khu Trực Thuộc), hoặc nil.
+local function plunderTarget(state, tile)
     local b = Structures.at(state, tile)
-    if b then return b.owner end
+    if b then return b.owner, "b" .. b.uid end
     for pid, p in ipairs(state.players) do
-        if p.hq and p.hq.q == tile.q and p.hq.r == tile.r then return pid end
         for _, s in ipairs(p.subs or {}) do
-            if s.q == tile.q and s.r == tile.r then return pid end
+            if s.q == tile.q and s.r == tile.r then return pid, "s" .. State.key(tile) end
         end
     end
     return nil
@@ -248,14 +306,46 @@ end
 local function applyLoss(state, owner, roller, resKey, amount)
     local victim = state.players[owner]
     local lost = math.min(amount, victim.res[resKey])
-    local gained = math.ceil(lost / 2)
     victim.res[resKey] = victim.res[resKey] - lost
     local taker = state.players[roller]
-    taker.res[resKey] = taker.res[resKey] + gained
-    return lost, gained
+    taker.res[resKey] = taker.res[resKey] + lost   -- người điều khiển nhận toàn bộ (GDD 1.6 §6.2)
+    return lost, lost
 end
 
--- Phiến Quân dừng. Trả events. Có thể để lại pending.stage = "loss" nếu chủ phải chọn loại.
+-- Phiến Quân vừa bước lên `tile`: cướp công trình / Khu Trực Thuộc của người khác nếu chưa bị cướp trong vòng này.
+-- Trả events, waiting (true nếu chủ phải chọn loại tài nguyên: pending.stage = "loss").
+function Rebel.plunder(state, tile)
+    local rb = state.rebel
+    local roller = rb.pending and rb.pending.roller
+    local owner, pk = plunderTarget(state, tile)
+    if not owner or owner == roller then return {}, false end
+    state.plundered = state.plundered or {}
+    if state.plundered[pk] == state.round then return {}, false end
+
+    local victim = state.players[owner]
+    local max, options = 0, {}
+    for _, r in ipairs(Resources.core) do
+        local have = victim.res[r.key]
+        if have > max then max, options = have, { r.key }
+        elseif have == max and have > 0 then options[#options + 1] = r.key end
+    end
+    state.plundered[pk] = state.round
+    if max <= 0 then return {}, false end
+
+    local amount = math.ceil(max / 2)
+    if #options == 1 then
+        local lost, gained = applyLoss(state, owner, roller, options[1], amount)
+        return { { kind = "rebel_loss", victim = owner, roller = roller, res = options[1], lost = lost, gained = gained,
+                   q = tile.q, r = tile.r } }, false
+    end
+    local mv = rb.pending
+    rb.pending = { stage = "loss", owner = owner, roller = roller, amount = amount, options = options,
+                   q = tile.q, r = tile.r, move = { points = mv.points, roller = mv.roller, visited = mv.visited } }
+    return { { kind = "rebel_choose", victim = owner, roller = roller, amount = amount, options = options,
+               q = tile.q, r = tile.r } }, true
+end
+
+-- Phiến Quân dừng. Trả events.
 function Rebel.stop(state)
     local rb = state.rebel
     local roller = rb.pending and rb.pending.roller
@@ -282,32 +372,23 @@ function Rebel.stop(state)
         state.units[uid] = nil
     end
 
-    local owner = ownerAt(state, tile)
-    if not owner or owner == roller then return events end
-
-    local victim = state.players[owner]
-    local max, options = 0, {}
-    for _, r in ipairs(Resources.core) do
-        local have = victim.res[r.key]
-        if have > max then max, options = have, { r.key }
-        elseif have == max and have > 0 then options[#options + 1] = r.key end
-    end
-    if max <= 0 then return events end
-
-    local amount = math.ceil(max / 2)
-    if #options == 1 then
-        local lost, gained = applyLoss(state, owner, roller, options[1], amount)
-        events[#events + 1] = { kind = "rebel_loss", victim = owner, roller = roller,
-                                res = options[1], lost = lost, gained = gained }
-    else
-        rb.pending = { stage = "loss", owner = owner, roller = roller, amount = amount, options = options }
-        events[#events + 1] = { kind = "rebel_choose", victim = owner, roller = roller,
-                                amount = amount, options = options }
+    -- ô chưa có chủ có Tài Nguyên Cơ Bản: người điều khiển nhận từ ngân hàng ceil(1/2) mỗi loại (GDD 1.6 §6.2)
+    if roller and not state.owner[State.key(tile)] and tile.base then
+        local gains = {}
+        for _, r in ipairs(Resources.core) do
+            local n = tile.base[r.key]
+            if n then
+                local g = math.ceil(n / 2)
+                state.players[roller].res[r.key] = state.players[roller].res[r.key] + g
+                gains[r.key] = g
+            end
+        end
+        if next(gains) then events[#events + 1] = { kind = "rebel_bank", roller = roller, gains = gains, q = rb.q, r = rb.r } end
     end
     return events
 end
 
--- Chủ chọn loại tài nguyên bị mất khi hòa. Trả events.
+-- Chủ chọn loại tài nguyên bị mất khi hòa. Trả events; sau đó Phiến Quân tiếp tục đi (hoặc dừng nếu hết bước).
 function Rebel.resolveLoss(state, resKey)
     local rb = state.rebel
     assert(rb and Rebel.stage(state) == "loss", "không có lựa chọn nào đang chờ")
@@ -315,10 +396,12 @@ function Rebel.resolveLoss(state, resKey)
     local valid = false
     for _, k in ipairs(p.options) do if k == resKey then valid = true end end
     assert(valid, "loại tài nguyên không nằm trong lựa chọn")
-    rb.pending = nil
     local lost, gained = applyLoss(state, p.owner, p.roller, resKey, p.amount)
-    return { { kind = "rebel_loss", victim = p.owner, roller = p.roller, res = resKey,
-               lost = lost, gained = gained } }
+    local events = { { kind = "rebel_loss", victim = p.owner, roller = p.roller, res = resKey, lost = lost,
+                       gained = gained, q = p.q, r = p.r } }
+    rb.pending = { stage = "move", points = p.move.points, roller = p.move.roller, visited = p.move.visited }
+    for _, e in ipairs(afterStep(state, state.map:get(rb.q, rb.r))) do events[#events + 1] = e end
+    return events
 end
 
 return Rebel

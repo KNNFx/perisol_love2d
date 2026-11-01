@@ -154,7 +154,7 @@ describe("production: TN trên footprint, Địa Linh, Cảng, Đất Màu Mỡ,
     local function eng(s, dice, pid)
         local n = 0
         for _, e in ipairs(Production.compute(s, dice, pid)) do
-            if e.kind == "produce" and e.res == "engineering" then n = n + e.amount end
+            if (e.kind == "produce" or e.kind == "tile_produce") and e.res == "engineering" and e.pid == pid then n = n + e.amount end
         end
         return n
     end
@@ -173,14 +173,25 @@ describe("production: TN trên footprint, Địa Linh, Cảng, Đất Màu Mỡ,
         tiles[1].strategic, tiles[2].strategic = nil, nil
     end)
 
-    it("TN-12 Địa Linh: 1 viên khớp tính như cả 2; không có viên khớp thì vẫn 0", function()
+    it("TN-12 Địa Linh (GDD 1.6): mỗi viên Hex được chủ ô đổi thành tài nguyên ô sản xuất; không chọn thì không có gì", function()
         local s, pid, c = arena()
         farRebel(s)
         c.strategic = "TN-12"
         Structures.place(s, { id = "B-01", level = 1, owner = pid }, { c })
-        expect.eq(eng(s, { 3, 5 }, pid), 2)
-        expect.eq(eng(s, { 3, 3 }, pid), 2)
-        expect.eq(eng(s, { 1, 5 }, pid), 0)
+        local choices = Production.leyChoices(s, { 6, 5 })
+        expect.eq(#choices, 1)
+        expect.eq(choices[1].pid, pid); expect.deepEq(choices[1].options, { "engineering" })
+        expect.eq(#Production.leyChoices(s, { 3, 5 }), 0, "không có viên Hex thì không có lựa chọn")
+        expect.eq(#Production.leyChoices(s, { 6, 6 }), 2, "mỗi viên Hex một lựa chọn")
+        expect.eq(eng(s, { 6, 5 }, pid), 0)
+        local extras = { { q = c.q, r = c.r, res = "engineering" } }
+        local n = 0
+        for _, e in ipairs(Production.compute(s, { 6, 5 }, pid, extras)) do
+            if e.kind == "produce" and e.res == "engineering" then n = n + e.amount end
+        end
+        expect.eq(n, 1, "Trại KT C1 ra 1 KT cho viên Hex đã đổi")
+        s.lostStrategic[key(c)] = true
+        expect.eq(#Production.leyChoices(s, { 6, 5 }), 0, "ô đã mất TN thì hết lựa chọn")
         c.strategic = nil
     end)
 

@@ -25,9 +25,10 @@ function A.radius(b) return A.levelDef(b).aura end
 -- Công trình Đặc Biệt `id` của người `pid` (nil = mọi người), không chờ dỡ, theo thứ tự uid.
 function A.each(state, id, pid)
     local out = {}
-    for _, b in ipairs(Structures.list(state)) do
+    for _, b in pairs(state.buildings) do   -- chỉ sắp xếp các công trình khớp (Structures.list sắp xếp toàn bộ, rất tốn khi gọi mỗi ô)
         if b.id == id and not b.demolishing and (not pid or b.owner == pid) then out[#out + 1] = b end
     end
+    if #out > 1 then table.sort(out, function(a, c) return a.uid < c.uid end) end
     return out
 end
 

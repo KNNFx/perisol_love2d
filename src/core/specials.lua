@@ -43,7 +43,7 @@ end
 
 -- ─── Xây ────────────────────────────────────────────────────────────────────
 
-local BLOCKED_TERRAIN = { ["DH-10"] = true, ["DH-11"] = true }   -- Khu Dân Cư / Danh Thắng: chỉ Chi Phối
+local BLOCKED_TERRAIN = { ["DH-10"] = true, ["DH-11"] = true }   -- Khu Dân Cư / Danh Thắng: chỉ Chi Phối (trừ công trình có Khu Dân Cư trong `terrains`: Bảo Tàng)
 
 -- Có công trình Cơ Bản đủ cấp trong bán kính quanh `centre` không?
 local function hasPrereq(state, pid, centre, req)
@@ -70,6 +70,7 @@ function S.checkBuild(state, pid, id, q, r, rot)
         tiles[i] = t
     end
     local centre = tiles[1]
+    if C.BUILD_ON_RIVER_LOCKED and (centre.terrain == "DH-04") then return false, "Sông đang bị khóa xây" end
     if not def.terrains[centre.terrain] then
         return false, "Địa hình " .. Terrains.byId[centre.terrain].name .. " không xây được " .. def.name
     end
@@ -81,7 +82,8 @@ function S.checkBuild(state, pid, id, q, r, rot)
         if state.owner[key(t)] ~= pid then return false, "Mọi ô phải là lãnh thổ thực hữu của bạn" end
         if Structures.at(state, t) or Territory.isAnchorTile(state, t) then return false, "Có ô đã có công trình" end
         if Rebel.isBlockaded(state, t) then return false, "Có ô đang bị Phiến Quân phong tỏa" end
-        if BLOCKED_TERRAIN[t.terrain] then return false, "Không xây trên Khu Dân Cư / Danh Thắng" end
+        if BLOCKED_TERRAIN[t.terrain] and not def.terrains[t.terrain] then return false, "Không xây trên Khu Dân Cư / Danh Thắng" end
+        if C.BUILD_ON_RIVER_LOCKED and t.terrain == "DH-04" then return false, "Sông đang bị khóa xây" end
         if def.sameTerrain and t.terrain ~= centre.terrain then return false, "Mọi ô phải cùng một loại địa hình" end
         if not def.sameTerrain and not def.terrains[t.terrain] and not Terrains.byId[t.terrain].canBuild then
             return false, "Có ô địa hình không xây được"
@@ -229,6 +231,7 @@ function S.strike(state, pid, uid, targetUid)
         local tn = Structures.strategicAt(state, t)
         if tn then
             state.lostStrategic[key(t)] = true
+            Territory.syncVotes(state, t)
             events[#events + 1] = { kind = "strategic_lost", pid = target.owner, tn = tn, q = t.q, r = t.r }
         end
     end
@@ -237,18 +240,59 @@ function S.strike(state, pid, uid, targetUid)
     return events
 end
 
--- ─── Đài Phát Thanh S-04 "Phát Sóng" (+2) ───────────────────────────────────
+-- ─── Tháp S-01 +2: giữ 1 viên, đổ lại viên còn lại ──────────────────────────
 
--- `pid` được dùng "Phát Sóng" ở lần đổ này không? Trả ok, lý do.
-function S.checkBroadcast(state, pid)
-    local b = S.owned(state, pid, "S-04")
-    if not b or not Aura.levelDef(b).broadcast then return false, "Cần Đài Phát Thanh Long Mạch nâng cấp +2" end
-    if not S.isActive(state, b) then return false, "Đài Phát Thanh đang không hoạt động" end
-    local p = state.players[pid]
-    if p.broadcastRound and state.round - p.broadcastRound < Data.BROADCAST_COOLDOWN then
-        return false, string.format("Phát Sóng hồi sau %d vòng nữa", Data.BROADCAST_COOLDOWN - (state.round - p.broadcastRound))
-    end
+-- `pid` được giữ 1 viên rồi đổ lại viên còn lại ở lần đổ này không (cần xem trước cả 2 viên)? Trả ok, lý do.
+function S.checkHold(state, pid)
+    local b = S.owned(state, pid, "S-01")
+    if not b or not Aura.levelDef(b).reroll then return false, "Cần Tháp Quan Sát Thiên Văn nâng cấp +2" end
+    if not S.isActive(state, b) then return false, "Tháp Quan Sát Thiên Văn đang không hoạt động" end
     return true
+end
+
+-- ─── Đài Khí Tượng S-04: đổ lại 1 viên, chọn mặt ────────────────────────────
+
+-- Các lựa chọn của chủ Đài Khí Tượng sau khi đổ `dice` (GDD 1.6 §8.3), hoặc nil nếu không có.
+--   "keep" · "reroll:i" (đổ lại viên i, 1 lần mỗi rerollEvery vòng) · "face:i:f" (+2: 1 lần/ván chọn mặt f cho viên i, không tạo tổng 7).
+function S.rerollOptions(state, pid, dice)
+    local b = S.owned(state, pid, "S-04")
+    if not b or not S.isActive(state, b) then return nil end
+    local lv, p = Aura.levelDef(b), state.players[pid]
+    local opts = {}
+    if lv.rerollEvery and (p.rerollRound == nil or state.round - p.rerollRound >= lv.rerollEvery) then
+        for i = 1, #dice do opts[#opts + 1] = "reroll:" .. i end
+    end
+    if lv.setFace and not p.setFaceUsed then
+        for i = 1, #dice do
+            local other = dice[i == 1 and 2 or 1]
+            for f = 1, 6 do
+                if f ~= dice[i] and f + other ~= C.SEVEN then opts[#opts + 1] = string.format("face:%d:%d", i, f) end
+            end
+        end
+    end
+    if #opts == 0 then return nil end
+    table.insert(opts, 1, "keep")
+    return opts
+end
+
+-- Áp dụng lựa chọn lên `dice` (đã qua rerollOptions). Trả events. Đổ lại dùng RNG ván.
+function S.applyReroll(state, pid, dice, choice)
+    local p = state.players[pid]
+    local kind, a, b = choice:match("^(%a+):?(%d*):?(%d*)$")
+    if kind == "reroll" then
+        local i = tonumber(a)
+        local old = dice[i]
+        dice[i] = Dice.rollOne(state.rng)
+        p.rerollRound = state.round
+        return { { kind = "dice_reroll", pid = pid, die = i, from = old, to = dice[i] } }
+    elseif kind == "face" then
+        local i, f = tonumber(a), tonumber(b)
+        local old = dice[i]
+        dice[i] = f
+        p.setFaceUsed = true
+        return { { kind = "dice_setface", pid = pid, die = i, from = old, to = f } }
+    end
+    return {}
 end
 
 -- ─── Thiên Đình S-05 ────────────────────────────────────────────────────────
@@ -294,7 +338,7 @@ function S.pushCandidates(state, b)
     local rb = state.rebel
     for _, h in ipairs(Hex.range(rb, 2)) do
         local t = state.map:get(h.q, h.r)
-        if t and not Aura.covers(state, b, t) and Movement.stepCost("rebel", t.terrain, state.round) < math.huge then
+        if t and not Aura.covers(state, b, t) and Rebel.stepCost(state, t.terrain) < math.huge then
             out[#out + 1] = t
         end
     end

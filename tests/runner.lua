@@ -80,7 +80,13 @@ function M.run()
     _G.describe, _G.it, _G.expect = describe, it, expect
     for _, file in ipairs(items) do
         local mod = file:match("^(.+_spec)%.lua$")
-        if mod then require("tests." .. mod) end
+        -- Dev: TEST_ONLY=rebel,territory chỉ chạy các spec có tên chứa một trong các từ đó (chạy nhanh khi sửa một phần).
+        local only = os.getenv("TEST_ONLY")
+        local selected = not only
+        if only then
+            for word in only:gmatch("[^,]+") do if mod and mod:find(word, 1, true) then selected = true end end
+        end
+        if mod and selected then require("tests." .. mod) end
     end
 
     local passed, failed = 0, 0

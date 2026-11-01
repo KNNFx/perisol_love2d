@@ -6,11 +6,12 @@ local Structures = require("src.core.structures")
 -- State 3 người trên map 32x16, không TN; trả state + hàm đặt công trình tại tile bất kỳ.
 local function newState()
     local map = Mapgen.generate({ seed = 11, players = 4 })
-    for _, t in ipairs(map.list) do t.strategic = nil end
+    for _, t in ipairs(map.list) do t.strategic, t.base = nil, nil end
     local s = State.new(map, 3, 11)
     local function put(i, id, level, pid)
         local t = map.list[i]
         Structures.place(s, { id = id, level = level or 1, owner = pid }, { t })
+        s.owner[State.key(t)] = pid   -- ô của chủ (Tài Nguyên Chiến Lược trên ô trả cho người thu hoạch)
         return t
     end
     return s, put
@@ -19,7 +20,7 @@ end
 local function sum(events, pid, res)
     local n = 0
     for _, e in ipairs(events) do
-        if e.kind == "produce" and e.pid == pid and (not res or e.res == res) then n = n + e.amount end
+        if (e.kind == "produce" or e.kind == "tile_produce") and e.pid == pid and (not res or e.res == res) then n = n + e.amount end
     end
     return n
 end
@@ -105,7 +106,8 @@ describe("production: bonus tài nguyên chiến lược", function()
         local s, put = newState()
         local t = put(10, "B-02", 2, 1)   -- C2 Viện NC: ra KT cho 1 KH (không phải KT)
         t.strategic = "TN-05"
-        expect.eq(sum(Production.compute(s, { 3, 1 }, 1), 1, "engineering"), 0)
+        -- bonus ô của TN-05 (+2 KT khi ra KT) thuộc ô, không thuộc công trình: ô vẫn nhả 2 KT dù công trình không ra KT
+        expect.eq(sum(Production.compute(s, { 3, 1 }, 1), 1, "engineering"), 2)
         expect.eq(sum(Production.compute(s, { 3, 1 }, 1), 1, "science"), 1 + 2)   -- 1 (ra KT) + 2 (ra KH, 1 viên)
     end)
 

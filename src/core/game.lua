@@ -9,9 +9,9 @@
 --   Game.legal(state)         -> danh sách lệnh hợp lệ của Game.actor (cho sim/AI/nút)
 --
 -- Pha: setup_hq -> [roll -> (rebel_move -> rebel_loss?) -> action] x lượt x 20 vòng -> over
--- Lệnh: placeHQ{start} · roll · rebelStep{q,r} · chooseLoss{res} · trade{give,get} · placeVote{q,r} ·
+-- Lệnh: placeHQ{start} · roll{hold?} · rebelStep{q,r} · chooseLoss{res} · trade{give,get} · placeVote{q,r} ·
 --       buyTile{q,r} · upgradeHQ · foundSub{q,r} · build{id,q,r} · upgrade{uid,q,r,rot} · demolish{uid} ·
---       respond{choice} (phase prompt) · endTurn
+--       expelRebel · respond{choice} (phase prompt) · endTurn
 
 local C           = require("src.config.constants")
 local Dice        = require("src.core.dice")
@@ -34,6 +34,7 @@ local SpecialsData = require("src.data.specials")
 local Passives    = require("src.core.passives")   -- đăng ký bước upkeep thu nhập thụ động (sau bước dỡ)
 local Upkeep      = require("src.core.upkeep")
 local Territory   = require("src.core.territory")
+local Rounds      = require("src.core.rounds")
 local Hex         = require("src.core.hex")
 local Buildings   = require("src.data.buildings")
 local Terrains    = require("src.data.terrains")
@@ -76,23 +77,21 @@ local function rankByRolls(rng, pids)
     return out
 end
 
-local function isEventRound(round)
-    for _, r in ipairs(C.EVENT_ROUNDS) do
-        if r == round then return true end
-    end
-    return false
+local function isEventRound(state, round)
+    return Rounds.isEventRound(state, round)
 end
 
 -- ─── Khởi tạo ───────────────────────────────────────────────────────────────
 
+-- opts = { seed, players, rounds? }. rounds mặc định 10 x số người chơi (GDD 1.6 §11.3), phải là bội của ROUND_STEP.
 function Game.new(opts)
     local players = opts.players
+    local rounds = opts.rounds or Rounds.defaultFor(players)
+    assert(Rounds.valid(rounds), "số vòng phải là bội của " .. C.ROUND_STEP .. ": " .. tostring(rounds))
     local map = Mapgen.generate({ seed = opts.seed, players = players })
     local state = State.new(map, players, opts.seed)
+    state.rounds = rounds
     state.setupIdx, state.takenStarts, state.history = 1, {}, {}
-    for pid = 1, players do
-        for k, v in pairs(C.STARTING_RESOURCES) do state.players[pid].res[k] = v end
-    end
     local pids = {}
     for pid = 1, players do pids[pid] = pid end
     state.order = rankByRolls(state.rng, pids)
@@ -115,7 +114,9 @@ end
 -- Khâu Giải Quyết (GDD §5.3): Phiến Quân (đã xong) -> Sự Kiện Tổng -> Sắc Lệnh -> kỹ năng nhân vật.
 -- M1 chỉ ghi nhận mốc sự kiện (stub); Sắc Lệnh / kỹ năng ở M2 / M3.
 local function resolution(state, events)
-    if state.turn == 1 and isEventRound(state.round) then
+    if state.expelMode then   -- Lệnh Đuổi Phiến Quân dùng giữa Khâu Hành Động: không lặp Khâu Giải Quyết (GDD 1.6 §6.2)
+        state.expelMode = nil
+    elseif state.turn == 1 and isEventRound(state, state.round) then
         events[#events + 1] = { kind = "global_event", stub = true }
     end
     state.phase = "action"
@@ -212,13 +213,12 @@ H.placeHQ = {
         local hqTile = state.map:get(st.q, st.r)
         Territory.placeHQ(state, pid, hqTile)
         events[#events + 1] = { kind = "place_hq", pid = pid, q = st.q, r = st.r }
-        -- thưởng khởi đầu từ 6 ô quanh HQ (GDD §11.1 bước 8, D-013)
+        -- tài nguyên khởi đầu = toàn bộ Tài Nguyên Cơ Bản của 6 ô quanh HQ, nhận 1 lần (GDD 1.6 §11.1 bước 8, D-020 #4)
         local gains = {}
         for _, n in ipairs(state.map:neighbors(hqTile)) do
-            local res = C.START_BONUS_BY_TERRAIN[n.terrain]
-            if res then
-                state.players[pid].res[res] = state.players[pid].res[res] + C.START_BONUS_PER_TILE
-                gains[res] = (gains[res] or 0) + C.START_BONUS_PER_TILE
+            for res, amount in pairs(n.base or {}) do
+                state.players[pid].res[res] = state.players[pid].res[res] + amount
+                gains[res] = (gains[res] or 0) + amount
             end
         end
         events[#events + 1] = { kind = "start_bonus", pid = pid, gains = gains }
@@ -231,34 +231,74 @@ H.placeHQ = {
     end,
 }
 
+-- Sau khi xúc xắc đã chốt (kể cả sau đổ lại của Đài Khí Tượng): tổng 7 thì hủy/chạy Phiến Quân; không thì hỏi chủ ô Địa Linh
+-- (mỗi viên Hex một lựa chọn) rồi sản xuất.
+local finishRoll
+
+local function produceAndResolve(state, pid, extras, events)
+    for _, e in ipairs(Production.run(state, state.dice, pid, extras)) do events[#events + 1] = e end
+    resolution(state, events)
+end
+
+-- Hỏi lần lượt các lựa chọn Địa Linh còn lại `choices[idx..]`; `extras` gom các lựa chọn đã có.
+local function openLeyPrompt(state, pid, choices, idx, extras)
+    local c = choices[idx]
+    local options = { "skip" }
+    for _, res in ipairs(c.options) do options[#options + 1] = res end
+    Game.openPrompt(state, { kind = "ley", pid = c.pid, roller = pid, options = options, q = c.q, r = c.r,
+                             choices = choices, idx = idx, extras = extras, resume = "action" })
+end
+
+finishRoll = function(state, pid, events)
+    local dice = state.dice
+    if Dice.isSeven(dice) then
+        events[#events + 1] = { kind = "seven", pid = pid }
+        local holders = Specials.cancel7Holders(state, pid)
+        if #holders > 0 then openCancel7Prompt(state, pid, holders) else runRebel(state, pid, events) end
+        return
+    end
+    local choices = Production.leyChoices(state, dice)
+    if #choices > 0 then
+        openLeyPrompt(state, pid, choices, 1, {})
+    else
+        produceAndResolve(state, pid, nil, events)
+    end
+end
+
 H.roll = {
     phase = "roll",
     check = function(state, cmd, pid)
-        if cmd.broadcast then return Specials.checkBroadcast(state, pid) end   -- S-04 +2 "Phát Sóng"
+        if cmd.hold then
+            if cmd.hold ~= 1 and cmd.hold ~= 2 then return false, "Chọn giữ viên 1 hoặc 2" end
+            return Specials.checkHold(state, pid)   -- S-01 +2: giữ 1 viên, đổ lại viên còn lại
+        end
         return true
     end,
     apply = function(state, cmd, pid, events)
+        -- đầu Khâu Sản Xuất: đếm số lượt liên tiếp bị Phiến Quân quấy phá; hơn 3 lượt thì có Lệnh Đuổi (GDD 1.6 §6.2)
+        local me = state.players[pid]
+        if Rebel.harassed(state, pid) then me.harass = (me.harass or 0) + 1 else me.harass = 0 end
+        if me.harass > C.REBEL_HARASS_BEFORE_EXPEL and not me.expelReady then
+            me.expelReady = true
+            events[#events + 1] = { kind = "expel_ready", pid = pid }
+        elseif me.harass == 0 then
+            me.expelReady = nil
+        end
         for _, e in ipairs(Upkeep.startTurn(state, pid)) do events[#events + 1] = e end
         local dice = Dice.roll(state.rng)
-        if cmd.broadcast then   -- cả hai viên thành mặt cao hơn của viên đã đổ
-            local m = math.max(dice[1], dice[2])
-            dice = { m, m }
-            state.players[pid].broadcastRound = state.round
-            events[#events + 1] = { kind = "broadcast", pid = pid, face = m }
+        if cmd.hold then   -- Tháp S-01 +2: giữ viên `hold`, đổ lại viên còn lại (viên xem trước vẫn là 2 lần rút đầu)
+            local other = cmd.hold == 1 and 2 or 1
+            local old = dice[other]
+            dice[other] = Dice.rollOne(state.rng)
+            events[#events + 1] = { kind = "dice_hold", pid = pid, kept = cmd.hold, die = other, from = old, to = dice[other] }
         end
         state.dice = dice
         events[#events + 1] = { kind = "roll", pid = pid, dice = dice }
-        if Dice.isSeven(dice) then
-            events[#events + 1] = { kind = "seven", pid = pid }
-            local holders = Specials.cancel7Holders(state, pid)
-            if #holders > 0 then
-                openCancel7Prompt(state, pid, holders)
-            else
-                runRebel(state, pid, events)
-            end
+        local opts = Specials.rerollOptions(state, pid, dice)   -- Đài Khí Tượng S-04: đổ lại 1 viên / chọn mặt
+        if opts then
+            Game.openPrompt(state, { kind = "reroll", pid = pid, roller = pid, options = opts, resume = "action" })
         else
-            for _, e in ipairs(Production.run(state, dice, pid)) do events[#events + 1] = e end
-            resolution(state, events)
+            finishRoll(state, pid, events)
         end
     end,
 }
@@ -274,6 +314,25 @@ H.rebelStep = {
     apply = function(state, cmd, pid, events)
         for _, e in ipairs(Rebel.step(state, cmd.q, cmd.r)) do events[#events + 1] = e end
         settleRebel(state, events)
+    end,
+}
+
+-- Lệnh Đuổi Phiến Quân (GDD 1.6 §6.2): người bị quấy phá hơn 3 lượt liên tiếp đổ 1d6 điều khiển Phiến Quân như vừa ra 7,
+-- không mất sản xuất của lượt. Dùng xong thì bộ đếm về 0.
+H.expelRebel = {
+    phase = "action",
+    check = function(state, cmd, pid)
+        local p = state.players[pid]
+        if not p.expelReady then return false, "Chưa có Lệnh Đuổi Phiến Quân (cần bị quấy phá hơn " .. C.REBEL_HARASS_BEFORE_EXPEL .. " lượt liên tiếp)" end
+        if not state.rebel then return false, "Không có Phiến Quân trên bản đồ" end
+        return true
+    end,
+    apply = function(state, cmd, pid, events)
+        local p = state.players[pid]
+        p.harass, p.expelReady = 0, nil
+        events[#events + 1] = { kind = "expel", pid = pid }
+        state.expelMode = true
+        runRebel(state, pid, events)
     end,
 }
 
@@ -433,6 +492,35 @@ Game.prompts.cancel7 = {
     end,
 }
 
+-- Đài Khí Tượng S-04 (GDD 1.6 §8.3): sau khi đổ, chủ được đổ lại 1 viên hoặc (+2) chọn mặt cho 1 viên; "keep" = giữ nguyên.
+Game.prompts.reroll = {
+    check = function() return true end,
+    apply = function(state, p, choice, events)
+        if choice ~= "keep" then
+            for _, e in ipairs(Specials.applyReroll(state, p.pid, state.dice, choice)) do events[#events + 1] = e end
+            events[#events + 1] = { kind = "roll", pid = p.roller, dice = state.dice, changed = true }
+        end
+        finishRoll(state, p.roller, events)
+    end,
+}
+
+-- Địa Linh TN-12 (GDD 1.6 §3.4): mỗi viên Hex được chủ ô đổi thành một mặt tài nguyên mà ô (hoặc công trình trên ô) sản xuất.
+Game.prompts.ley = {
+    check = function() return true end,
+    apply = function(state, p, choice, events)
+        local extras = p.extras
+        if choice ~= "skip" then
+            extras[#extras + 1] = { q = p.q, r = p.r, res = choice }
+            events[#events + 1] = { kind = "ley_choice", pid = p.pid, q = p.q, r = p.r, res = choice }
+        end
+        if p.idx < #p.choices then
+            openLeyPrompt(state, p.roller, p.choices, p.idx + 1, extras)
+        else
+            produceAndResolve(state, p.roller, extras, events)
+        end
+    end,
+}
+
 -- Đẩy Phiến Quân (S-05): "push" = ô đã định sẵn ngẫu nhiên; hoặc tên ô "q,r" do chủ chọn (+1). Trả TN, dời Phiến Quân.
 Game.prompts.pushrebel = {
     check = function(state, p, choice)
@@ -451,8 +539,10 @@ Game.prompts.pushrebel = {
         local q, r = target:match("^(-?%d+),(-?%d+)$")
         local from = { q = state.rebel.q, r = state.rebel.r }
         state.players[p.pid].res.faith = state.players[p.pid].res.faith - p.cost
+        local toll = Rebel.fortressToll(state, from, { q = tonumber(q), r = tonumber(r) })
         state.rebel.q, state.rebel.r = tonumber(q), tonumber(r)
         events[#events + 1] = { kind = "rebel_pushed", pid = p.pid, from = from, q = tonumber(q), r = tonumber(r), cost = p.cost }
+        if toll then events[#events + 1] = toll end
         resolution(state, events)
     end,
 }
@@ -477,6 +567,26 @@ H.buildDerived = {
         local inst = Derived.build(state, pid, cmd.id, { a = cmd.a, b = cmd.b, tile = tile })
         local at = Structures.tilesOf(state, state.buildings[inst.a])[1]
         events[#events + 1] = { kind = "derived_built", pid = pid, id = cmd.id, did = inst.did, q = at.q, r = at.r }
+    end,
+}
+
+-- Chuyển Vàng thành Tín Phiếu 1:1 (D-05 đang hoạt động): mỗi viên Vàng ra cho tối đa 2 Vàng (hạn mức dồn lại tới lượt của chủ),
+-- tối đa BOND_MAX Tín Phiếu cùng lúc (GDD 1.6 §8.2).
+H.convertBond = {
+    phase = "action",
+    check = function(state, cmd, pid)
+        local p = state.players[pid]
+        if type(cmd.n) ~= "number" or cmd.n < 1 or cmd.n ~= math.floor(cmd.n) then return false, "Số Vàng không hợp lệ" end
+        if not Derived.hasBank(state, pid) then return false, "Cần Nhà Ngân Hàng đang hoạt động" end
+        if (p.bondAllow or 0) < cmd.n then return false, "Chỉ chuyển được " .. (p.bondAllow or 0) .. " Vàng (cần ra mặt Vàng)" end
+        if p.res.gold < cmd.n then return false, "Không đủ Vàng" end
+        if p.res.bond + cmd.n > C.BOND_MAX then return false, "Tối đa " .. C.BOND_MAX .. " Tín Phiếu" end
+        return true
+    end,
+    apply = function(state, cmd, pid, events)
+        local p = state.players[pid]
+        p.res.gold, p.res.bond, p.bondAllow = p.res.gold - cmd.n, p.res.bond + cmd.n, p.bondAllow - cmd.n
+        events[#events + 1] = { kind = "bond_converted", pid = pid, n = cmd.n }
     end,
 }
 
@@ -752,7 +862,7 @@ H.endTurn = {
             state.turn = 1
             state.round = state.round + 1
         end
-        if state.round > C.ROUNDS_PER_GAME then
+        if state.round > Rounds.total(state) then
             state.phase = "over"
             events[#events + 1] = { kind = "game_over" }
         else
@@ -804,7 +914,10 @@ function Game.legal(state)
         end
     elseif ph == "roll" then
         out[1] = { type = "roll", pid = actor }
-        if Specials.checkBroadcast(state, actor) then out[2] = { type = "roll", pid = actor, broadcast = true } end
+        if Specials.checkHold(state, actor) then
+            out[2] = { type = "roll", pid = actor, hold = 1 }
+            out[3] = { type = "roll", pid = actor, hold = 2 }
+        end
     elseif ph == "rebel_move" then
         for _, t in ipairs(Rebel.legalSteps(state)) do
             out[#out + 1] = { type = "rebelStep", pid = actor, q = t.q, r = t.r }
@@ -963,6 +1076,10 @@ function Game.legal(state)
         if p.res.bond >= 1 and Derived.hasBank(state, actor) then
             out[#out + 1] = { type = "redeemBond", pid = actor, n = p.res.bond }
         end
+        if (p.bondAllow or 0) >= 1 and Derived.hasBank(state, actor) then
+            local n = math.min(p.bondAllow, p.res.gold, C.BOND_MAX - p.res.bond)
+            if n >= 1 then out[#out + 1] = { type = "convertBond", pid = actor, n = n } end
+        end
         for _, b in ipairs(Structures.list(state)) do
             if b.owner == actor and not b.demolishing then
                 local cost = upgradeCost(state, b)
@@ -974,6 +1091,7 @@ function Game.legal(state)
                 out[#out + 1] = { type = "demolish", pid = actor, uid = b.uid }
             end
         end
+        if p.expelReady and state.rebel then out[#out + 1] = { type = "expelRebel", pid = actor } end
         out[#out + 1] = { type = "endTurn", pid = actor }
     end
     return out
@@ -1020,6 +1138,16 @@ local MIGRATIONS = {
         data.version = 3
         return data
     end,
+    -- v3 -> v4 (D-020, GDD 1.6): số vòng của ván (save cũ luôn là ván 20 vòng), bảng Phiến Quân đã cướp.
+    -- Hiệp Sĩ còn sót được đổi về Viễn Chinh ở đầu lượt kế tiếp (Units.transformArmy khi KNIGHTS_ENABLED tắt).
+    [3] = function(data)
+        local s = data.state
+        s.rounds = s.rounds or C.ROUNDS_REFERENCE
+        s.plundered = s.plundered or {}
+        for _, p in ipairs(s.players or {}) do p.harass = p.harass or 0 end
+        data.version = 4
+        return data
+    end,
 }
 
 -- Chuỗi save: dữ liệu thuần có `version`, KHÔNG gồm bản đồ (sinh lại từ seed + số người).
@@ -1059,12 +1187,14 @@ function Game.load(str)
     s.derived = s.derived or {}
     s.nextDerivedUid = s.nextDerivedUid or 1
     s.nextUnitUid = s.nextUnitUid or 1
+    s.plundered = s.plundered or {}
+    s.rounds = s.rounds or C.ROUNDS_REFERENCE
     return State.restoreRng(s)
 end
 
--- Chơi lại từ đầu bằng danh sách lệnh (state.history). Trả state.
-function Game.replay(seed, players, history)
-    local state = Game.new({ seed = seed, players = players })
+-- Chơi lại từ đầu bằng danh sách lệnh (state.history). `rounds` nil = mặc định theo số người. Trả state.
+function Game.replay(seed, players, history, rounds)
+    local state = Game.new({ seed = seed, players = players, rounds = rounds })
     for _, cmd in ipairs(history) do Game.apply(state, cmd) end
     return state
 end
