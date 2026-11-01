@@ -472,12 +472,10 @@ Dữ liệu ở `src/data/specials.lua`, aura ở `src/core/aura.lua`, luật �
 
 - GDD §8.1 ghi **mọi** C3 chiếm 6 ô dùng "hình 3+3", nên B-01.3 dùng 6b chứ không dùng 6a như Data.
 - Hình 3 và 4 ô theo Data, vì GDD chỉ mô tả bằng chữ và không mâu thuẫn.
-- Code hiện tại khác Data ở các chỗ sau (sẽ sửa ở M1.6):
-  - B-01.3 đang là `trapezoid`.
-  - B-02.2 đang là `triangle`.
-  - B-02.3 đang là `cluster`.
-  - S-02 đang là `fort4`.
-  - S-03 đang là `triangle`.
+- **Đã làm ở M1.6:** chỉ B-01.3 và B-02.3 đổi sang hình 3+3 (`par33`). Các mã khác của Data không đổi code vì GDD không mâu thuẫn:
+  - B-02.2 giữ `triangle`: GDD §8.1 ghi "3 ô (Δ)", còn Data ghi 3b (hàng thẳng). GDD thắng.
+  - S-02 giữ `fort4` (ô giữa + 3 ô kề xen kẽ, "tam giác bảo vệ" của GDD §8.3); mã 4c ở bảng trên chỉ là cách đọc ảnh.
+  - S-03 giữ `triangle` (ô giữa + 2 ô liền, GDD §8.3).
 
 **Luật code hiện tại → luật GDD 1.6 (làm ở M1.6):**
 
@@ -582,6 +580,28 @@ Dữ liệu ở `src/data/specials.lua`, aura ở `src/core/aura.lua`, luật �
       - Lãnh Nguyên không có Vàng, nên ngoại lệ "Vàng luôn 1" mất ý nghĩa.
       - Không có ngoại lệ "+10% Tín Ngưỡng cạnh Sông".
     - **Hệ quả nếu dùng bảng này:** Văn Hóa chỉ còn trên Sông, Khu Dân Cư và Danh Thắng, nên 6 ô quanh HQ gần như không cho Văn Hóa. Mua ô cần 2 VH + 3 V, nên đầu ván phải đổi ngân hàng 4:1.
+
+### D-020 — Triển khai ở M1.6 (2026-11-01)
+Toàn bộ luật ở bảng "Luật code hiện tại → GDD 1.6" đã vào code (phase A–H của `plan.md` P3.5), trừ các mục ghi "chưa làm" bên dưới. Các cách hiểu của dự án khi GDD không đủ chi tiết, chỉnh trong `constants.lua` hoặc đổi luật nếu designer muốn:
+- **Số vòng:** `state.rounds` (menu hoặc `--rounds N`, bội của 10). Save v4; save v3 nạp lên thành ván 20 vòng.
+- **Tài Nguyên Cơ Bản:** bảng §3.3 ở `src/data/baseresources.lua`, sinh bằng nhánh RNG riêng (`baseres`) nên các bước sinh bản đồ khác không đổi. Ô đặt HQ không có tài nguyên. Ô nhả `(CB + bonus TN cùng loại) x số viên khớp` cho người thu hoạch. Bonus "+x khi ra x" của TN-01, TN-05, TN-06 và TN-07 chuyển sang ô; TN-03 (chỉ Khu Chợ) và TN-08 (+1 mọi dòng) vẫn là bonus công trình. Mất TN (dỡ, bị Pháo) thì mất bonus, giữ CB.
+- **Lãnh thổ:** 6 ô quanh HQ thực hữu với phiếu ghi bằng ngưỡng. Ngưỡng ngoài vùng ảnh hưởng = ngưỡng trong vùng + 1, rồi trừ TN-06, tối thiểu 1. Tranh lại ô thường: lệnh `placeVote` tiêu trọn `2 x ngưỡng của mình` phiếu và chuyển chủ ngay; ô phải giá trị cao (có TN, hoặc tổng CB >= 3) và nằm trong vùng ảnh hưởng của người tranh. Công trình đi theo ô, cả footprint đổi chủ; Phái Sinh gắn vào công trình đó bị gỡ. **Tạm thời:** công trình Đặc Biệt và công trình riêng của Phái Sinh (D-03, D-05) không bị cướp bằng phiếu, để tránh hai công trình cùng loại và instance mồ côi. Cụm Khu Dân Cư / Danh Thắng giữ cách cũ (phiếu cộng dồn, cần phiếu của chủ + 1), nhưng không mua được và không mở rộng liền kề.
+- **Phiến Quân:** xuất hiện ở ô giữa bản đồ rồi dời tới ô hợp lệ gần nhất (không RNG; hòa thì ô đứng trước theo hàng). Bản đồ chưa có "Phiến Quân ở giữa trước khi đặt HQ", nên luật "HQ không được kề Phiến Quân" không cần. Cướp phá khi bước lên công trình hoặc Khu Trực Thuộc, không phải Nhà Chính. Hòa loại nhiều nhất: **chủ chọn** (như D-009), Phiến Quân đi tiếp sau khi chọn. Người điều khiển nhận toàn bộ phần bị mất. Lệnh Đuổi: lệnh `expelRebel` trong Khâu Hành Động, không lặp Khâu Giải Quyết.
+- **Khóa Sông:** `C.BUILD_ON_RIVER_LOCKED = true`; M2 mở bằng thẻ. Viện NC C1 trên Rừng vẫn có "+1 KH thụ động" (câu hỏi mở số 5).
+- **Hiệp Sĩ:** tắt bằng `C.KNIGHTS_ENABLED = false`; Hiệp Sĩ sót trong save cũ đổi về Viễn Chinh ở đầu lượt. HQ C4: Viễn Chinh +1 bước.
+- **Phái Sinh thay thế:**
+  - D-01 chọn viên khớp đầu tiên theo thứ tự `faces` (KT trước KH) và thay sản lượng công trình chủ của viên đó bằng 1 Hợp Kim, một lần mỗi lần đổ.
+  - D-03 đổi 1 KT của công trình chủ thành 1 Thép, một lần mỗi lần đổ.
+  - D-05: mỗi viên Vàng cho hạn mức chuyển tối đa 2 Vàng (dồn lại, tối đa 4) tới lượt của chủ; lệnh `convertBond{n}` chuyển 1:1, tối đa 5 Tín Phiếu.
+- **Đặc Biệt:**
+  - S-04 Đài Khí Tượng: sau khi đổ, lời nhắc `reroll` cho chủ (đổ lại 1 viên mỗi `rerollEvery` vòng, cấp +2 thêm chọn mặt 1 lần/ván, không tạo tổng 7). Miễn nhiễm Sự Kiện thời tiết và xem trước lá Sự Kiện kế tiếp là stub tới M2. Bỏ Phát Sóng và aura +1 sản lượng.
+  - S-01 +2: `roll{hold = 1|2}` giữ viên đã xem trước và đổ lại viên kia, mỗi lượt một lần, không hạn chế thêm. **Chưa làm:** hiển thị đường đi của Phiến Quân cho chủ Tháp.
+  - TN-12: lời nhắc `ley` cho chủ ô, mỗi viên Hex một lựa chọn trong các tài nguyên mà ô hoặc công trình trên ô sản xuất; viên Hex vẫn cho phiếu nếu đang trong lượt.
+  - S-02: Phiến Quân bị đẩy ra khỏi aura (Trấn Áp hoặc Thiên Đàn) thì người kích hoạt Phiến Quân lần cuối mất 2 Vàng.
+  - TN-07 dưới Đền Thờ: +1 TN mỗi vòng. S-03 xây được trên Khu Dân Cư. S-05 giá 6 TN, địa hình Rừng / Núi / Sông (khóa).
+- **Giao diện (§12.4):**
+  - Làm: chấm Tài Nguyên Cơ Bản trên ô; viền nét đứt cho vùng ảnh hưởng; chữ nổi +x / -x trên ô; ngưỡng, giá mua và giá tranh lại khi rê chuột; nhãn số bước và người điều khiển trên đầu Phiến Quân; tự đổ xúc xắc đầu lượt (tắt được trong menu tạm dừng); nút Lệnh Đuổi; popup đổ lại và Địa Linh; Hoàn tác lệnh cuối (replay, không dùng được với `--give` / `--demo`); seed trong menu tạm dừng; chú thích cách ghi điểm.
+  - **Chưa làm:** camera lia về HQ khi Phiến Quân xong, màu viền riêng cho ô đang chọn để claim, cửa sổ trao đổi giữ mở sau mỗi giao dịch.
 
 ## Xung đột tài liệu đã phát hiện (chọn theo Data tới D-019; từ D-020 GDD 1.6 thắng)
 | Chủ đề | GDD §3.1 / §8 | Data | Chọn |

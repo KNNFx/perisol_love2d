@@ -7,7 +7,7 @@
 - **M0 complete (2026-10-04):** git repo, `conf.lua`/`main.lua`, hex math, seeded mapgen, camera/render sandbox, 29 headless tests (see the P1 checklist).
 - **M1 implemented (2026-10-06):** see the P2 checklist. The designer ran playtest #1 on the M1/M1.5 build. The results are in GDD 1.6 Appendix D.
 - **M1.5 implemented (2026-10-07):** phases A–H and most of I are done (rules in D-014..D-019); the industrial layer (step 8) is deferred.
-- **GDD 1.6 received (2026-11-01):** written after playtest #1, together with an updated Data xlsx (`docs/Decisions.md` D-020). It changes core rules: base resources on tiles, 6 free starting tiles, the tile price, Rebel plunder and the HQ block, N = 10 × players rounds, a River build lock, and UI requirements. **Next: M1.6 (P3.5) before M2.**
+- **GDD 1.6 received (2026-11-01):** written after playtest #1, together with an updated Data xlsx (`docs/Decisions.md` D-020). It changes core rules: base resources on tiles, 6 free starting tiles, the tile price, Rebel plunder and the HQ block, N = 10 × players rounds, a River build lock, and UI requirements. **M1.6 (P3.5) is now implemented; next is playtest #2, then M2.**
 - *(Original scan 2026-10-04: no code, no tests and no git repo existed.)*
 - Design docs: GDD 1.6 (`docs/Perisol_GDD_v1.6_Full.md`), Data tables, Buildings v1.0, and 80 cards in Cards v1.2. When GDD 1.6 and Data disagree, GDD 1.6 wins (D-020).
 - Art: one test sheet, `Image/HexaTiles_Test_V001.png`. It holds pixel-art hex tiles (forest, plains, desert, river/water, mountain, snow, settlements, roads) and is not yet sliced into individual sprites.
@@ -297,75 +297,42 @@ GDD 1.6 rewrites several core rules after playtest #1. Cards (M2) build on these
 - **Rule table:** `docs/Decisions.md` D-020 maps every current rule to the new one, numbered #1–#23 and referenced below.
 - **Per phase:** each phase ends with `test.bat` green, `lovec . --sim 100` clean, a UI check, and its own commit, as in P3.
 
-### Progress checklist (P3.5 / M1.6) — added 2026-11-01
-- [ ] **A. Round count (#1)**
-  - `N = ROUNDS_PER_PLAYER × players` (custom multiple of `ROUND_STEP`), chosen in the new-game menu.
-  - The round milestones (HQ C4, Sub C3, Mountain lock) become `⌈m × N ÷ 20⌉`.
-  - The top bar shows `round/N`.
-  - Save stores N.
-- [ ] **B. Base resources on tiles (#2, #4, #13)**
-  - Generate them in mapgen from the **GDD §3.3** probability table: put the per-terrain probabilities in `src/data/terrains.lua`, apply the exceptions and the +10% next to Rivers, and add `MaxKindsPerTile`. The 0/1/2 table the designer sent as an image is not used (D-020, open #10). Each Landmark gets 1 fixed kind, chosen at random until the designer's list exists.
-  - Production pays `amount × matching dice` to whoever holds the harvest right. The Rebel blockade blocks it.
-  - Strategic "+x on face" bonuses now add to the tile's amount, and pay even without a building.
-  - Multi-tile buildings collect from every tile they cover.
-  - Starting resources are exactly the base resources of the 6 home tiles, received once. Remove `STARTING_RESOURCES` and `START_BONUS_BY_TERRAIN` (owner decision, D-020). Watch for a starved early game in playtest #2.
-  - A Rebel stop on an unowned tile pays the activator ceil(½) of each kind on it, from the bank.
-  - Mini icons with amounts on tiles, and tooltips.
-  - Mapgen stays deterministic (the same seed gives the same map).
-- [ ] **C. Territory (#3, #5–#9)**
-  - The 6 home tiles start owned. A Sub gets no free tiles.
-  - Buy price is `(1+d) VH + (2+d) V`, with d measured from the nearest HQ/Sub. Discounts apply last, with a floor of 1 VH + 1 V.
-  - Adjacent expansion outside the influence zone, with threshold +1.
-  - Settlements and Landmarks: votes only, inside the influence zone; they cannot be bought.
-  - Retake applies only to high-value tiles, needs the full 2 × threshold in one Action phase, and never applies to HQ/Sub tiles.
-  - Buildings follow their tile to the new owner. This replaces the "tiles with buildings are locked" rule.
-  - HQ/Sub placement: the ring rule, no Swamp, and HQ not adjacent to the Rebel.
-  - Turn order always starts at P1.
-- [ ] **D. Rebel (#10–#14)**
-  - Spawn at the centre tile, then move to the nearest valid tile at least 2 steps from every HQ.
-  - HQ tiles block the Rebel; show them as locked while steering.
-  - **Plunder when stepping on** another player's building, passing included: the owner loses ceil(½) of their largest stock and the steerer gets all of it, at most once per building per round. This replaces the stop-only loss of D-009. Keep `chooseLoss` for ties.
-  - Harassment counter, and **Lệnh Đuổi Phiến Quân** (a new command plus a UI button).
-  - UI: steps left and the last steerer shown above the Rebel, the camera pans back to the steerer's HQ, and a −x popup on each plundered building.
-- [ ] **E. Terrain and buildings (#15–#18)**
-  - River build lock (`BUILD_ON_RIVER_LOCKED`), to be unlocked by a Tech card in M2.
-  - ⭐ discount: −1 main resource on C1.
-  - Placement matrix: GDD where it speaks, Data elsewhere.
-  - Shapes by Data code: C3 6-tile uses the 3+3 shape (6b); B-02.2 is 3b; S-02 is 4c; S-03 is 3c.
-  - Museum (S-03) can be built on Settlements; Swamp no longer accepts a Sub.
-  - Rename terms in UI and log text: Long Mạch → Sản Xuất Chung, Thiên Đàn, Đài Khí Tượng, Tháp Quan Sát Thiên Văn.
-  - Save migration for the reshaped buildings: either keep the old footprints or reshape them on load. Decide when implementing.
-- [ ] **F. Special buildings and strategic resources (#19–#22)**
-  - S-04 Đài Khí Tượng:
-    - Reroll 1 die once per 5 rounds; every 3 rounds at +1. Uses a new prompt or a roll option.
-    - +2 picks a face once per game; never a 7.
-    - +1 KH and +1 KT each round.
-    - Weather immunity and the Event preview are stubbed until M2.
-    - Remove Broadcast and the same-type aura.
-  - TN-12: a Hex die can be swapped for one resource kind that the tile produces; this needs a prompt for the tile owner. The S-04 reroll cycle drops by 1.
-  - TN-07: Temple +1 TN passive.
-  - S-01: show the Rebel path preview to the owner. Also finish the +2 ability carried over from M1.5: hold one die and reroll the other.
-  - S-02: when the Rebel is pushed out of the aura, the activator pays −2 V.
-  - S-05: costs 6 TN; terrain is Forest, Mountain, or River (locked).
-  - **Knights off until Phase 2** (owner decision, D-020): HQ C4 now gives Expeditions +1 step per round. Remove or flag off the `knight` type, and add a save migration that turns existing Knights back into Expeditions.
-  - **Derived per GDD §8.2** (owner decision, D-020):
-    - D-01 and D-03 *replace* the original resource on one matching die; auto-pick the first matching die for now.
-    - D-02 and D-04 still *add*.
-    - D-05 becomes "convert 1–2 Gold into Bonds on a Gold roll".
-- [ ] **G. UI from playtest #1 (#23)**
-  - Tile states: owned is solid, influence is light with a dashed border, contested is striped with votes/threshold, and the selected tile is clearly distinct.
-  - Threshold and price shown on hover for every d.
-  - Dice roll automatically at the start of a turn.
-  - Floating +x popups on every producing tile, including on other players' turns, with the log giving the reason.
-  - The trade window stays open after each trade.
-  - The score screen explains each line.
-  - Dev Undo button; seed shown in the menu and on F1.
-- [ ] **H. Wrap-up**
-  - Save v4 with a migration from v3.
-  - Sim invariants for base resources, plunder and the new territory rules.
-  - Replay test.
-  - Update `CLAUDE.md` and `plan.md`.
-  - Run playtest #2 with the designer: early economy speed, whether HQ C3 and a Special are reachable in a 20-round game, and Rebel harshness.
+### Progress checklist (P3.5 / M1.6) — added 2026-11-01, implemented 2026-11-01
+- [x] **A. Round count (#1)**
+  - `state.rounds = 10 × players` by default, any multiple of 10 from the menu (`-10` / `+10` / default) or `--rounds N`.
+  - The round milestones (HQ C4, Sub C3, Mountain lock) are `⌈m × N ÷ 20⌉` (`src/core/rounds.lua`). Events flip every 5 rounds; the tier is `⌈4 × round ÷ N⌉`.
+  - The top bar shows `round/N`. Save v4 stores N; v3 saves load as 20-round games. `Game.replay` takes `rounds`.
+- [x] **B. Base resources on tiles (#2, #4, #13)**
+  - Mapgen rolls them from the GDD §3.3 table (`src/data/baseresources.lua`, own RNG fork, exceptions, +10% next to Rivers, `MAX_KINDS_PER_TILE`). Each Landmark gets one random fixed kind. The 0/1/2 image table is not used (D-020 open #10).
+  - `Production.computeTiles` pays `(base + strategic tile bonus) × matching dice` to `Territory.harvester`; the blockade blocks it; buildings produce separately; multi-tile buildings collect from every tile they cover.
+  - Starting resources are the base resources of the 6 home tiles, received once (fixed base removed).
+  - A Rebel stop on an unowned tile pays the steerer ceil(½) of each kind from the bank.
+  - UI: coloured dots on tiles, hover info, floating +x popups.
+- [x] **C. Territory (#3, #5–#9)**
+  - The 6 home tiles start owned. A Sub gets none.
+  - Buy price is `(1+d) VH + (2+d) V`. Adjacent expansion works outside the zone with threshold +1 (TN-06 applied last, floor 1). Settlements and Landmarks are votes only, inside the influence zone.
+  - Retake: high-value tiles only, in the retaker's influence zone, `2 × threshold` votes spent in one `placeVote`. Buildings follow their tile (whole footprint); Specials and Derived site buildings cannot be retaken by votes for now (D-020).
+  - Swamp no longer takes a Subsidiary. Turn order already starts at P1.
+- [x] **D. Rebel (#10–#14)**
+  - Spawn at the map centre, moved to the nearest valid tile; HQ tiles block it (also for pushes).
+  - Plunder on stepping on a building or Subsidiary (passing included), once per building per round, steerer gets everything; tie → the owner picks and the Rebel goes on (`rebel_loss` stage keeps the move state).
+  - Harassment counter and the `expelRebel` command (UI button, log lines).
+  - UI: steps left and steerer on the Rebel, −x popups. **Not done:** camera pan back to the steerer's HQ.
+- [x] **E. Terrain and buildings (#15–#18)**
+  - River build lock, ⭐ discount on C1, 3+3 shape for the two 6-tile C3s (B-02.2 stays a triangle per GDD §8.1), Museum on Settlements. The placement matrix stays as it was (GDD §9.4 is an excerpt).
+  - Renames in UI text: Sản Xuất Chung, Thiên Đàn, Đài Khí Tượng, Tháp Quan Sát Thiên Văn. Old saves keep their footprints.
+- [x] **F. Special buildings, Knights, Derived (#19–#22)**
+  - S-04 Đài Khí Tượng (reroll prompt, set a face, +1 KH +1 KT), TN-12 Hex swap (`ley` prompt), TN-07 Temple passive, S-01 +2 hold-one-die (`roll{hold}`), S-02 toll when the Rebel is pushed out, S-05 costs 6 TN.
+  - Knights off (`C.KNIGHTS_ENABLED`), HQ C4 = Expedition +1 step, old Knights turn back into Expeditions.
+  - Derived per GDD §8.2: D-01 and D-03 replace the source resource, D-02 and D-04 add, D-05 converts Gold (`convertBond`).
+  - **Not done (stubs):** S-04 weather immunity and Event preview (M2), S-01 Rebel path preview.
+- [x] **G. UI from playtest #1 (#23)**
+  - Dashed influence borders, base-resource dots, threshold/price/retake info on hover, auto-roll at turn start (toggle in the pause menu), floating +x / −x, the trade window as before, a score legend on the results screen, Undo (replay) and the seed in the pause menu.
+  - **Not done:** a distinct border for the tile selected to claim, and keeping the trade window open after each trade.
+- [x] **H. Wrap-up** — done 2026-11-01 except the designer's playtest
+  - [x] Save v4 + `MIGRATIONS[3]`; sim invariants for rounds, harassment, Ley/bond allowance, plunder table, Rebel not on an HQ; new sim stats; new specs `rounds_spec` and `baseres_spec` plus updates to every affected spec (290 tests).
+  - [x] `CLAUDE.md`, `docs/Decisions.md` D-020 (implementation notes) and this file updated.
+  - [ ] **Playtest #2 with the designer:** early economy speed with no fixed starting base, whether HQ C3 and a Special are reachable in a 20-round game, Rebel harshness (plunder, Expel), and the M1.5 systems that have no results yet.
 
 **Deferred on purpose (GDD 1.6 marks these as drafts or Phase 2):**
 - §7.4 Infantry occupation (unit stats not designed).
@@ -447,6 +414,6 @@ GDD 1.6 rewrites several core rules after playtest #1. Cards (M2) build on these
    - whether the 0/1/2 base-resource table (image) is a draft or replaces GDD §3.3.
 
    The starting base, Knights and Derived are settled per GDD 1.6.
-2. Start P3.5 (M1.6), phases A → H. Phases A–E do not depend on the open answers, apart from the defaults noted in D-020.
-3. Playtest #2 on the M1.6 build.
-4. Then P4 (M2 Cards): card data, effect registry and event bus. The M1.5 hooks it will use are the `prompt` phase (reaction Edicts), `Upkeep` steps, the modifier stages `character`/`tech`, and the stubs listed in D-019 and D-020.
+2. ~~Start P3.5 (M1.6)~~ done 2026-11-01 (phases A–H, see the checklist).
+3. Playtest #2 on the M1.6 build with the designer (checklist H).
+4. Then P4 (M2 Cards): card data, effect registry and event bus. The hooks it will use are the `prompt` phase (reaction Edicts, already used by `reroll` and `ley`), `Upkeep` steps, the modifier stages `character`/`tech`, and the stubs listed in D-019 and D-020 (S-04 weather immunity and Event preview, River unlock).
