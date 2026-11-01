@@ -179,7 +179,7 @@ Each phase ends with `test.bat` green, `lovec . --sim 100` clean, a UI check (sc
   - [x] Generic `prompt` phase + `respond` command, for trade replies and S-05 reactions (and M2 reaction Edicts later).
   - [x] Save v3 + `MIGRATIONS[2]` (v2 → v3) + a load test for an old save.
 - [x] **B. Step 1 — Basic C2/C3 multi-hex + demolish** — done 2026-10-07
-  - [x] `src/data/shapes.lua`: pair, triangle, line3, L, rect, trapezoid, cluster as axial offsets with distinct rotations.
+  - [x] `src/data/shapes.lua`: pair, triangle, line3, L, rect, trapezoid, cluster as axial offsets with distinct rotations. *Superseded by GDD 1.6 (D-020 #18):* the 6-tile C3 shape is the 3+3 parallelogram, and shape codes follow the Data sheet. Done in M1.6 phase E.
   - [x] `upgrade{uid,q,r,rot}` + `Construction.upgradeOptions` (in `src/core/construction.lua`, to avoid a require cycle with territory).
   - [x] `demolish{uid}`: production stops at once; at the owner's next turn start the building is removed, TN goes into `lostStrategic`, and a `strategic_lost` event is logged.
   - [x] Footprint rules:
@@ -244,24 +244,23 @@ Each phase ends with `test.bat` green, `lovec . --sim 100` clean, a UI check (sc
   - [x] Gates: HQ C3 needs a road-connected Market, HQ C4 round 11+, HQ C5 a Market C3, Sub C3 round 16+.
   - [x] Effects:
     - HQ C3 unlocks Special buildings.
-    - HQ C4 turns Expeditions into Knights (6 steps, climb Mountains, retreat to HQ once per 5 rounds instead of dying).
-    - HQ C5 adds a +1 production aura in the HQ influence zone.
+    - HQ C4 turns Expeditions into Knights (6 steps, climb Mountains, retreat to HQ once per 5 rounds instead of dying). *Superseded:* GDD 1.6 moves Knights to Phase 2, and HQ C4 gives Expeditions +1 step per round. Done in M1.6 phase F.
     - HQ C5 adds a +1 production aura within radius 2 of the HQ (modifier stage `aura`). HQ C3 "unlocks Special buildings" is enforced in phase H.
     - Sub C3 makes its centre tile blockade-immune.
   - [x] `hq_levels_spec` (gates, costs, Knight transform/retreat, C5 aura, Sub C2/C3, blockade immunity, resource-rich sim). UI: HQ button tooltip shows cost + gate, Sub panel (click your Sub), `--demo sub`. HQ C3+ costs need Hợp Kim/Thép from phase G.
 - [x] **G. Step 6 — Derived D-01..D-05** — done 2026-10-07 (rules in D-018)
-  - [x] `src/data/derived.lua` following Data: materials are **added**, not "instead of" as in the GDD.
+  - [x] `src/data/derived.lua` following Data: materials are **added**, not "instead of" as in the GDD. *Superseded:* the owner chose GDD §8.2 (D-020). D-01 and D-03 replace the source resource, D-02 and D-04 add, and D-05 converts Gold. Done in M1.6 phase F.
   - [x] `buildDerived`:
     - D-01, D-02 and D-04 attach to a host building. D-03 and D-05 take 1 tile.
     - Gap 0 / 1–2 tiles with a road / 3+ impossible, plus each type's own maximum.
   - [x] "Active" status recomputed at production time (a broken road pauses it). Periodic passives. D-05 bonds (max 5, 0.5 V interest each).
   - [x] UI: building panel shows each Derived's status (active / paused + reason) and "Lập <name>" buttons (D-03 and D-05 pick a tile in a new `derivedsite` mode), "Đổi Tín Phiếu" on the bank, materials line in the player card (cards are 10px taller). Dev: `--demo derived`.
   - [x] `derived_spec` (data, D-01..D-05 rules and production, gaps with/without road, blockade, cleanup, periodic passives, bonds and redeem, save/load incl. old saves, resource-rich sim). Sim: build/redeem weights, derived invariants, bond cap.
-- [x] **H. Step 7 — Special S-01..S-05** — done 2026-10-07 (rules in D-019; leftovers listed below)
+- [x] **H. Step 7 — Special S-01..S-05** — done 2026-10-07 (rules in D-019; one leftover carried to M1.6, listed below)
   - [x] `src/data/specials.lua`: footprints (new `hex7`, `fort4` shapes), terrains (Data building sheet), radius prerequisites, material costs, +1/+2 upgrades. HQ C3 gate.
   - [x] `buildSpecial`, `upgradeSpecial`. Auras live in `src/core/aura.lua` and are read by production (modifier stage `aura`), Rebel, Units and Territory.
   - [x] Abilities that work now:
-    - **S-01:** KH aura, peek the next die (1 die, 2 at +2). *Not done:* the +2 "hold one die, reroll the other".
+    - **S-01:** KH aura, peek the next die (1 die, 2 at +2). *Not done:* the +2 "hold one die, reroll the other" (still in GDD 1.6 §8.3; not yet scheduled in M1.6, see below).
     - **S-02:**
       - Rebel no-stop aura; enemy Expeditions −2 steps (+1: stopped).
       - +1 KT per round; own Expeditions spawned there get +2 steps.
@@ -270,17 +269,19 @@ Each phase ends with `test.bat` green, `lovec . --sim 100` clean, a UI check (sc
     - **S-04:**
       - Roller's buildings in radius 3 (any owner) get +1 per die; +1 KH and +1 KT.
       - +2 Broadcast declared before the roll (`roll{broadcast=true}`).
-      - *Not done:* the 3-tile blockade near it (which 3 tiles is undefined).
-    - **S-05:** prompt to push the Rebel for 2 TN (random at build level, owner picks at +1), +2 TN, cancel a 7 via prompt (roller gets +1 TN). *Not done:* "guaranteed suppress costs 1 TN within radius 3" (a Suppress rule tied to Expedition, left for the character/Edict pass).
-  - [x] Stubbed until M2/M3 (listed in D-019, not yet logged in game): Tech discount, Edict surcharge/immunity, Exhibition, Niết Bàn, character-skill discount, the "Long Mạch radius" of S-04 / TN-12.
+      - *Not done:* the 3-tile blockade. *Superseded:* GDD 1.6 redesigns S-04 as the Đài Khí Tượng (weather immunity, reroll one die); the blockade and Broadcast are dropped. Done in M1.6 phase F.
+    - **S-05:** prompt to push the Rebel for 2 TN (random at build level, owner picks at +1), +2 TN, cancel a 7 via prompt (roller gets +1 TN). *Not done:* "guaranteed suppress costs 1 TN within radius 3". GDD 1.6 §8.3 no longer lists it, only the old Data sheet does, so it stays dropped unless the designer asks for it.
+  - [x] Stubbed until M2/M3 (listed in D-019, not yet logged in game): Tech discount, Edict surcharge/immunity, Exhibition, Niết Bàn, character-skill discount. (The "Long Mạch radius" of S-04 / TN-12 is gone in GDD 1.6.)
+  - [ ] **Carried to M1.6 phase F:** S-01 +2 "hold one die, reroll the other" (GDD 1.6 §8.3). It is the only unfinished Special ability that GDD 1.6 still asks for.
   - [x] UI: "Công trình Đặc Biệt" popup (status + cost + Build), placement ghost with Q to cycle, aura ring when a Special is selected, building panel with +1/+2 upgrade and Pháo, peek label + Broadcast toggle on the dice panel, cancel-7 and push-Rebel popups behind a pass-the-screen cover, "Bảo Tàng" column in the results screen. Dev: `--demo special` / `--demo specialpopup`.
   - [x] `specials_spec` (data, build rules, upgrades, each aura/ability, prompts, save/load, resource-rich sim) + `tests/strip.lua` shared helper. Sim: build/upgrade/strike weights, stats for Specials and cancelled 7s.
-- [x] **I. Wrap-up** — done 2026-10-07, except the two items marked open
+- [x] **I. Wrap-up** — done 2026-10-07, except the designer's test of the M1.5 systems (open, below)
   - [x] Dev tooling: `--demo <name>` (canned positions: loss, upgrade, demolish, unit, suppress, trade, reply, derived, sub, special, specialpopup) replaces the planned `--scenario`, and `--give res=n,...` adds resources at start. Neither goes through `history`.
   - [x] Sim: `--sim N --rich` tops up resources and materials after every turn so random games reach C3 / Derived / trade; new stats in `--sim` for every M1.5 system. (Specials still need HQ C3, so they are covered by `specials_spec`, not the sim.)
   - [x] Replay determinism and mid-game save/load (`tests/m15_integration_spec.lua`): 12 sim games replay to an identical state; save, load and continue gives an identical state for 12 checkpoints with units and roads. Real-game states only: test helpers that edit the map (`tests/arena.lua`, `tests/strip.lua`) cannot be saved because the map is regenerated from the seed.
-  - [ ] Settle the open proposals of D-014..D-019 with the owner and record the answers. *Update 2026-11-01:* GDD 1.6 answers most of them (6-tile shape, ⭐, Sub C2, S-04, Long Mạch radius; see D-020). What is left moved to the D-020 open list.
-  - [x] CLAUDE.md updated. Two full games (2 players, seed 11, 43 turns; 4 players, seed 23, 83 turns) driven through the real UI with `lovec.exe . --newgame --drive N` reach the results screen with no errors. *Open:* a human hot-seat playtest.
+  - [x] Settle the open proposals of D-014..D-019 with the owner and record the answers — done 2026-11-01. GDD 1.6 and the owner's choices answer them (6-tile shape = 3+3, ⭐ discount, Sub C2, S-04 redesign, no Long Mạch radius, Knights off, Derived replace the source resource; see D-020). What is left is on the D-020 open list.
+  - [x] CLAUDE.md updated. Two full games (2 players, seed 11, 43 turns; 4 players, seed 23, 83 turns) driven through the real UI with `lovec.exe . --newgame --drive N` reach the results screen with no errors.
+  - [ ] **Designer's hot-seat test of the M1.5 systems.** Playtest #1 covered the M1 loop. GDD 1.6 Appendix D says the designer's own tests of the M1.5 systems (upgrade C2/C3, demolish, Expedition, trade roads, Derived) have no results yet. Run them on the M1.6 build as part of M1.6 phase H (playtest #2).
 
 **Deferred on purpose:**
 - Step 8 (industrial layer).
@@ -343,7 +344,7 @@ GDD 1.6 rewrites several core rules after playtest #1. Cards (M2) build on these
     - Remove Broadcast and the same-type aura.
   - TN-12: a Hex die can be swapped for one resource kind that the tile produces; this needs a prompt for the tile owner. The S-04 reroll cycle drops by 1.
   - TN-07: Temple +1 TN passive.
-  - S-01: show the Rebel path preview to the owner.
+  - S-01: show the Rebel path preview to the owner. Also finish the +2 ability carried over from M1.5: hold one die and reroll the other.
   - S-02: when the Rebel is pushed out of the aura, the activator pays −2 V.
   - S-05: costs 6 TN; terrain is Forest, Mountain, or River (locked).
   - **Knights off until Phase 2** (owner decision, D-020): HQ C4 now gives Expeditions +1 step per round. Remove or flag off the `knight` type, and add a save migration that turns existing Knights back into Expeditions.
