@@ -6,6 +6,7 @@ local Game       = require("src.core.game")
 local Invariants = require("src.core.invariants")
 local Rng        = require("src.core.rng")
 local State      = require("src.core.state")
+local Wallet     = require("src.core.wallet")
 
 local Sim = {}
 
@@ -15,11 +16,12 @@ local MAX_TOTAL_COMMANDS    = 100000
 -- Trọng số chọn loại lệnh trong pha action (kiểu lệnh nào có thì mới được chọn).
 local TYPE_WEIGHT = { build = 6, buyTile = 4, placeVote = 3, foundSub = 2, trade = 1,
                          upgrade = 12, buyUnit = 3, moveUnit = 4, suppress = 3, garrison = 1, buildDerived = 8, redeemBond = 2,
-                         upgradeHQ = 6, upgradeSub = 6, buildSpecial = 10, upgradeSpecial = 6, fortressStrike = 3 }
+                         upgradeHQ = 6, upgradeSub = 6, buildSpecial = 10, upgradeSpecial = 6, fortressStrike = 3,
+                         expelRebel = 2, convertBond = 2 }
 local P_END_TURN  = 0.12
 local P_DEMOLISH  = 0.01   -- xác suất mỗi lệnh action chọn dỡ công trình hoặc giải thể đơn vị
 
-Sim.invariants = Invariants.check   -- giữ tên cũ cho spec và tools; bản thật ở src/core/invariants.lua
+Sim.invariants = Invariants.check   -- checks dùng chung với Game.load
 
 local function chooseCommand(prng, state, legal, perTurn)
     if state.phase ~= "action" then return prng:pick(legal) end
@@ -62,12 +64,15 @@ end
 -- như Sim.play; rồi nếu có `failedCmd` (lệnh legal() đưa ra nhưng check() từ chối, chưa vào history) thì check lại nó.
 -- Trả true, state nếu không lỗi; nếu lỗi trả false, thông điệp (cùng thông điệp với Sim.play), state.
 function Sim.replay(repro)
-    local state = Game.new({ seed = repro.seed, players = repro.players })
+    local state = Game.new({ seed = repro.seed, players = repro.players, rounds = repro.rounds })
     for n, cmd in ipairs(repro.history) do
         local ok, err = pcall(Game.apply, state, cmd)
         if not ok then return false, "lệnh thứ " .. n .. " bị từ chối khi phát lại: " .. tostring(err), state end
         if cmd.type == "endTurn" then
-            for _, t in ipairs((repro.topups or {})[n] or {}) do state.players[t.pid].res[t.key] = t.value end   -- wallet:ok nạp rich
+            for _, t in ipairs((repro.topups or {})[n] or {}) do
+                local res = state.players[t.pid].res
+                Wallet.gain(res, t.key, math.max(0, t.value - (res[t.key] or 0)))
+            end
             local good, msg = Sim.invariants(state)
             if not good then return false, violation(repro.seed, state.round, msg), state end
         end
@@ -83,15 +88,16 @@ end
 
 function Sim.play(seed, players, opts)
     opts = opts or {}
-    local state = Game.new({ seed = seed, players = players })
+    local state = Game.new({ seed = seed, players = players, rounds = opts.rounds })
     local prng = Rng.new("sim:" .. tostring(seed) .. ":" .. players)
     local stats = { sevens = 0, builds = 0, claims = 0, commands = 0, rebelStops = 0, losses = 0,
                     upgrades = 0, demolishes = 0, tnLost = 0, unitsBought = 0, unitMoves = 0, suppressWins = 0,
                     suppressLosses = 0, unitsLost = 0, subsFounded = 0, roadsBuilt = 0, roadUpgrades = 0,
-                    tradesProposed = 0, tradesAccepted = 0, derivedBuilt = 0, specialsBuilt = 0, sevensCancelled = 0 }
+                    tradesProposed = 0, tradesAccepted = 0, derivedBuilt = 0, specialsBuilt = 0, sevensCancelled = 0,
+                    expels = 0, rerolls = 0, bondsConverted = 0, tileProduce = 0 }
     local perTurn = 0
     local trace = opts.trace
-    if trace then trace.state, trace.topups = state, {} end
+    if trace then trace.state, trace.topups, trace.rounds = state, {}, state.rounds end
 
     while state.phase ~= "over" do
         stats.commands = stats.commands + 1
@@ -124,6 +130,10 @@ function Sim.play(seed, players, opts)
             elseif e.kind == "derived_built" then stats.derivedBuilt = stats.derivedBuilt + 1
             elseif e.kind == "special_built" then stats.specialsBuilt = stats.specialsBuilt + 1
             elseif e.kind == "seven_cancelled" then stats.sevensCancelled = stats.sevensCancelled + 1
+            elseif e.kind == "expel" then stats.expels = stats.expels + 1
+            elseif e.kind == "dice_reroll" or e.kind == "dice_setface" or e.kind == "dice_hold" then stats.rerolls = stats.rerolls + 1
+            elseif e.kind == "bond_converted" then stats.bondsConverted = stats.bondsConverted + 1
+            elseif e.kind == "tile_produce" then stats.tileProduce = stats.tileProduce + 1
             elseif e.kind == "trade_proposed" then stats.tradesProposed = stats.tradesProposed + 1
             elseif e.kind == "trade_accepted" then stats.tradesAccepted = stats.tradesAccepted + 1
             elseif e.kind == "suppress" then
@@ -143,7 +153,7 @@ function Sim.play(seed, players, opts)
                     end
                     table.sort(keys)
                     for _, k in ipairs(keys) do
-                        p.res[k] = RICH_FLOOR   -- wallet:ok nạp rich
+                        Wallet.gain(p.res, k, RICH_FLOOR - (p.res[k] or 0))   -- topping môi trường test
                         ups[#ups + 1] = { pid = pid, key = k, value = RICH_FLOOR }
                     end
                 end
@@ -179,7 +189,8 @@ function Sim.batch(count, firstSeed, onGame, opts)
     local sum = { games = 0, sevens = 0, builds = 0, claims = 0, commands = 0, rebelStops = 0, losses = 0,
                   upgrades = 0, demolishes = 0, tnLost = 0, unitsBought = 0, unitMoves = 0, suppressWins = 0,
                   suppressLosses = 0, unitsLost = 0, subsFounded = 0, roadsBuilt = 0, roadUpgrades = 0,
-                  tradesProposed = 0, tradesAccepted = 0, derivedBuilt = 0, specialsBuilt = 0, sevensCancelled = 0, score = 0, tiles = 0, winnerTiles = 0 }
+                  tradesProposed = 0, tradesAccepted = 0, derivedBuilt = 0, specialsBuilt = 0, sevensCancelled = 0, expels = 0, rerolls = 0,
+                  bondsConverted = 0, tileProduce = 0, score = 0, tiles = 0, winnerTiles = 0 }
     for i = 0, count - 1 do
         local seed = (firstSeed or 1) + i
         local players = 2 + (i % 3)

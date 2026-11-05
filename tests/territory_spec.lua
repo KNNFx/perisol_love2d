@@ -6,11 +6,11 @@ local Structures = require("src.core.structures")
 local Territory = require("src.core.territory")
 
 -- State 2 người trên map 32x16: HQ1 ở giữa, HQ2 cách 4 ô theo hướng Đông.
--- Xóa TN, Khu Dân Cư và Danh Thắng quanh đó để luật thuần (các test cụm tự gán cờ).
+-- Xóa TN, Khu Dân Cư, Danh Thắng và Tài Nguyên Cơ Bản quanh đó để luật thuần (các test cụm tự gán cờ).
 local function twoPlayerState(level)
     local map = Mapgen.generate({ seed = 7, players = 4 })
     for _, t in ipairs(map.list) do
-        t.strategic, t.settlement, t.landmark = nil, nil, nil
+        t.strategic, t.settlement, t.landmark, t.base = nil, nil, nil, nil
         t.terrain = "DH-01"
     end
     local s = State.new(map, 2, 7)
@@ -28,14 +28,25 @@ local function tileAtDistance(s, pid, d, dirIndex)
     return s.map:get(h.q, h.r)
 end
 
+-- Ô cách mỗi HQ đúng 2 ô (giữa hai Nhà Chính).
+local function midTile(s)
+    local mid = Hex.line(s.players[1].hq, s.players[2].hq)[3]
+    return s.map:get(mid.q, mid.r)
+end
+
 describe("territory: HQ, vùng ảnh hưởng, ngưỡng", function()
-    it("lúc đầu chỉ ô HQ là thực hữu; 6 ô quanh là vùng ảnh hưởng, ô xa hơn chưa", function()
+    it("ô HQ và 6 ô quanh là thực hữu miễn phí ngay khi đặt (GDD 1.6 §7.3); ô xa hơn chưa", function()
         local s = twoPlayerState()
-        expect.eq(#Territory.ownedTiles(s, 1), 1)
+        expect.eq(#Territory.ownedTiles(s, 1), 7)
         local hq = s.map:get(s.players[1].hq.q, s.players[1].hq.r)
         expect.eq(Territory.ownerOf(s, hq), 1)
+        for _, n in ipairs(s.map:neighbors(hq)) do
+            expect.eq(Territory.ownerOf(s, n), 1)
+            expect.truthy(Territory.votesOn(s, n, 1) >= Territory.threshold(s, 1, n), "phiếu ghi bằng ngưỡng")
+        end
         expect.truthy(Territory.inInfluence(s, 1, tileAtDistance(s, 1, 1)))
         expect.falsy(Territory.inInfluence(s, 1, tileAtDistance(s, 1, 2)))
+        expect.eq(Territory.ownerOf(s, tileAtDistance(s, 1, 2)), nil)
         expect.truthy(Territory.isAnchorTile(s, hq))
         expect.falsy(Territory.isAnchorTile(s, tileAtDistance(s, 1, 1)))
     end)
@@ -51,122 +62,176 @@ describe("territory: HQ, vùng ảnh hưởng, ngưỡng", function()
         expect.falsy(ok); expect.eq(why, "Cần một Khu Chợ liền hoặc nối đường tới Nhà Chính")   -- C3 cần Khu Chợ nối HQ (phase F)
     end)
 
-    it("ngưỡng 1 / 2 / 3 theo khoảng cách tới HQ (3+ giữ nguyên 3)", function()
-        local s = twoPlayerState()
+    it("ngưỡng 1 / 2 / 3 theo khoảng cách trong vùng ảnh hưởng; ngoài vùng +1 (d = 2: 3, d >= 3: 4)", function()
+        local s = twoPlayerState(2)           -- C2: bán kính 2
         expect.eq(Territory.threshold(s, 1, tileAtDistance(s, 1, 1)), 1)
         expect.eq(Territory.threshold(s, 1, tileAtDistance(s, 1, 2)), 2)
-        expect.eq(Territory.threshold(s, 1, tileAtDistance(s, 1, 3)), 3)
-        expect.eq(Territory.threshold(s, 1, tileAtDistance(s, 1, 5)), 3)
+        expect.eq(Territory.threshold(s, 1, tileAtDistance(s, 1, 3)), 3 + C.VOTE_OUTSIDE_BONUS)
+        expect.eq(Territory.threshold(s, 1, tileAtDistance(s, 1, 5)), 3 + C.VOTE_OUTSIDE_BONUS)
+        local s1 = twoPlayerState(1)          -- C1: bán kính 1, nên d = 2 đã là ngoài vùng
+        expect.eq(Territory.threshold(s1, 1, tileAtDistance(s1, 1, 2)), 3)
+        expect.eq(Territory.threshold(s1, 1, tileAtDistance(s1, 1, 3)), 4)
     end)
 
-    it("TN-06 giảm ngưỡng 1 nhưng không dưới 1; ô trong cụm luôn cần 1 phiếu", function()
-        local s = twoPlayerState()
-        local t2, t1 = tileAtDistance(s, 1, 2), tileAtDistance(s, 1, 1)
-        t2.strategic, t1.strategic = "TN-06", "TN-06"
+    it("TN-06 giảm ngưỡng 1 (áp dụng sau cùng) nhưng không dưới 1; ô trong cụm luôn cần 1 phiếu", function()
+        local s = twoPlayerState(2)
+        local t2, t3 = tileAtDistance(s, 1, 2), tileAtDistance(s, 1, 3)
+        t2.strategic, t3.strategic = "TN-06", "TN-06"
         expect.eq(Territory.threshold(s, 1, t2), 1)
-        expect.eq(Territory.threshold(s, 1, t1), 1)
-        local far = tileAtDistance(s, 1, 3)
-        expect.eq(Territory.threshold(s, 1, far), 3)
-        far.settlement = 1
-        expect.eq(Territory.threshold(s, 1, far), C.CLUSTER_TILE_VOTES)
+        expect.eq(Territory.threshold(s, 1, t3), 3, "3 + 1 ngoài vùng - 1")
+        t3.strategic = nil
+        expect.eq(Territory.threshold(s, 1, t3), 4)
+        t3.settlement = 1
+        expect.eq(Territory.threshold(s, 1, t3), C.CLUSTER_TILE_VOTES)
     end)
 end)
 
 describe("territory: đặt phiếu", function()
-    it("từ chối: hết phiếu, ngoài vùng ảnh hưởng, ô HQ, công trình đối thủ, phong tỏa", function()
+    it("từ chối: hết phiếu, ngoài tầm, ô HQ, phong tỏa, cụm ngoài vùng ảnh hưởng, ô của mình", function()
         local s = twoPlayerState()
-        local near = tileAtDistance(s, 1, 1)
+        local near = tileAtDistance(s, 1, 2)         -- ngoài vùng ảnh hưởng C1 nhưng kề lãnh thổ của mình
         local ok, why = Territory.canVote(s, 1, near)
         expect.falsy(ok); expect.eq(why, "Không còn phiếu Chi Phối")
 
         s.players[1].votes = 10
-        expect.truthy(Territory.canVote(s, 1, near))
+        expect.truthy(Territory.canVote(s, 1, near), "mở rộng liền kề được phép")
 
-        ok, why = Territory.canVote(s, 1, tileAtDistance(s, 1, 2))
-        expect.falsy(ok); expect.eq(why, "Chỉ đặt phiếu trong vùng ảnh hưởng của bạn")
+        ok, why = Territory.canVote(s, 1, tileAtDistance(s, 1, 3))
+        expect.falsy(ok); expect.eq(why, "Chỉ đặt phiếu trong vùng ảnh hưởng hoặc ô kề lãnh thổ của bạn")
+
+        local cluster = tileAtDistance(s, 1, 2, 2)
+        cluster.settlement = 1
+        ok, why = Territory.canVote(s, 1, cluster)
+        expect.falsy(ok); expect.eq(why, "Khu Dân Cư / Danh Thắng chỉ đặt phiếu trong vùng ảnh hưởng của bạn")
+        cluster.settlement = nil
 
         local hq = s.map:get(s.players[1].hq.q, s.players[1].hq.r)
         ok, why = Territory.canVote(s, 1, hq)
         expect.falsy(ok); expect.eq(why, "Không đặt phiếu lên ô Nhà Chính / Khu Trực Thuộc")
 
-        local placed = Structures.place(s, { id = "B-01", level = 1, owner = 2 }, { near })
-        ok, why = Territory.canVote(s, 1, near)
-        expect.falsy(ok); expect.eq(why, "Ô có công trình của đối thủ")
-        Structures.remove(s, placed.uid)
+        ok, why = Territory.canVote(s, 1, tileAtDistance(s, 1, 1))
+        expect.falsy(ok); expect.eq(why, "Ô đã thuộc về bạn")
 
         s.rebel = { q = near.q, r = near.r }
         ok, why = Territory.canVote(s, 1, near)
         expect.falsy(ok); expect.eq(why, "Ô đang bị Phiến Quân phong tỏa")
     end)
 
-    it("1 phiếu ở sát HQ là đủ; ô cách 2 cần 2 phiếu (tranh chấp rồi thực hữu)", function()
+    it("ô trong vùng ảnh hưởng cách 2 cần 2 phiếu (tranh chấp rồi thực hữu); ngoài vùng cần 3", function()
         local s = twoPlayerState(2)
-        s.players[1].votes = 5
-        local t1 = tileAtDistance(s, 1, 1)
-        local before, after = Territory.addVote(s, 1, t1)
-        expect.eq(before, nil); expect.eq(after, 1)
-        expect.eq(s.players[1].votes, 4)
-        expect.falsy(Territory.canVote(s, 1, t1), "ô đã thuộc về bạn")
-
+        s.players[1].votes = 9
         local t2 = tileAtDistance(s, 1, 2, 3)
         Territory.addVote(s, 1, t2)
         expect.eq(Territory.statusOf(s, t2), "contested")
         Territory.addVote(s, 1, t2)
         expect.eq(Territory.statusOf(s, t2), "owned")
-        expect.eq(#Territory.ownedTiles(s, 1), 3)
+        expect.eq(#Territory.ownedTiles(s, 1), 8)
+        expect.eq(s.players[1].votes, 7)
+
+        local out, anchorTile                          -- d = 3: ngoài vùng ảnh hưởng C2, cần kề một ô thực hữu của mình
+        for _, h in ipairs(Hex.ring(s.players[1].hq, 3)) do
+            local cand = s.map:get(h.q, h.r)
+            local touching = false
+            for _, n in ipairs(s.map:neighbors(cand)) do
+                if Territory.ownerOf(s, n) == 1 then touching = true end
+                if Hex.distance(n, s.players[1].hq) == 2 and not anchorTile then anchorTile = n end
+            end
+            if not touching and not out then out = cand end
+        end
+        expect.falsy(Territory.canVote(s, 1, out), "chưa kề lãnh thổ của mình")
+        for _, n in ipairs(s.map:neighbors(out)) do
+            if Hex.distance(n, s.players[1].hq) == 2 then s.owner[State.key(n)] = 1 break end   -- một ô d = 2 liền kề thuộc về mình
+        end
+        expect.truthy(Territory.canVote(s, 1, out), "kề lãnh thổ của mình thì mở rộng được")
+        expect.eq(Territory.threshold(s, 1, out), 4, "d = 3 ngoài vùng: 3 + 1")
+        for _ = 1, 3 do Territory.addVote(s, 1, out) end
+        expect.eq(Territory.statusOf(s, out), "contested")
+        Territory.addVote(s, 1, out)
+        expect.eq(Territory.statusOf(s, out), "owned")
     end)
 
-    it("cướp ô thường: cần ≥ 2 × ngưỡng của mình và hơn phiếu của chủ", function()
+    it("tranh lại ô thường chỉ với ô giá trị cao trong vùng ảnh hưởng của mình, đặt trọn 2 x ngưỡng trong một lệnh", function()
         local s = twoPlayerState(2)
         s.players[1].votes, s.players[2].votes = 9, 9
-        local mid = Hex.line(s.players[1].hq, s.players[2].hq)[3]   -- cách mỗi HQ 2 ô
-        local t = s.map:get(mid.q, mid.r)
-        expect.eq(Territory.threshold(s, 1, t), 2)
+        local t = midTile(s)                          -- cách mỗi HQ 2 ô
         expect.eq(Territory.threshold(s, 2, t), 2)
-
-        Territory.addVote(s, 1, t); Territory.addVote(s, 1, t)
+        Territory.buyTile(s, 1, t)
         expect.eq(Territory.ownerOf(s, t), 1)
 
-        for _ = 1, 3 do Territory.addVote(s, 2, t) end                -- 3 < 2×2 = 4
-        expect.eq(Territory.ownerOf(s, t), 1, "chưa đủ gấp đôi ngưỡng")
-        expect.truthy(Territory.isDisputed(s, t))
-        expect.truthy(Territory.canVote(s, 1, t), "chủ được đặt thêm để bảo vệ")
+        local ok, why = Territory.canVote(s, 2, t)
+        expect.falsy(ok); expect.truthy(why:find("giá trị cao", 1, true), "ô thường không bị tranh lại: " .. tostring(why))
 
-        Territory.addVote(s, 2, t)                                    -- 4 = 2×2 và > 2
+        t.strategic = "TN-07"                         -- ô giá trị cao
+        s.players[2].votes = 3
+        ok, why = Territory.canVote(s, 2, t)
+        expect.falsy(ok); expect.eq(why, "Cần 4 phiếu trong tay để tranh lại ô này")
+        expect.eq(Territory.voteCost(s, 2, t), 4)
+
+        s.players[2].votes = 4
+        local before, after = Territory.addVote(s, 2, t)
+        expect.eq(before, 1); expect.eq(after, 2)
         expect.eq(Territory.ownerOf(s, t), 2)
+        expect.eq(s.players[2].votes, 0, "tiêu trọn 4 phiếu")
+        expect.eq(Territory.votesOn(s, t, 2), 2, "phiếu mới của chủ ghi bằng ngưỡng; phiếu cũ bị xóa")
+        expect.eq(Territory.votesOn(s, t, 1), 0)
+
+        t.strategic = nil
+        t.base = { gold = 2, culture = 1 }            -- tổng Tài Nguyên Cơ Bản >= 3 cũng là giá trị cao
+        expect.truthy(Territory.isHighValue(s, t))
+        t.base = { gold = 2 }
+        expect.falsy(Territory.isHighValue(s, t))
     end)
 
-    it("chủ bảo vệ bằng cách thêm phiếu khi bị tranh: người cướp phải hơn phiếu của chủ", function()
+    it("tranh lại ô ngoài vùng ảnh hưởng của mình thì không được (kể cả khi kề)", function()
+        local s = twoPlayerState(1)                   -- C1: ô giữa nằm ngoài vùng ảnh hưởng của cả hai
+        s.players[2].votes = 20
+        local t = midTile(s)
+        t.strategic = "TN-07"
+        Territory.buyTile(s, 1, t)
+        local ok, why = Territory.canVote(s, 2, t)
+        expect.falsy(ok); expect.eq(why, "Chỉ tranh lại ô trong vùng ảnh hưởng của bạn")
+    end)
+
+    it("công trình đi theo ô khi ô đổi chủ, cả footprint đổi chủ; Đặc Biệt thì không bị cướp bằng phiếu", function()
         local s = twoPlayerState(2)
-        s.players[1].votes, s.players[2].votes = 20, 20
-        local mid = Hex.line(s.players[1].hq, s.players[2].hq)[3]
-        local t = s.map:get(mid.q, mid.r)
-        for _ = 1, 2 do Territory.addVote(s, 1, t) end                -- P1 chủ với 2 phiếu
-        for _ = 1, 3 do Territory.addVote(s, 2, t) end                -- P2 tranh với 3 phiếu
-        for _ = 1, 2 do Territory.addVote(s, 1, t) end                -- P1 bảo vệ, lên 4 phiếu
-        Territory.addVote(s, 2, t)                                    -- P2 = 4: đủ 2x ngưỡng nhưng không hơn 4
-        expect.eq(Territory.ownerOf(s, t), 1)
-        Territory.addVote(s, 2, t)                                    -- P2 = 5 > 4
+        s.players[2].votes = 40
+        local t = midTile(s)
+        t.strategic = "TN-07"
+        local next1 = s.map:get(t.q, t.r - 1)
+        Territory.buyTile(s, 1, t); Territory.buyTile(s, 1, next1)
+        local b = Structures.place(s, { id = "B-03", level = 2, owner = 1 }, { t, next1 })
+        Territory.addVote(s, 2, t)
         expect.eq(Territory.ownerOf(s, t), 2)
+        expect.eq(b.owner, 2, "công trình đi theo ô")
+        expect.eq(Territory.ownerOf(s, next1), 2, "cả footprint đổi chủ")
+        expect.eq(Structures.at(s, t).uid, b.uid, "công trình không bị phá")
+
+        local t2 = tileAtDistance(s, 1, 2, 1)         -- trong vùng ảnh hưởng của P1
+        t2.strategic = "TN-07"
+        Territory.buyTile(s, 2, t2)
+        Structures.place(s, { id = "S-01", level = 1, owner = 2 }, { t2 })
+        s.players[1].votes = 40
+        local ok, why = Territory.canVote(s, 1, t2)
+        expect.falsy(ok); expect.eq(why, "Công trình Đặc Biệt / Phái Sinh không bị cướp bằng phiếu")
     end)
 
-    it("ô trong cụm: mỗi ô 1 phiếu, cướp cần phiếu của chủ + 1", function()
+    it("ô trong cụm: mỗi ô 1 phiếu, cướp cần phiếu của chủ + 1 (phiếu cộng dồn)", function()
         local s = twoPlayerState(2)
         s.players[1].votes, s.players[2].votes = 9, 9
-        local mid = Hex.line(s.players[1].hq, s.players[2].hq)[3]
-        local t = s.map:get(mid.q, mid.r)
+        local t = midTile(s)
         t.settlement = 1
         Territory.addVote(s, 1, t)
         expect.eq(Territory.ownerOf(s, t), 1)
         Territory.addVote(s, 2, t)                                    -- 1 không hơn 1 + 1
         expect.eq(Territory.ownerOf(s, t), 1)
+        expect.truthy(Territory.isDisputed(s, t))
         Territory.addVote(s, 2, t)                                    -- 2 = 1 + 1
         expect.eq(Territory.ownerOf(s, t), 2)
     end)
 
     it("người chi phối cụm là người sở hữu nhiều ô nhất (hơn hẳn)", function()
         local s = twoPlayerState()
-        local cluster = { tiles = { tileAtDistance(s, 1, 1, 1), tileAtDistance(s, 1, 1, 2), tileAtDistance(s, 1, 1, 3) } }
+        local cluster = { tiles = { tileAtDistance(s, 1, 2, 1), tileAtDistance(s, 1, 2, 2), tileAtDistance(s, 1, 2, 3) } }
         expect.eq(Territory.clusterController(s, cluster), nil)
         s.owner[State.key(cluster.tiles[1])] = 1
         expect.eq(Territory.clusterController(s, cluster), 1)
@@ -176,51 +241,50 @@ describe("territory: đặt phiếu", function()
         expect.eq(Territory.clusterController(s, cluster), 2)
     end)
 
-    it("voteTargets chỉ trả ô hợp lệ", function()
+    it("voteTargets chỉ trả ô hợp lệ (12 ô d = 2 kề lãnh thổ khi chỉ có HQ C1)", function()
         local s = twoPlayerState()
         expect.eq(#Territory.voteTargets(s, 1), 0)
         s.players[1].votes = 1
         local targets = Territory.voteTargets(s, 1)
-        expect.eq(#targets, 6)
+        expect.eq(#targets, 12)
         for _, t in ipairs(targets) do expect.truthy(Territory.canVote(s, 1, t)) end
     end)
 end)
 
 describe("territory: mua ô", function()
-    it("giá = (1 V + 1 VH) × 2^(khoảng cách − 1)", function()
+    it("giá = (1 + d) VH + (2 + d) V (d = khoảng cách tới HQ/Sub gần nhất, tối thiểu 1 mỗi loại)", function()
         local s = twoPlayerState(2)
         local c1 = Territory.buyTileCost(s, 1, tileAtDistance(s, 1, 1))
-        expect.eq(c1.gold, 1); expect.eq(c1.culture, 1)
+        expect.eq(c1.culture, 2); expect.eq(c1.gold, 3)                       -- d = 1: 2 VH + 3 V
         local c2 = Territory.buyTileCost(s, 1, tileAtDistance(s, 1, 2))
-        expect.eq(c2.gold, 2); expect.eq(c2.culture, 2)
+        expect.eq(c2.culture, 3); expect.eq(c2.gold, 4)
+        local c3 = Territory.buyTileCost(s, 1, tileAtDistance(s, 1, 3))
+        expect.eq(c3.culture, 4); expect.eq(c3.gold, 5)
+        local c5 = Territory.buyTileCost(s, 1, tileAtDistance(s, 1, 5))
+        expect.eq(c5.culture, 6); expect.eq(c5.gold, 7)
     end)
 
-    it("chỉ mua ô chưa có chủ trong vùng ảnh hưởng; mua xong ô thuộc về mình", function()
+    it("mua ô chưa có chủ trong vùng ảnh hưởng hoặc kề lãnh thổ; không mua cụm; mua xong ô thuộc về mình", function()
         local s = twoPlayerState()
-        local t = tileAtDistance(s, 1, 1)
+        local t = tileAtDistance(s, 1, 2)            -- ngoài vùng ảnh hưởng nhưng kề ô thực hữu
         expect.truthy(Territory.canBuyTile(s, 1, t))
-        local ok, why = Territory.canBuyTile(s, 1, tileAtDistance(s, 1, 2))
-        expect.falsy(ok); expect.eq(why, "Chỉ mua ô trong vùng ảnh hưởng của bạn")
+        local ok, why = Territory.canBuyTile(s, 1, tileAtDistance(s, 1, 3))
+        expect.falsy(ok); expect.eq(why, "Chỉ mua ô trong vùng ảnh hưởng hoặc kề lãnh thổ của bạn")
+        local cl = tileAtDistance(s, 1, 2, 4)
+        cl.settlement = 1
+        ok, why = Territory.canBuyTile(s, 1, cl)
+        expect.falsy(ok); expect.eq(why, "Khu Dân Cư / Danh Thắng chỉ lấy được bằng phiếu")
+        cl.settlement = nil
         Territory.buyTile(s, 1, t)
         expect.eq(Territory.ownerOf(s, t), 1)
+        expect.eq(Territory.votesOn(s, t, 1), Territory.threshold(s, 1, t), "phiếu ghi bằng ngưỡng (có +1 ngoài vùng)")
         ok, why = Territory.canBuyTile(s, 1, t)
         expect.falsy(ok); expect.eq(why, "Ô đã có chủ")
         local hq = s.map:get(s.players[1].hq.q, s.players[1].hq.r)
         expect.falsy(Territory.canBuyTile(s, 1, hq))
-        expect.eq(#Territory.buyTargets(s, 1), 5)
-    end)
-
-    it("ô đã mua vẫn bị cướp theo luật ×2 (phiếu được ghi bằng ngưỡng)", function()
-        local s = twoPlayerState(2)
-        s.players[2].votes = 9
-        local mid = Hex.line(s.players[1].hq, s.players[2].hq)[3]
-        local t = s.map:get(mid.q, mid.r)
-        Territory.buyTile(s, 1, t)
-        expect.eq(Territory.votesOn(s, t, 1), 2)
-        for _ = 1, 3 do Territory.addVote(s, 2, t) end
-        expect.eq(Territory.ownerOf(s, t), 1)
-        Territory.addVote(s, 2, t)
-        expect.eq(Territory.ownerOf(s, t), 2)
+        local targets = Territory.buyTargets(s, 1)
+        expect.truthy(#targets >= 11, "ô d = 2 còn lại và các ô kề ô vừa mua")
+        for _, x in ipairs(targets) do expect.truthy(Territory.canBuyTile(s, 1, x)) end
     end)
 end)
 
@@ -246,15 +310,13 @@ describe("territory: Khu Trực Thuộc", function()
         expect.falsy(ok2)
     end)
 
-    it("từ chối: quá gần HQ của mình, quá gần đối thủ, trùng cụm, địa hình cấm", function()
+    it("từ chối: quá gần HQ của mình, quá gần đối thủ, trùng cụm, địa hình cấm (kể cả Đầm Lầy)", function()
         local s = twoPlayerState(2)
         local near = tileAtDistance(s, 1, 1)
-        Territory.buyTile(s, 1, near)
         local ok, why = Territory.canFoundSub(s, 1, near)
         expect.falsy(ok); expect.eq(why, "Phải cách Nhà Chính/Khu Trực Thuộc của bạn ít nhất 2 ô")
 
-        local mid = Hex.line(s.players[1].hq, s.players[2].hq)[3]
-        local m = s.map:get(mid.q, mid.r)
+        local m = midTile(s)
         Territory.buyTile(s, 1, m)                       -- cách HQ2 2 ô
         ok, why = Territory.canFoundSub(s, 1, m)
         expect.falsy(ok); expect.eq(why, "Phải cách Nhà Chính/Khu Trực Thuộc của đối thủ ít nhất 3 ô")
@@ -267,6 +329,9 @@ describe("territory: Khu Trực Thuộc", function()
         s.map:get(w.q - 1, w.r).settlement = nil
 
         w.terrain = "DH-04"
+        ok, why = Territory.canFoundSub(s, 1, w)
+        expect.falsy(ok); expect.eq(why, "Không đặt Khu Trực Thuộc trên địa hình này")
+        w.terrain = "DH-08"                              -- GDD 1.6: Đầm Lầy không đặt HQ/Sub
         ok, why = Territory.canFoundSub(s, 1, w)
         expect.falsy(ok); expect.eq(why, "Không đặt Khu Trực Thuộc trên địa hình này")
     end)

@@ -42,7 +42,50 @@ local function hatch(cx, cy, color, zoom)
     love.graphics.setStencilTest()
 end
 
--- Vùng ảnh hưởng chưa sở hữu quanh HQ/Sub: tô nhạt màu phe (GDD §7.1: bỏ phiếu/mua ô được, chưa xây được).
+-- Tài Nguyên Cơ Bản trên ô (GDD 1.6 §3.3): mỗi đơn vị một chấm màu của tài nguyên, xếp dưới tâm ô.
+function L.drawBaseResources(state, opts)
+    local zoom = opts.zoom or 1
+    local order = { "science", "culture", "engineering", "faith", "gold" }
+    for _, tile in ipairs(state.map.list) do
+        local base = tile.base
+        if base then
+            local cx, cy = tileCenter(tile)
+            local dots = {}
+            for _, res in ipairs(order) do
+                for _ = 1, base[res] or 0 do dots[#dots + 1] = res end
+            end
+            local step = 4.2
+            local x0 = cx - (#dots - 1) * step / 2
+            for i, res in ipairs(dots) do
+                local c = RES_COLOR[res]
+                love.graphics.setColor(0, 0, 0, 0.7)
+                love.graphics.circle("fill", x0 + (i - 1) * step, cy + 9.5, 2.3)
+                love.graphics.setColor(c[1], c[2], c[3], 1)
+                love.graphics.circle("fill", x0 + (i - 1) * step, cy + 9.5, 1.7)
+            end
+        end
+    end
+    love.graphics.setColor(1, 1, 1)
+end
+
+-- Chữ nổi +x / -x trên ô: floats = { { tile, text, kind, t, d } }.
+function L.drawFloats(floats, zoom)
+    local font = love.graphics.getFont()
+    for _, f in ipairs(floats) do
+        local cx, cy = tileCenter(f.tile)
+        local k = f.t / f.d
+        local c = f.kind == "bad" and { 1, 0.4, 0.35 } or RES_COLOR[f.kind] or { 1, 1, 1 }
+        local alpha = k < 0.7 and 1 or (1 - k) / 0.3
+        local y = cy - 4 - 14 * k
+        love.graphics.setColor(0, 0, 0, 0.7 * alpha)
+        worldText(f.text, cx + 0.6, y + 0.6, 0.5)
+        love.graphics.setColor(c[1], c[2], c[3], alpha)
+        worldText(f.text, cx, y, 0.5)
+    end
+    love.graphics.setColor(1, 1, 1)
+end
+
+-- Vùng ảnh hưởng chưa sở hữu quanh HQ/Sub: tô nhạt màu phe, viền nét đứt (GDD §7.1: bỏ phiếu/mua ô được, chưa xây được).
 function L.drawInfluence(state, opts)
     local Territory = require("src.core.territory")
     for pid in ipairs(state.players) do
@@ -54,9 +97,16 @@ function L.drawInfluence(state, opts)
                     local cx, cy = tileCenter(t)
                     love.graphics.setColor(pc[1], pc[2], pc[3], 0.10)
                     love.graphics.polygon("fill", hexPolygon(cx, cy))
-                    love.graphics.setColor(pc[1], pc[2], pc[3], 0.35)
+                    love.graphics.setColor(pc[1], pc[2], pc[3], 0.55)
                     love.graphics.setLineWidth(1 / (opts.zoom or 1))
-                    love.graphics.polygon("line", hexPolygon(cx, cy))
+                    local poly = hexPolygon(cx, cy)
+                    for i = 1, 6 do   -- nét đứt: mỗi cạnh vẽ hai đoạn
+                        local ax, ay = poly[2 * i - 1], poly[2 * i]
+                        local j = i % 6 + 1
+                        local bx, by = poly[2 * j - 1], poly[2 * j]
+                        love.graphics.line(ax, ay, ax + (bx - ax) * 0.4, ay + (by - ay) * 0.4)
+                        love.graphics.line(ax + (bx - ax) * 0.6, ay + (by - ay) * 0.6, bx, by)
+                    end
                     love.graphics.setLineWidth(1)
                 end
             end
@@ -358,6 +408,22 @@ function L.drawRebel(state, opts)
     love.graphics.setLineWidth(1)
     love.graphics.setColor(1, 1, 1)
     worldText("PQ", cx, cy - 1, 0.5)
+    -- số bước còn lại và người điều khiển lần cuối nằm trên đầu Phiến Quân (GDD 1.6 §12.4)
+    local pend = rb.pending
+    local label
+    if pend and pend.stage == "move" then
+        label = string.format("P%d: %d bước", pend.roller, pend.points)
+    elseif rb.lastRoller then
+        label = "P" .. rb.lastRoller
+    end
+    if label then
+        local font = love.graphics.getFont()
+        local w = font:getWidth(label) * 0.45 + 4
+        love.graphics.setColor(0, 0, 0, 0.75)
+        love.graphics.rectangle("fill", cx - w / 2, cy - 22, w, 8, 2, 2)
+        love.graphics.setColor(1, 0.9, 0.8)
+        worldText(label, cx, cy - 18, 0.45)
+    end
 end
 
 -- Tô sáng danh sách ô. items = { { tile, color = {r,g,b}, alpha, outline = bool } }

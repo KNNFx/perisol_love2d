@@ -5,6 +5,7 @@ local Production   = require("src.core.production")
 local Rebel        = require("src.core.rebel")
 local Roads        = require("src.core.roads")
 local Rng          = require("src.core.rng")
+local Rounds       = require("src.core.rounds")
 local Sim          = require("src.core.sim")
 local State        = require("src.core.state")
 local Structures   = require("src.core.structures")
@@ -16,6 +17,16 @@ local arena        = require("tests.arena")
 local key = State.key
 
 local farRebel = require("tests.park_rebel")
+
+-- Hiệp Sĩ đã được tắt tới Phase 2 (D-020); các test hành vi D-017 chạy với cờ bật rồi trả lại.
+local function knightIt(name, fn)
+    it(name, function()
+        C.KNIGHTS_ENABLED = true
+        local ok, err = pcall(fn)
+        C.KNIGHTS_ENABLED = false
+        if not ok then error(err, 0) end
+    end)
+end
 local function off(s, t, dq, dr) return s.map:get(t.q + dq, t.r + dr) end
 local function hqTile(s, pid) return s.map:get(s.players[pid].hq.q, s.players[pid].hq.r) end
 
@@ -69,10 +80,10 @@ describe("HQ C3-C5: điều kiện, chi phí, hiệu ứng", function()
         farRebel(s)
         local p = s.players[pid]
         p.hqLevel = 3
-        s.round = C.HQ_C4_MIN_ROUND - 1
+        s.round = Rounds.scale(s, C.HQ_C4_MIN_ROUND) - 1
         local ok, why = Territory.canUpgradeHQ(s, pid)
-        expect.falsy(ok); expect.eq(why, "Chỉ nâng lên C4 từ vòng " .. C.HQ_C4_MIN_ROUND)
-        s.round = C.HQ_C4_MIN_ROUND
+        expect.falsy(ok); expect.eq(why, "Chỉ nâng lên C4 từ vòng " .. Rounds.scale(s, C.HQ_C4_MIN_ROUND))
+        s.round = Rounds.scale(s, C.HQ_C4_MIN_ROUND)
         expect.truthy(Territory.canUpgradeHQ(s, pid))
         p.hqLevel = 4
         ok, why = Territory.canUpgradeHQ(s, pid)
@@ -88,12 +99,31 @@ describe("HQ C3-C5: điều kiện, chi phí, hiệu ứng", function()
         expect.eq(anchors[1].radius, 2)
     end)
 
-    it("HQ C4: mọi Viễn Chinh thành Hiệp Sĩ ngay lúc nâng cấp, giữ điểm di chuyển; Giao Thương không đổi", function()
+    it("HQ C4 theo GDD 1.6: Hiệp Sĩ tắt, Viễn Chinh chỉ được +1 bước; Hiệp Sĩ còn sót trong save cũ đổi về Viễn Chinh", function()
         local s, pid, c = arena()
         farRebel(s)
         local p = s.players[pid]
         p.hqLevel = 3
-        s.round = C.HQ_C4_MIN_ROUND
+        s.round = Rounds.scale(s, C.HQ_C4_MIN_ROUND)
+        local a = Units.spawn(s, pid, "expedition", c)
+        local old = Units.spawn(s, pid, "knight", c)   -- Hiệp Sĩ sót lại từ save cũ
+        expect.eq(Units.baseMove(s, a), C.EXPEDITION_BASE_MOVE)
+        p.res.steel, p.res.engineering, p.res.gold = 9, 20, 20
+        local ev = Game.apply(s, { type = "upgradeHQ" })
+        expect.eq(old.type, "expedition", "Hiệp Sĩ sót lại được đổi về Viễn Chinh")
+        expect.eq(a.type, "expedition", "Viễn Chinh không thành Hiệp Sĩ")
+        expect.eq(Units.baseMove(s, a), C.EXPEDITION_BASE_MOVE + C.HQ_C4_EXPEDITION_BONUS)
+        local t = Units.spawn(s, pid, "trade", c)
+        expect.eq(Units.baseMove(s, t), C.TRADE_BASE_MOVE, "Giao Thương không được +1")
+        expect.truthy(Sim.invariants(s))
+    end)
+
+    knightIt("HQ C4 (Hiệp Sĩ bật): mọi Viễn Chinh thành Hiệp Sĩ ngay lúc nâng cấp, giữ điểm di chuyển; Giao Thương không đổi", function()
+        local s, pid, c = arena()
+        farRebel(s)
+        local p = s.players[pid]
+        p.hqLevel = 3
+        s.round = Rounds.scale(s, C.HQ_C4_MIN_ROUND)
         local a = Units.spawn(s, pid, "expedition", c)
         a.mp = 3
         local t = Units.spawn(s, pid, "trade", c)
@@ -110,7 +140,7 @@ describe("HQ C3-C5: điều kiện, chi phí, hiệu ứng", function()
         expect.truthy(Sim.invariants(s))
     end)
 
-    it("Viễn Chinh mua sau HQ C4 cũng thành Hiệp Sĩ ở đầu lượt kế tiếp", function()
+    knightIt("Viễn Chinh mua sau HQ C4 cũng thành Hiệp Sĩ ở đầu lượt kế tiếp (Hiệp Sĩ bật)", function()
         local s, pid = arena()
         farRebel(s)
         s.players[pid].hqLevel = 4
@@ -124,7 +154,7 @@ describe("HQ C3-C5: điều kiện, chi phí, hiệu ứng", function()
         expect.eq(u.mp, C.KNIGHT_BASE_MOVE)
     end)
 
-    it("Hiệp Sĩ leo được Núi (tốn 2), Viễn Chinh thì không; ngưỡng Trấn Áp 3", function()
+    knightIt("Hiệp Sĩ leo được Núi (tốn 2), Viễn Chinh thì không; ngưỡng Trấn Áp 3", function()
         local s, pid, c = arena()
         farRebel(s)
         local mountain = off(s, c, 1, 0)
@@ -139,7 +169,7 @@ describe("HQ C3-C5: điều kiện, chi phí, hiệu ứng", function()
         mountain.terrain = "DH-01"
     end)
 
-    it("Hiệp Sĩ thua Trấn Áp thì rút về HQ (1 lần mỗi 5 vòng), lần sau mới mất", function()
+    knightIt("Hiệp Sĩ thua Trấn Áp thì rút về HQ (1 lần mỗi 5 vòng), lần sau mới mất", function()
         local s, pid, c = arena()
         local p = s.players[pid]
         local function rig(want)
@@ -248,8 +278,8 @@ describe("Khu Trực Thuộc C2-C3", function()
         local s, pid, c, p = withSub(10)
         Game.apply(s, { type = "upgradeSub", q = c.q, r = c.r })
         local ok, why = Game.check(s, { type = "upgradeSub", q = c.q, r = c.r })
-        expect.falsy(ok); expect.eq(why, "Chỉ nâng lên C3 từ vòng " .. C.SUB_C3_MIN_ROUND)
-        s.round = C.SUB_C3_MIN_ROUND
+        expect.falsy(ok); expect.eq(why, "Chỉ nâng lên C3 từ vòng " .. Rounds.scale(s, C.SUB_C3_MIN_ROUND))
+        s.round = Rounds.scale(s, C.SUB_C3_MIN_ROUND)
         p.res.steel = 1
         ok, why = Game.check(s, { type = "upgradeSub", q = c.q, r = c.r })
         expect.falsy(ok); expect.eq(why, "Không đủ tài nguyên nâng cấp")
@@ -267,7 +297,7 @@ describe("Khu Trực Thuộc C2-C3", function()
     end)
 
     it("legal() liệt kê upgradeSub khi đủ điều kiện; Sub C3: ô tâm miễn phong tỏa, ô kề vẫn bị", function()
-        local s, pid, c, p = withSub(C.SUB_C3_MIN_ROUND)
+        local s, pid, c, p = withSub(Rounds.scale({ rounds = 20 }, C.SUB_C3_MIN_ROUND))
         local found = false
         for _, cmd in ipairs(Game.legal(s)) do
             if cmd.type == "upgradeSub" then found = true; expect.truthy(Game.check(s, cmd)) end

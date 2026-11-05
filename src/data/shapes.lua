@@ -1,4 +1,4 @@
--- Hình dạng công trình nhiều ô (D-014, đề xuất của dự án). Mỗi hình là danh sách offset axial {q, r},
+-- Hình dạng công trình nhiều ô (D-014; từ D-020 mọi C3 6 ô dùng par33, trapezoid/cluster không còn dùng). Mỗi hình là danh sách offset axial {q, r},
 -- ô (0,0) là ô gốc của hình; xoay 60° bằng Hex.rotate. Tên hình khớp trường `shape` trong
 -- src/data/buildings.lua. Hex không có hình thang 6 ô đối xứng, nên trapezoid/cluster là đề xuất.
 
@@ -13,6 +13,7 @@ S.cells = {
     line3     = { { 0, 0 }, { 1, 0 }, { 2, 0 } },
     L         = { { 0, 0 }, { 1, 0 }, { 1, 1 } },
     rect      = { { 0, 0 }, { 1, 0 }, { 0, 1 }, { 1, 1 } },                          -- hình bình hành
+    par33     = { { 0, 0 }, { 1, 0 }, { 2, 0 }, { 0, 1 }, { 1, 1 }, { 2, 1 } },                -- hình 3+3: hai hàng song song (GDD 1.6 §8.1, mọi C3 chiếm 6 ô)
     trapezoid = { { 0, 0 }, { 1, 0 }, { 2, 0 }, { 3, 0 }, { 0, 1 }, { 1, 1 } },      -- hàng 4 trên hàng 2
     cluster   = { { 0, 0 }, { 1, 0 }, { 1, -1 }, { 0, -1 }, { -1, 0 }, { -1, 1 } },  -- ô giữa + 5 ô kề
     hex7      = { { 0, 0 }, { 1, 0 }, { 1, -1 }, { 0, -1 }, { -1, 0 }, { -1, 1 }, { 0, 1 } },  -- ô giữa + 6 ô kề (S-01, S-04)

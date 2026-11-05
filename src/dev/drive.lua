@@ -58,6 +58,12 @@ function Drive.update(scene, drv, dt)
             return
         end
         scene:keypressed("space")
+    elseif st.phase == "prompt" then   -- lời nhắc: bấm nút thật (đổ lại / Địa Linh), còn lại trả lời lựa chọn đầu tiên
+        local pr = st.prompt
+        if pr.kind == "reroll" then scene.ui:activate("rr_keep")
+        elseif pr.kind == "ley" then
+            if pr.pid ~= pr.roller and scene.replyShown ~= pr then scene.ui:activate("rp_show") else scene.ui:activate("ley_skip") end
+        else scene:cmd({ type = "respond", choice = pr.options[#pr.options] }) end
     elseif st.phase == "rebel_move" then
         local t = Rebel.legalSteps(st)[1]
         clickTile(scene, t)

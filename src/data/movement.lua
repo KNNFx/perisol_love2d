@@ -31,10 +31,11 @@ M.cost = {
 
 local MOUNTAINS = { ["DH-03"] = true, ["DH-12"] = true }
 
--- Chi phí để `unit` đi vào ô địa hình `terrainId` ở vòng `round`.
-function M.stepCost(unit, terrainId, round)
+-- Chi phí để `unit` đi vào ô địa hình `terrainId` ở vòng `round`. `lockRounds` = số vòng Núi bị khóa với Phiến Quân
+-- (mặc định REBEL_MOUNTAIN_LOCK_ROUNDS; ván khác 20 vòng truyền giá trị đã quy đổi, xem src/core/rounds.lua).
+function M.stepCost(unit, terrainId, round, lockRounds)
     if unit == "rebel" and MOUNTAINS[terrainId] then
-        return (round or 1) <= C.REBEL_MOUNTAIN_LOCK_ROUNDS and INF or C.REBEL_MOUNTAIN_COST
+        return (round or 1) <= (lockRounds or C.REBEL_MOUNTAIN_LOCK_ROUNDS) and INF or C.REBEL_MOUNTAIN_COST
     end
     local c = M.cost[unit] and M.cost[unit][terrainId]
     return c or INF

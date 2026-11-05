@@ -1,6 +1,14 @@
 # Perisol — Nhật ký quyết định thiết kế / kỹ thuật
 
-Mỗi quyết định ghi: bối cảnh, lựa chọn, lý do. Khi tài liệu thiết kế mâu thuẫn, `Perisol_Data.md` là chuẩn (xem `CLAUDE.md`).
+Mỗi quyết định ghi: bối cảnh, lựa chọn, lý do.
+
+- **Nguồn chuẩn khi tài liệu mâu thuẫn:**
+  - Từ 2026-11-01 (D-020), **GDD 1.6** (`Perisol_GDD_v1.6_Full.md`) thắng khi lệch với `Perisol_Data.md`. Data dùng cho số liệu mà GDD không nói tới.
+  - Trước đó (D-001..D-019), Data là chuẩn.
+  - Mọi chỗ lệch được ghi vào bảng xung đột ở cuối file.
+- **Tham chiếu "§x":**
+  - Trong D-001..D-019, "§x" trỏ tới GDD v1.2. File `Perisol_GDD_v1.2_Full.md` đã xóa, xem lại trong git history.
+  - Từ D-020, "§x" trỏ tới GDD 1.6. Số mục phần lớn giữ nguyên; các mục mới là 3.3, 7.4, 7.5, 8.4, 11.3, 12.4 và Phụ lục D, E.
 
 ## D-001 — Kích thước bản đồ (P0 #3) — 2026-10-04
 - **Vấn đề:** GDD §3.1 ghi "bán kính 3 ô = 19 ô" (sai: bán kính 2 = 19 ô, bán kính 3 = 37 ô) và tỉ lệ map "16:8 / 4 người 32:16" nhưng không nói rõ 2–3 người.
@@ -129,7 +137,7 @@ Mỗi quyết định ghi: bối cảnh, lựa chọn, lý do. Khi tài liệu t
   - Có tùy chọn giảm rung màn hình.
 
 ## D-012 — Đối chiếu GDD v1.2 bản đầy đủ (PDF) với M1 — 2026-10-05
-*(Trạng thái 2026-10-06: các điểm #1–#7 và #9 đã xử lý ở D-013; #8, #10, #11 giữ nguyên có chủ đích. Cập nhật 2026-10-07: #8 đã chốt ở D-014 (không cho không, giữ ngân hàng 4:1); hiệu ứng Đồi Cỏ/Rừng của #9 làm ở M1.5.)*
+*(Trạng thái 2026-10-06: các điểm #1–#7 và #9 đã xử lý ở D-013; #8, #10, #11 giữ nguyên có chủ đích. Cập nhật 2026-10-07: #8 đã chốt ở D-014 (không cho không, giữ ngân hàng 4:1); hiệu ứng Đồi Cỏ/Rừng của #9 làm ở M1.5. Cập nhật 2026-11-01: GDD 1.6 viết lại #1, #2, #3, #6, #7 và chốt #5 (Núi tốn 3), #11 (Khu Dân Cư cho xây Nhà Văn Hóa, Khu Chợ C1–C2 và Bảo Tàng); xem D-020.)*
 `docs/Perisol_GDD_v1.2_Full.md` đã được chép lại khớp 100% với `Perisol_GDD_v1.2.pdf`. Bản cũ là bản rút gọn và thiếu nhiều luật. Đối chiếu bản đầy đủ với các quyết định D-006..D-011 và code M1 cho kết quả dưới đây.
 
 **PDF xác nhận (không cần đổi):**
@@ -162,6 +170,7 @@ Mỗi quyết định ghi: bối cảnh, lựa chọn, lý do. Khi tài liệu t
 
 ## D-013 — Chỉnh M1 theo GDD v1.2 bản đầy đủ — 2026-10-06
 Chủ dự án chọn các điểm dưới đây từ D-012. Điểm không nêu giữ như cũ. D-013 thay thế các phần tương ứng của D-006, D-007, D-009 và D-010.
+*(Cập nhật 2026-11-01: GDD 1.6 thay phần lớn D-013. Bị thay: lãnh thổ khởi đầu, tài nguyên khởi đầu, giá mua ô, luật tranh lại ô, điều kiện đặt Sub, Phiến Quân cướp và xuất hiện. Code vẫn chạy theo D-013 cho tới khi làm M1.6; xem D-020.)*
 - **Vùng ảnh hưởng (D-012 #1, thay D-006):**
   - Lúc đầu chỉ **ô HQ** là thực hữu. 6 ô quanh HQ là vùng ảnh hưởng, ngưỡng 1 phiếu. Chỉ **đặt phiếu và mua ô trong vùng ảnh hưởng**; không đặt lên ô HQ/Sub.
   - **Nâng HQ C2** (4 KT + 2 KH + 3 V) mở vùng ảnh hưởng ra bán kính 2 (18 ô). C3+ cần vật liệu phái sinh nên để M1.5.
@@ -261,6 +270,14 @@ Kế hoạch triển khai chia theo phase A–I ở `plan.md` mục P3.
 - Hảo Cảm, Sứ Giả U-05 và trao đổi với Khu Dân Cư có Cảng/Chợ (P0 #11): hoãn ra khỏi M1.5. A-05 Hộ Tống cũng hoãn.
 - TN-04 "Chuồng Ngựa": công trình này không có trong Data, nên bonus công trình của TN-04 chưa làm.
 
+*(Cập nhật 2026-11-01, D-020: GDD 1.6 đã trả lời phần lớn các mục trên:*
+- *"Bán kính Long Mạch" và "phong tỏa 3 ô" không còn trong thiết kế, vì S-04 đã được thiết kế lại và TN-12 đổi hiệu ứng.*
+- *Sub C2 bỏ dòng "giảm ngưỡng ô xa".*
+- *Ô ⭐ = giảm 1 tài nguyên chính khi xây C1.*
+- *Đầm Lầy có số liệu qua bảng Tài Nguyên Cơ Bản.*
+- *Chuồng Ngựa, Hảo Cảm, Sứ Giả và Cảng chuyển sang Phase 2.*
+- *Hình 6 ô C3 là "hình 3+3".)*
+
 - **Tunable mới (thêm khi làm từng phase):** `HQ_UPGRADE_COST[3..5]`, `SUB_UPGRADE_COST[2..3]`, `HQ_MAX_LEVEL`, `TN06_MARKET_RATE`, `BOND_MAX`, cùng các hằng số Data §8.1 đã có (`MAX_*`, `*_BASE_MOVE`, `SUPPRESS_*`, `EXPEDITION_UPKEEP_GOLD`, `ROAD_COST_PER_TILE`, `TRADE_FEE_PER_TILE`).
 - **Save:** `SAVE_VERSION = 3`. Save v2 được nâng khi nạp: công trình chuyển sang lưu theo uid, thêm `occupied`, vật liệu, `units`, `roads`, `lostStrategic`.
 
@@ -344,6 +361,10 @@ Theo Data §9.1 và sheet Đơn vị. Chi phí và mốc vòng ở `constants.lu
   - **Ô tâm của Sub C3 miễn nhiễm phong tỏa** (không bị loại khỏi vùng phong tỏa 7 ô của Phiến Quân; ô kề vẫn bị). Ô tâm là Sub nên không có công trình; ảnh hưởng thực tế là vùng ảnh hưởng và đặt phiếu quanh tâm.
   - "Giảm ngưỡng Chi Phối ô xa" của Sub C2 (Data) vẫn chưa làm, vì không có con số (D-014 còn mở).
 - **Tunable mới:** `HQ_MAX_LEVEL`, `SUB_MAX_LEVEL`, `HQ_UPGRADE_COST[3..5]`, `SUB_UPGRADE_COST`, `HQ_C4_MIN_ROUND`, `SUB_C3_MIN_ROUND`, `HQ_C5_AURA_RADIUS`, `KNIGHT_RETREAT_COOLDOWN`. Bỏ `HQ_MAX_LEVEL_M1`.
+- *(Cập nhật 2026-11-01, D-020:*
+  - *HQ C5 chỉ cần Khu Chợ C3, khớp GDD 1.6.*
+  - *Sub C2 không có "giảm ngưỡng ô xa" (GDD và Data đều bỏ).*
+  - ***Đã chốt:** theo GDD 1.6, Hiệp Sĩ tắt cho tới Phase 2; HQ C4 chỉ còn "Viễn Chinh +1 bước mỗi vòng". Code đổi ở M1.6.)*
 
 ## D-018 — Công trình Phái Sinh D-01..D-05 (M1.5 phase G) — 2026-10-07
 Theo Data sheet "Công trình" (chuẩn); chỗ Data và GDD §8.2 khác nhau xem bảng xung đột bên dưới. Dữ liệu ở `src/data/derived.lua`, luật ở `src/core/derived.lua`.
@@ -367,6 +388,11 @@ Theo Data sheet "Công trình" (chuẩn); chỗ Data và GDD §8.2 khác nhau xe
 - **Chưa làm:** bonus "Rừng Cổ Thụ" của Xưởng In Ấn (Nhà VH không đặt được trên Rừng), "Quặng LT tỷ lệ 1:1", "Chuồng Ngựa". Các dòng "Cảng/Ngân hàng trao đổi theo tỉ lệ" cho Khu Dân Cư hoãn như D-014.
 - **Save:** `state.derived`, `state.nextDerivedUid`. Save v3 tạo trước phase này được bù mặc định khi nạp (`Game.load`).
 - **Tunable mới:** `DERIVED_MAX_GAP`, `BOND_MAX`, `BOND_INTEREST`, `BOND_REDEEM_GOLD`, `TN05_ALLOY_BONUS`.
+- *(Cập nhật 2026-11-01, D-020: chủ dự án chốt theo GDD §8.2, thay cho "cộng thêm" ở trên:*
+  - *D-01 và D-03 **thay thế** tài nguyên gốc.*
+  - *D-02 và D-04 vẫn cộng thêm.*
+  - *D-05 là chuyển 1–2 Vàng thành Tín Phiếu khi ra Vàng.*
+  - *Code đổi ở M1.6.)*
 
 ## D-019 — Công trình Đặc Biệt S-01..S-05 (M1.5 phase H) — 2026-10-07
 Dữ liệu ở `src/data/specials.lua`, aura ở `src/core/aura.lua`, luật ở `src/core/specials.lua`. Nguồn: Data sheet "Công trình" (chuẩn) và GDD §8.3.
@@ -393,16 +419,191 @@ Dữ liệu ở `src/data/specials.lua`, aura ở `src/core/aura.lua`, luật �
   - **S-05 đẩy Phiến Quân:** khi Phiến Quân dừng trong aura (sau khi xử lý mất tài nguyên) và chủ có ≥ 2 TN, lời nhắc `pushrebel` hỏi có trả 2 TN đẩy ra ngoài aura không. Ô đích nằm trong 2 bước quanh Phiến Quân, ngoài aura, Phiến Quân đứng được; cấp xây = **ngẫu nhiên** (chọn bằng RNG ván), từ "+1" = **chủ chọn ô**. Đẩy không kích hoạt hiệu ứng dừng mới.
 - **Chưa làm, để M2/M3 hoặc chờ chốt:** giảm giá Công Nghệ (S-01), phụ phí và miễn nhiễm Sắc Lệnh, "Triển Lãm" (S-03), "Niết Bàn" và giảm chi phí kỹ năng nhân vật (S-05), bonus TN-02/TN-07/TN-11 cho Đặc Biệt, "Pháp Sư"…
 - **Tunable mới:** nằm trong `src/data/specials.lua` (`STRIKE_COOLDOWN`, `STRIKE_RADIUS`, `BROADCAST_COOLDOWN`, `SCORE_SETTLEMENT_RADIUS`, bảng cấp) và `Specials.MIN_HQ_LEVEL`.
+- *(Cập nhật 2026-11-01, D-020: GDD 1.6 sửa phần Đặc Biệt. Code sẽ đổi ở M1.6:*
+  - *S-04 thành **Đài Khí Tượng**, hiệu ứng khác hẳn: bỏ Phát Sóng, thêm đổ lại xúc xắc.*
+  - *S-05 đổi tên thành **Thiên Đàn**, chi phí 6 TN, địa hình Rừng/Núi/Sông.*
+  - *S-03 đặt trên Đồng Bằng và Khu Dân Cư.*
+  - *Hình S-02 và S-03 theo mã Data (4c, 3c).*
+  - *S-02 thêm "đẩy Phiến Quân ra khỏi aura thì người kích hoạt mất 2 V".*
+  - *S-01 thêm "thấy đường đi của Phiến Quân".)*
 
-## D-020 — Ô chiếm nhờ TN-06 sau khi TN mất — 2026-10-12
-- **Tình huống:** ô có TN-06 được chiếm với ngưỡng Chi Phối giảm; về sau công trình phủ ô bị dỡ, TN mất (D-014) và ngưỡng của ô tăng lại, nên số phiếu của chủ thấp hơn ngưỡng mới. Mô phỏng seed 5006 (2 người, `rich`) gặp đúng ca này.
-- **Chốt (chủ dự án):** chủ **giữ ô**. Ngưỡng chỉ xét tại thời điểm chiếm; mất TN không xét lại quyền sở hữu.- **Hệ quả cho code:** bất biến "phiếu ≥ ngưỡng" trong `Sim.invariants` được nới cho ô từng mất TN (`state.lostStrategic`); không đổi hành vi game.
+## D-020 — Đồng bộ GDD 1.6 và Data mới (sau playtest #1) — 2026-11-01
+**Nguồn:**
+- `docs/Perisol_GDD_v1.6.docx`: file gốc tên "Perisol_GDD_v1.3 (2).docx", nội dung ghi "Phiên bản GDD 1.6". Chép nguyên văn sang `Perisol_GDD_v1.6_Full.md`.
+- `docs/Perisol Data.xlsx`: xuất lại toàn bộ sang `Perisol_Data.md`.
+- `Perisol_GDD_v1.2_Full.md` đã xóa.
+- GDD 1.6 viết sau playtest #1 (Phụ lục D). Phụ lục E đề xuất tên hằng số.
 
-## D-021 — Thứ tự việc đầu lượt — 2026-10-12
-- **Chốt (chủ dự án):** hoàn tất dỡ → thu nhập thụ động (kèm dọn và đếm nhịp Phái Sinh) → upkeep đơn vị. Thu nhập của lượt đó trả được upkeep của chính lượt đó.
-- **Khác trước:** code M1.5 chạy dỡ → upkeep đơn vị → thụ động, do thứ tự `require` ngầm định. Từ nay thứ tự khai tường minh một chỗ và có spec canh giữ.
+**Chủ dự án chốt:**
+- **Phạm vi:** luật mới của GDD 1.6 được làm thành mốc **M1.6, trước M2** (`plan.md` P3.5).
+- **Nguồn chuẩn:**
+  - Khi GDD 1.6 và Data lệch nhau, **GDD 1.6 thắng**.
+  - Data dùng cho số liệu mà GDD không nói tới. Ví dụ: ma trận đặt công trình ở các cột Lãnh Nguyên, Sa Mạc, Đầm Lầy (bảng §9.4 của GDD chỉ là bản trích, không có các cột này); mã hình dạng ô; bảng đơn vị.
+  - Mọi chỗ lệch vẫn được liệt kê để hỏi designer.
 
-## Xung đột tài liệu đã phát hiện (chọn theo Data)
+**Đổi tên trong game** (UI và log sẽ đổi ở M1.6):
+
+| Tên cũ | Tên mới |
+|---|---|
+| "Long Mạch" (cơ chế chia sẻ sản lượng) | **Sản Xuất Chung** |
+| Thiên Đình Tín Ngưỡng (S-05) | **Thiên Đàn** |
+| Đài Phát Thanh Long Mạch (S-04) | **Đài Khí Tượng** (Data ghi "Đài Quan Sát Khí Tượng") |
+| Tháp Thiên Văn (S-01) | **Tháp Quan Sát Thiên Văn** |
+| Nhà Ngân Hàng (D-05) | Data ghi "Ngân Hàng" |
+
+**Mã hình dạng ô trong sheet "Công trình" của Data.** Lấy theo ảnh trong file xlsx. Hex đỉnh nhọn, đọc theo hàng từ trên xuống:
+
+| Mã | Số ô | Hình (theo ảnh) | Công trình dùng (theo Data) |
+|---|---|---|---|
+| 3a | 3 | tam giác (2 ô trên, 1 ô dưới giữa) | B-01.2 |
+| 3b | 3 | thẳng 3 ô | B-02.2, B-04.3 |
+| 3c | 3 | gấp khúc (chữ L hex) | B-05.3, S-03 |
+| 4a | 4 | hình bình hành 2+2 | B-03.3 |
+| 4b | 4 | tam giác + 1 ô nối dài xuống dưới | — |
+| 4c | 4 | hàng 3 + 1 ô dưới (ô giữa hàng có 3 ô kề) | S-02 |
+| 4d | 4 | đường chéo 3 ô + 1 ô ngang | — |
+| 5a | 5 | hàng 3 + hàng 2 bên dưới (hình thang) | — |
+| 5b | 5 | ô giữa + 4 ô kề | — |
+| 5c, 5d | 5 | khối dọc 1-2-1-1 (hai bản đối xứng) | — |
+| 6a | 6 | tam giác lớn 3-2-1 | B-01.3 |
+| 6b, 6c | 6 | hình bình hành 3+3 (hai chiều nghiêng) | B-02.3 |
+| 6d | 6 | ô giữa + 5 ô kề | — |
+| 6e, 6f | 6 | dải chéo / bậc thang | — |
+
+- GDD §8.1 ghi **mọi** C3 chiếm 6 ô dùng "hình 3+3", nên B-01.3 dùng 6b chứ không dùng 6a như Data.
+- Hình 3 và 4 ô theo Data, vì GDD chỉ mô tả bằng chữ và không mâu thuẫn.
+- **Đã làm ở M1.6:** chỉ B-01.3 và B-02.3 đổi sang hình 3+3 (`par33`). Các mã khác của Data không đổi code vì GDD không mâu thuẫn:
+  - B-02.2 giữ `triangle`: GDD §8.1 ghi "3 ô (Δ)", còn Data ghi 3b (hàng thẳng). GDD thắng.
+  - S-02 giữ `fort4` (ô giữa + 3 ô kề xen kẽ, "tam giác bảo vệ" của GDD §8.3); mã 4c ở bảng trên chỉ là cách đọc ảnh.
+  - S-03 giữ `triangle` (ô giữa + 2 ô liền, GDD §8.3).
+
+**Luật code hiện tại → luật GDD 1.6 (làm ở M1.6):**
+
+| # | Chủ đề | Code hiện tại | GDD 1.6 |
+|---|---|---|---|
+| 1 | Số vòng | 20 vòng cố định (`ROUNDS_PER_GAME`) | N = 10 × số người (1 người 10, 2 người 20, 3 người 30, 4 người 40), tùy chỉnh theo bội của 10. Các mốc HQ C4 vòng 11, Sub C3 vòng 16 và khóa Núi 10 vòng quy đổi bằng ⌈mốc × N ÷ 20⌉ (đề xuất). Sự Kiện lật mỗi 5 vòng, mức khốc liệt ⌈4 × vòng ÷ N⌉ (§1.2, §11.3). |
+| 2 | Tài Nguyên Cơ Bản trên ô | Không có | **Mới (§3.3):** mỗi ô tung xác suất cho từng loại theo bảng địa hình; lượng 1 (70%) hoặc 2 (30%). Ngoại lệ: Đầm Lầy TN và VH ra 2 với xác suất 40%; Lãnh Nguyên Vàng luôn 1; ô kề Sông +10 điểm phần trăm cho TN. Mỗi Danh Thắng gắn 1 loại. Nhả tài nguyên = lượng × số viên khớp, cho người có quyền thu hoạch (chủ ô, hoặc người duy nhất có vùng ảnh hưởng phủ ô chưa có chủ). Công trình nhiều ô thu cả nguồn này của mọi ô nó chiếm. Phong tỏa chặn. Dòng "+x khi ra x" của tài nguyên chiến lược cộng vào lượng này, kể cả khi ô không có loại đó. Hằng số `MaxKindsPerTile` (mặc định không giới hạn). |
+| 3 | Lãnh thổ khởi đầu | Chỉ ô HQ là thực hữu (D-013) | **6 ô quanh HQ thực hữu miễn phí**, xây được ngay. Sub không được tặng ô; 6 ô quanh Sub phải lấy bằng phiếu hoặc mua với giá d = 1 (§7.3). |
+| 4 | Tài nguyên khởi đầu | Nền 1/1/1/1/3 cộng 1 cho mỗi ô quanh HQ theo `START_BONUS_BY_TERRAIN` (D-013) | Toàn bộ Tài Nguyên Cơ Bản của 6 ô quanh HQ, nhận 1 lần (§3.3, §11.1 bước 8). |
+| 5 | Mua ô | (1 V + 1 VH) × 2^(d−1), chỉ trong vùng ảnh hưởng (D-013) | **(1+d) VH + (2+d) V**, d tính từ tâm HQ/Sub gần nhất. Các hiệu ứng giảm giá áp dụng sau cùng, tối thiểu 1 VH + 1 V (§7.2). |
+| 6 | Mở rộng liền kề | Không có | Được lấy (bằng phiếu hoặc mua) ô **ngoài** vùng ảnh hưởng nếu ô đó kề ô thực hữu của mình. Ngưỡng phiếu ngoài vùng +1, tức 3 ở d = 2 và 4 ở d ≥ 3 (§7.2). |
+| 7 | Khu Dân Cư / Danh Thắng | 1 phiếu mỗi ô, ai nhiều ô hơn chi phối cả cụm (D-013) | Giữ luật đó. Thêm: **chỉ lấy bằng phiếu** và ô phải nằm trong vùng ảnh hưởng; không mua được; không mở rộng liền kề (§7.2). |
+| 8 | Tranh lại ô đã có chủ | Phiếu ≥ 2 × ngưỡng và hơn phiếu chủ, phiếu tích lũy qua lượt; ô có công trình bị khóa (D-013) | Chỉ áp dụng cho **ô giá trị cao** (có tài nguyên chiến lược, hoặc tổng Tài Nguyên Cơ Bản ≥ 3) nằm trong vùng ảnh hưởng của người tranh. Phải đặt đủ 2 × ngưỡng **trong cùng một Khâu Hành Động** (không tích lũy). Không tranh ô HQ/Sub. **Công trình đi theo ô** sang chủ mới (§7.2, §7.4). |
+| 9 | Đặt HQ / Sub | Chọn vùng khởi đầu do mapgen tạo. Sub cách HQ/Sub của mình ≥ 2, của đối thủ ≥ 3 (D-013). | Không đặt trên Núi/Sông. Vòng chu vi cấp 1 không chạm vòng chu vi của HQ/Sub khác, và không chạm Danh Thắng / Khu Dân Cư. HQ không được kề Phiến Quân. Thứ tự đi luôn bắt đầu từ P1 (§7.3, §11.1). Đầm Lầy: GDD ghi không đặt HQ/Sub, Data cho đặt Sub; theo GDD là không. |
+| 10 | Phiến Quân xuất hiện | Trên Đồng Bằng / Lãnh Nguyên / Sa Mạc cách mọi HQ ≥ 2, sau khi đặt HQ (D-009) | Đặt ở ô trung tâm. Sau khi đặt HQ, nếu cách HQ nào dưới 2 bước thì dời tới ô hợp lệ gần nhất (§11.1 bước 4). |
+| 11 | Phiến Quân và HQ | Được dừng trên HQ và cướp như công trình (D-009) | **Ô HQ là ô chặn:** không vào, không dừng (§6.2). |
+| 12 | Phiến Quân cướp | Khi **dừng** trên công trình của người khác: chủ mất ceil(½) loại nhiều nhất, người đổ nhận ceil(½) số đó (D-009) | **Cướp phá khi bước lên** công trình của người khác, kể cả đi ngang; công trình nhiều ô chỉ cần đi qua 1 ô. Chủ mất ceil(½) loại nhiều nhất, **người điều khiển nhận toàn bộ số đó**. Mỗi công trình 1 lần mỗi vòng. Công trình của người điều khiển không bị cướp (§6.2). GDD không nói xử lý khi hòa; tạm giữ "chủ chọn". |
+| 13 | Phiến Quân dừng trên ô chưa có chủ có tài nguyên cơ bản | — | Người kích hoạt nhận từ ngân hàng ceil(½) mỗi loại trên ô (§6.2). |
+| 14 | Lệnh Đuổi Phiến Quân | — | Người chơi có ô thực hữu hoặc công trình nằm trong vùng phong tỏa ở đầu Khâu Sản Xuất **hơn 3 lượt liên tiếp** thì ở lượt thứ 4 được đổ 1d6 để điều khiển Phiến Quân như vừa ra 7, không mất sản xuất. Bộ đếm về 0 khi dùng xong, hoặc khi Phiến Quân rời vùng của người đó (§6.2, §6.3). |
+| 15 | Sông | Đền Thờ C1–C3 xây được (Data) | **Khóa xây** cho tới khi mở khóa (đề xuất thẻ Công Nghệ Tuyến Vận Tải Nước). Sau khi mở: Đền Thờ và Thiên Đàn. Hằng số `BuildOnRiverLocked` (§3.1). |
+| 16 | Ô ⭐ | Chưa có bonus (D-010) | **Giảm 1 tài nguyên chính** khi xây C1 trên ô ⭐, tối thiểu còn 1; không áp dụng khi nâng cấp (§9.4). Ô ⭐: Rừng cho Viện NC và Đền Thờ; Khu Dân Cư cho Nhà Văn Hóa và Khu Chợ C1–C2. |
+| 17 | Xây trên Khu Dân Cư | Nhà Văn Hóa, Khu Chợ C1–C2 (ma trận) | Thêm **Bảo Tàng (S-03)** (§3.1, §8.3). |
+| 18 | Hình 6 ô C3 | `trapezoid` / `cluster` (D-014 đề xuất) | **Hình 3+3** (mã 6b), dùng cho mọi C3 chiếm 6 ô. Phím Q đổi hướng xoay (§8.1). |
+| 19 | S-04 | Đài Phát Thanh: +1 cho công trình cùng loại trong bán kính 3 khi chủ đổ; +1 KH +1 KT; Phát Sóng (D-019) | **Đài Khí Tượng:** aura bán kính 2 miễn nhiễm hiệu ứng xấu của Sự Kiện thời tiết; xem trước lá Sự Kiện kế tiếp; +1 KH +1 KT mỗi vòng; 1 lần mỗi 5 vòng được đổ lại 1 viên sau khi đổ ở lượt mình (bắt buộc dùng kết quả mới). Cấp +1: bán kính 3, chu kỳ 3 vòng. Cấp +2: 1 lần mỗi ván chọn mặt cho 1 viên (không được tạo tổng 7). Mọi ô đều phải thực hữu (Data ghi "6 ô xung quanh bất kỳ"). |
+| 20 | TN-12 Địa Linh | Công trình nhận như cả 2 viên khớp (D-014) | Mỗi viên ra Hex: chủ ô được chọn thay viên đó bằng 1 loại tài nguyên mà công trình hoặc Tài Nguyên Cơ Bản trên ô sản xuất, kể cả ngoài lượt của mình (trong lượt thì Hex vẫn cho phiếu). Bonus công trình: Đài Khí Tượng giảm chu kỳ đổ lại 1 vòng (§3.4). Data vẫn ghi mô tả cũ. |
+| 21 | TN-07 Đá Thiêng | +2 TN cho ô (D-008) | Thêm bonus công trình: Thiên Đàn aura +1 ô nếu đặt trên ô này; Đền Thờ +1 TN thụ động mỗi vòng (Data ghi "Đền Thờ: miễn cooldown 1v/5v") (§3.4). |
+| 22 | S-01, S-02, S-03, S-05 | Theo D-019 | S-01 thêm: thấy đường đi của Phiến Quân ngay khi nó bắt đầu di chuyển; aura cộng cả cho ô có Tài Nguyên Cơ Bản KH. S-02 thêm: Phiến Quân bị đẩy ra khỏi aura thì người kích hoạt mất 2 V. S-03 đặt trên Đồng Bằng và Khu Dân Cư. S-05: 6 TN (Data ghi 8), địa hình Rừng / Núi / Sông (cần mở khóa), bỏ Đầm Lầy (§8.3). |
+| 23 | Giao diện (§12.4) | — | Phân biệt rõ trạng thái ô (thực hữu tô đặc; vùng ảnh hưởng tô nhạt viền đứt; tranh chấp sọc chéo kèm phiếu/ngưỡng; ô đang chọn viền sáng khác hẳn). Hiện ngưỡng phiếu và giá mua cho mọi d. Icon nhỏ cho địa hình, Tài Nguyên Cơ Bản (kèm lượng) và tài nguyên chiến lược. Phiến Quân hiện số bước còn lại và người điều khiển, camera lia về HQ, popup −x khi cướp, nút Lệnh Đuổi. **Tự đổ xúc xắc** đầu lượt. Popup +x bay lên từ từng ô, kể cả ở lượt người khác. Cửa sổ trao đổi không tự đóng. Bảng điểm có chú thích. Nút Undo, hiện seed ở menu và F1. |
+
+**Chủ dự án chốt thêm (2026-11-01): 4 câu mở chính theo GDD 1.6.**
+1. **Tài nguyên khởi đầu** = toàn bộ Tài Nguyên Cơ Bản của 6 ô quanh HQ, nhận 1 lần (§3.3, §11.1 bước 8).
+   - **Bỏ phần nền** `STARTING_RESOURCES` và bảng `START_BONUS_BY_TERRAIN` của D-013.
+   - Rủi ro đầu ván thiếu tài nguyên: kiểm ở playtest #2.
+2. **Danh Thắng** gắn **1 loại** Tài Nguyên Cơ Bản cố định; mọi ô của nó có lượng loại đó (§3.3).
+   - Designer chưa có danh sách, nên tạm chọn ngẫu nhiên 1 loại cho mỗi Danh Thắng khi sinh map.
+   - Lượng theo luật 70% ra 1, 30% ra 2.
+3. **Hiệp Sĩ tắt cho tới Phase 2** (§9.1, §13.2).
+   - HQ C4 chỉ còn "Viễn Chinh +1 bước mỗi vòng".
+   - Code M1.5 (D-017) phải gỡ hoặc tắt Hiệp Sĩ bằng cờ, kèm migration cho save đang có Hiệp Sĩ.
+4. **Phái Sinh theo đúng chữ GDD §8.2**, thay cho cách "cộng thêm" của D-018:
+   - D-01: khi ra KT hoặc KH, nhận 1 Hợp Kim **thay vì** tài nguyên gốc (chọn 1 trong 2 viên).
+   - D-03: nhận 1 Thép **thay 1 KT** thường.
+   - D-02 và D-04: GDD chỉ ghi "sản xuất 1 Giấy" / "nhận 1 Lụa", không nói thay thế, nên giữ cộng thêm.
+   - D-05: khi ra Vàng, **được chọn** chuyển 1–2 Vàng thành Tín Phiếu. Đây là chuyển đổi, không cộng thêm.
+   - Việc chọn viên cần một lời nhắc cho chủ công trình. Phiên bản đầu, theo đề xuất của dự án: tự chọn viên khớp đầu tiên; thêm lời nhắc nếu playtest cần.
+
+**Khớp hoặc được GDD 1.6 xác nhận (không đổi code):**
+- Dỡ công trình mất tài nguyên chiến lược, giữ Tài Nguyên Cơ Bản (§5.4).
+- Trao đổi: không cho không, không đổi cùng loại, phí 1 V/ô, giữ ngân hàng 4:1 (§5.4).
+- Lãnh Nguyên được chốt là ưu đãi: xây −1 KT, Vàng −1 sản lượng.
+- Phiến Quân vào Núi tốn 3 bước (D-012 #5).
+- Rừng và Sông tốn 2.
+- Không đi lại ô đã qua.
+- HQ C3 cần Khu Chợ nối tới HQ; HQ C5 cần Khu Chợ C3.
+- Sub C2 không có "giảm ngưỡng ô xa".
+- Đường Đất +1 di chuyển; Lát Đá +2 và giảm 50% phí.
+- Bảng điểm cuối ván giữ như D-010/D-013.
+
+**Hoãn có chủ đích (GDD 1.6 ghi là dự thảo hoặc Phase 2):**
+- §7.4 Bộ Binh chiếm công trình: 20 điểm chống trả, số lượt = ⌈20 ÷ HP⌉, Thu Phục ×2, công trình đi theo ô. Chỉ số đơn vị chưa có.
+- §7.5 hệ chiến đấu (dự thảo).
+- §8.4 Cảng và các địa hình Hồ / Biển.
+- Danh sách Phase 2 ở §13.2: Hảo Cảm, Sứ Giả, trao đổi với Khu Dân Cư, Cảng, Chuồng Ngựa (TN-04), Chốt Phòng Thủ, Hiệp Sĩ.
+- Hai đề xuất "cần test" của §3.3: công trình cộng hưởng +1 với Tài Nguyên Cơ Bản cùng loại; aura Danh Thắng +1 trong bán kính 2. Sẽ làm sau cờ bật/tắt, mặc định tắt.
+
+**Còn mở, cần designer trả lời:**
+1. ~~Tài nguyên khởi đầu có giữ phần nền cố định không?~~ **Đã chốt:** không giữ (xem khối chốt thêm).
+2. Danh sách Danh Thắng và loại tài nguyên gắn với từng cái. Data ghi "bổ sung sau". **Đã chốt:** mỗi Danh Thắng 1 loại; tạm chọn ngẫu nhiên cho tới khi có danh sách.
+3. Mở khóa Sông bằng gì? (Đề xuất: thẻ Tuyến Vận Tải Nước, M2.) Từ giờ tới M2 Sông bị khóa hẳn.
+4. ~~Hiệp Sĩ giữ hay tắt?~~ **Đã chốt:** tắt cho tới Phase 2.
+5. Viện NC C1 trên Rừng "+1 KH thụ động": Data và D-012 #9 vẫn có, nhưng GDD 1.6 không còn nhắc (Rừng chỉ còn ⭐). Bỏ hay giữ?
+6. Phiến Quân cướp khi hòa "loại nhiều nhất": ai chọn? (Đề xuất: chủ chọn, như D-009.)
+7. Ngưỡng ngoài vùng ảnh hưởng ở d = 1 không xảy ra; với Sub (không được tặng ô), 6 ô quanh Sub dùng ngưỡng nào? (Đề xuất: ngưỡng trong vùng, = 1.)
+8. Với ván 30 và 40 vòng: điều kiện thắng nhân vật và bảng điểm có cần nhân theo N không (§11.3 ghi "cần rà lại")?
+9. ~~Phái Sinh cộng thêm hay thay thế?~~ **Đã chốt:** theo GDD §8.2 (D-01, D-03 thay thế; D-02, D-04 cộng thêm; D-05 chuyển đổi).
+10. **Bảng phân bổ Tài Nguyên Cơ Bản dạng 0/1/2** (ảnh designer gửi, 2026-11-01). **Chủ dự án chốt: GDD §3.3 vẫn chuẩn**; bảng này ghi lại để designer xác nhận đây là bản nháp hay bản sẽ thay §3.3.
+
+    Mỗi ô ghi tỉ lệ % ra 0 / 1 / 2. Tung 1–100 cho mỗi loại; ví dụ 25/40/35 nghĩa là 1–25 ra 0, 26–65 ra 1, 66–100 ra 2.
+
+    | Địa hình | Văn Hóa | Khoa Học | Kỹ Thuật | Vàng | Tín Ngưỡng | Kỳ vọng/ô |
+    |---|---|---|---|---|---|---|
+    | Đồng Bằng | — | — | 50/40/10 | 65/30/5 | — | 1 |
+    | Rừng | — | — | 65/30/5 | — | 75/20/5 | 0,7 |
+    | Núi | — | 80/15/5 | 70/25/5 | — | 75/20/5 | 0,9 |
+    | Sông | 80/15/5 | — | — | 55/35/10 | — | 0,8 |
+    | Bờ Biển | — | 80/15/5 | — | 25/40/35 | — | 1,35 |
+    | Lãnh Nguyên | — | — | — | — | 85/12/3 | 0,18 |
+    | Sa Mạc | — | — | — | 75/20/5 | 80/15/5 | 0,55 |
+    | Đầm Lầy | — | 80/15/5 | — | — | — | 0,25 |
+    | Đồi Cỏ | — | — | 30/40/30 | — | — | 1 |
+    | Khu Dân Cư | 55/35/10 | 55/35/10 | 45/40/15 | 15/40/45 | — | 3,1 |
+    | Danh Thắng | 0/20/80 | — | — | 40/45/15 | 0/20/80 | 4,35 |
+    | Núi Tuyết | — | — | — | — | 88/10/2 | 0,14 |
+
+    - Các con số kỳ vọng trong bảng tính đúng.
+    - **Lệch với GDD 1.6:**
+      - Cách tính khác: GDD dùng xác suất xuất hiện rồi lượng 1 (70%) / 2 (30%).
+      - Loại tài nguyên theo địa hình khác hẳn. Ví dụ: Đồng Bằng mất Văn Hóa và Tín Ngưỡng; Rừng mất Khoa Học.
+      - Sa Mạc có Tín Ngưỡng, nhưng §3.1 ghi Sa Mạc "không sản xuất Tín Ngưỡng".
+      - Đầm Lầy chỉ có Khoa Học, nhưng §3.1 ghi "thiên về Tín Ngưỡng (45%) và Văn Hóa (40%)".
+      - Danh Thắng có 3 loại, nhưng §3.3 ghi "gắn cố định 1 loại".
+      - Lãnh Nguyên không có Vàng, nên ngoại lệ "Vàng luôn 1" mất ý nghĩa.
+      - Không có ngoại lệ "+10% Tín Ngưỡng cạnh Sông".
+    - **Hệ quả nếu dùng bảng này:** Văn Hóa chỉ còn trên Sông, Khu Dân Cư và Danh Thắng, nên 6 ô quanh HQ gần như không cho Văn Hóa. Mua ô cần 2 VH + 3 V, nên đầu ván phải đổi ngân hàng 4:1.
+
+### D-020 — Triển khai ở M1.6 (2026-11-01)
+Toàn bộ luật ở bảng "Luật code hiện tại → GDD 1.6" đã vào code (phase A–H của `plan.md` P3.5), trừ các mục ghi "chưa làm" bên dưới. Các cách hiểu của dự án khi GDD không đủ chi tiết, chỉnh trong `constants.lua` hoặc đổi luật nếu designer muốn:
+- **Số vòng:** `state.rounds` (menu hoặc `--rounds N`, bội của 10). Save v4; save v3 nạp lên thành ván 20 vòng.
+- **Tài Nguyên Cơ Bản:** bảng §3.3 ở `src/data/baseresources.lua`, sinh bằng nhánh RNG riêng (`baseres`) nên các bước sinh bản đồ khác không đổi. Ô đặt HQ không có tài nguyên. Ô nhả `(CB + bonus TN cùng loại) x số viên khớp` cho người thu hoạch. Bonus "+x khi ra x" của TN-01, TN-05, TN-06 và TN-07 chuyển sang ô; TN-03 (chỉ Khu Chợ) và TN-08 (+1 mọi dòng) vẫn là bonus công trình. Mất TN (dỡ, bị Pháo) thì mất bonus, giữ CB.
+- **Lãnh thổ:** 6 ô quanh HQ thực hữu với phiếu ghi bằng ngưỡng. Ngưỡng ngoài vùng ảnh hưởng = ngưỡng trong vùng + 1, rồi trừ TN-06, tối thiểu 1. Tranh lại ô thường: lệnh `placeVote` tiêu trọn `2 x ngưỡng của mình` phiếu và chuyển chủ ngay; ô phải giá trị cao (có TN, hoặc tổng CB >= 3) và nằm trong vùng ảnh hưởng của người tranh. Công trình đi theo ô, cả footprint đổi chủ; Phái Sinh gắn vào công trình đó bị gỡ. **Tạm thời:** công trình Đặc Biệt và công trình riêng của Phái Sinh (D-03, D-05) không bị cướp bằng phiếu, để tránh hai công trình cùng loại và instance mồ côi. Cụm Khu Dân Cư / Danh Thắng giữ cách cũ (phiếu cộng dồn, cần phiếu của chủ + 1), nhưng không mua được và không mở rộng liền kề.
+- **Phiến Quân:** xuất hiện ở ô giữa bản đồ rồi dời tới ô hợp lệ gần nhất (không RNG; hòa thì ô đứng trước theo hàng). Bản đồ chưa có "Phiến Quân ở giữa trước khi đặt HQ", nên luật "HQ không được kề Phiến Quân" không cần. Cướp phá khi bước lên công trình hoặc Khu Trực Thuộc, không phải Nhà Chính. Hòa loại nhiều nhất: **chủ chọn** (như D-009), Phiến Quân đi tiếp sau khi chọn. Người điều khiển nhận toàn bộ phần bị mất. Lệnh Đuổi: lệnh `expelRebel` trong Khâu Hành Động, không lặp Khâu Giải Quyết.
+- **Khóa Sông:** `C.BUILD_ON_RIVER_LOCKED = true`; M2 mở bằng thẻ. Viện NC C1 trên Rừng vẫn có "+1 KH thụ động" (câu hỏi mở số 5).
+- **Hiệp Sĩ:** tắt bằng `C.KNIGHTS_ENABLED = false`; Hiệp Sĩ sót trong save cũ đổi về Viễn Chinh ở đầu lượt. HQ C4: Viễn Chinh +1 bước.
+- **Phái Sinh thay thế:**
+  - D-01 chọn viên khớp đầu tiên theo thứ tự `faces` (KT trước KH) và thay sản lượng công trình chủ của viên đó bằng 1 Hợp Kim, một lần mỗi lần đổ.
+  - D-03 đổi 1 KT của công trình chủ thành 1 Thép, một lần mỗi lần đổ.
+  - D-05: mỗi viên Vàng cho hạn mức chuyển tối đa 2 Vàng (dồn lại, tối đa 4) tới lượt của chủ; lệnh `convertBond{n}` chuyển 1:1, tối đa 5 Tín Phiếu.
+- **Đặc Biệt:**
+  - S-04 Đài Khí Tượng: sau khi đổ, lời nhắc `reroll` cho chủ (đổ lại 1 viên mỗi `rerollEvery` vòng, cấp +2 thêm chọn mặt 1 lần/ván, không tạo tổng 7). Miễn nhiễm Sự Kiện thời tiết và xem trước lá Sự Kiện kế tiếp là stub tới M2. Bỏ Phát Sóng và aura +1 sản lượng.
+  - S-01 +2: `roll{hold = 1|2}` giữ viên đã xem trước và đổ lại viên kia, mỗi lượt một lần, không hạn chế thêm. **Chưa làm:** hiển thị đường đi của Phiến Quân cho chủ Tháp.
+  - TN-12: lời nhắc `ley` cho chủ ô, mỗi viên Hex một lựa chọn trong các tài nguyên mà ô hoặc công trình trên ô sản xuất; viên Hex vẫn cho phiếu nếu đang trong lượt.
+  - S-02: Phiến Quân bị đẩy ra khỏi aura (Trấn Áp hoặc Thiên Đàn) thì người kích hoạt Phiến Quân lần cuối mất 2 Vàng.
+  - TN-07 dưới Đền Thờ: +1 TN mỗi vòng. S-03 xây được trên Khu Dân Cư. S-05 giá 6 TN, địa hình Rừng / Núi / Sông (khóa).
+- **Giao diện (§12.4):**
+  - Làm: chấm Tài Nguyên Cơ Bản trên ô; viền nét đứt cho vùng ảnh hưởng; chữ nổi +x / -x trên ô; ngưỡng, giá mua và giá tranh lại khi rê chuột; nhãn số bước và người điều khiển trên đầu Phiến Quân; tự đổ xúc xắc đầu lượt (tắt được trong menu tạm dừng); nút Lệnh Đuổi; popup đổ lại và Địa Linh; Hoàn tác lệnh cuối (replay, không dùng được với `--give` / `--demo`); seed trong menu tạm dừng; chú thích cách ghi điểm.
+  - **Chưa làm:** camera lia về HQ khi Phiến Quân xong, màu viền riêng cho ô đang chọn để claim, cửa sổ trao đổi giữ mở sau mỗi giao dịch.
+
+## Xung đột tài liệu đã phát hiện (chọn theo Data tới D-019; từ D-020 GDD 1.6 thắng)
 | Chủ đề | GDD §3.1 / §8 | Data | Chọn |
 |---|---|---|---|
 | Đầm Lầy đặt Sub | Không | ✅ (sheet Địa hình: HQ ❌, Sub ✅) | Data |
@@ -417,6 +618,31 @@ Dữ liệu ở `src/data/specials.lua`, aura ở `src/core/aura.lua`, luật �
 | Đầm Lầy đặt HQ/Sub | ❌ cả hai (§3.1 bản PDF) | Sub ✅ | Data (như trên). GDD bản PDF xác nhận lại ❌ |
 | Dỡ công trình trên ô có TN | "Trả về tài nguyên gốc cho tile" (§5.4) | "Phá dỡ ... sẽ làm mất tài nguyên" (sheet TN, ghi chú) | Data: TN mất vĩnh viễn, có cảnh báo (D-014, chủ dự án chốt) |
 | Trao đổi "cho không" | §5.4 vừa cấm vừa cho phép | — | Không cho không, giữ ngân hàng 4:1 (D-014, chủ dự án chốt) |
-| Sản lượng Phái Sinh | Vật liệu **thay** tài nguyên gốc, chọn 1 trong 2 viên (§8.2) | Vật liệu cộng thêm khi ra mặt khớp | Data (D-014) |
+| **Từ đây: GDD 1.6 ↔ Data (2026-11-01)** | **GDD 1.6** | **Data (xlsx 2026-11-01)** | **Chọn (D-020)** |
+| S-04 | Đài Khí Tượng: miễn nhiễm Sự Kiện thời tiết, đổ lại xúc xắc (§8.3) | "CT cùng loại R3 +1"; sheet đơn vị vẫn ghi "Đài Long Mạch: PQ R1 phong tỏa 3 ô" | GDD |
+| S-04, 6 ô quanh | Đều là ô thực hữu | "6 ô xung quanh bất kỳ" | GDD |
+| TN-12 | Hex đổi thành tài nguyên của ô; Đài Khí Tượng giảm chu kỳ đổ lại (§3.4) | "Long Mạch +1 ô; CT nhận từ cả 2 viên"; "Đài QS: Phát Sóng" | GDD |
+| TN-07, bonus Đền Thờ | +1 TN thụ động/vòng | "Đền Thờ: miễn cooldown 1v/5v" | GDD |
+| Sông | Khóa xây tới khi mở khóa (§3.1) | Ma trận cho Đền Thờ C1–C3 | GDD |
+| Đầm Lầy đặt Sub | ❌ (bảng §3.1, cột HQ/Sub) | Sub ✅ | GDD (đảo lựa chọn cũ) |
+| Hình C3 của Trại Khai Thác | Hình 3+3 cho mọi C3 6 ô (§8.1) | 6a (tam giác lớn) | GDD (6b) |
+| S-05 chi phí | 6 TN (§8.3) | 8 TN | GDD |
+| S-05 địa hình | Rừng, Núi, Sông (mở khóa) | thêm Đầm Lầy | GDD |
+| S-03 địa hình | Đồng Bằng, Khu Dân Cư | Đồng Bằng, Bờ Biển | GDD |
+| Hiệp Sĩ | Phase 2; HQ C4 = Viễn Chinh +1 bước (§9.1, §13.2) | HQ C4 tự đổi Viễn Chinh thành Hiệp Sĩ | GDD (chủ dự án chốt): tắt Hiệp Sĩ ở M1.6 |
+| Phân bổ Tài Nguyên Cơ Bản | §3.3: % xuất hiện + lượng 70/30, kèm ngoại lệ | Bảng 0/1/2 trong ảnh designer gửi (D-020 câu 10) | GDD (chủ dự án chốt) |
+| Viện NC C1 trên Rừng | Rừng chỉ còn ⭐ | "+1 KH thụ động" | Còn mở (code đang có) |
+| Trại KT / Đền Thờ / Khu Chợ trên Lãnh Nguyên, Sa Mạc, Đầm Lầy | Bảng §8.1 không liệt kê; §9.4 là bản trích không có các cột này | Ma trận có | Data (GDD không nói) |
+| D-01, cách sản xuất vật liệu | "nhận Hợp Kim thay vì tài nguyên gốc (chọn 1 trong 2 viên)" (§8.2) | "1 HK khi ra KT hoặc KH" | GDD (chủ dự án chốt): D-01, D-03 thay thế; D-02, D-04 cộng thêm; D-05 chuyển đổi |
+| Sản lượng Phái Sinh | Vật liệu **thay** tài nguyên gốc, chọn 1 trong 2 viên (§8.2) | Vật liệu cộng thêm khi ra mặt khớp | Data (D-014). Từ 2026-11-01 đổi theo GDD (D-020), xem dòng "D-01" bên dưới |
 | Đặc Biệt: Đồng Bằng | §8.3 cho S-01/S-02/S-03/S-04 | Sheet Địa hình ❌ CT ĐB, sheet Công trình ✅ | Sheet Công trình (D-014) |
 | Trại Khai Thác C2/C3 trên Rừng/Bờ Biển | §9.4: ✅ | Ma trận ✅, sheet Công trình ❌ | Ma trận cho mọi cấp (D-014, giữ theo D-010) |
+
+## D-021 — Thứ tự việc đầu lượt — 2026-10-12
+- **Chốt (chủ dự án):** hoàn tất dỡ → thu nhập thụ động (kèm dọn và đếm nhịp Phái Sinh) → upkeep đơn vị. Thu nhập của lượt đó trả được upkeep của chính lượt đó.
+- **Khác trước:** code M1.5 chạy dỡ → upkeep đơn vị → thụ động, do thứ tự `require` ngầm định. Từ nay thứ tự khai tường minh một chỗ và có spec canh giữ.
+
+## D-022 — Ô chiếm nhờ TN-06 sau khi TN mất — 2026-10-12
+- **Tình huống:** ô có TN-06 được chiếm với ngưỡng Chi Phối giảm; về sau công trình phủ ô bị dỡ, TN mất (D-014) và ngưỡng của ô tăng lại, nên số phiếu của chủ thấp hơn ngưỡng mới. Mô phỏng seed 5006 (2 người, `rich`) gặp đúng ca này.
+- **Chốt (chủ dự án):** chủ **giữ ô**. Mất TN không xét lại quyền sở hữu.
+- **Triển khai sau M1.6:** khi TN mất, `Territory.syncVotes` nâng phiếu của chủ tới ngưỡng hiện hành; migration khi nạp save cũ cũng đồng bộ phiếu để quyền sở hữu đã lưu tiếp tục hợp lệ.

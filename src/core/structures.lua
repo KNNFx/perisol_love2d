@@ -87,8 +87,10 @@ end
 -- Danh sách công trình theo thứ tự uid (duyệt tất định).
 function S.list(state)
     local out = {}
-    for _, b in pairs(state.buildings) do out[#out + 1] = b end
-    table.sort(out, function(a, c) return a.uid < c.uid end)
+    for uid = 1, (state.nextUid or 1) - 1 do   -- uid tăng dần nên duyệt theo uid đã có thứ tự, không cần sắp xếp
+        local b = state.buildings[uid]
+        if b then out[#out + 1] = b end
+    end
     return out
 end
 

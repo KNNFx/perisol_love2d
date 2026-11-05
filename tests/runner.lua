@@ -6,9 +6,9 @@
 local M = {}
 
 local SPECS = {
-    "construction", "core_utils", "data", "derived", "game", "hex", "hq_levels", "m15_integration", "mapgen",
+    "baseres", "construction", "core_utils", "data", "derived", "game", "hex", "hq_levels", "m15_integration", "mapgen",
     "passives", "production", "rebel", "rng", "roads", "sim", "specials", "structures", "territory", "ui",
-    "units", "wallet", "fuzz", "save", "tn06", "upkeep", "contracts",
+    "units", "wallet", "fuzz", "save", "tn06", "upkeep", "contracts", "rounds",
 }
 M.SPECS = SPECS
 
@@ -93,7 +93,13 @@ end
 function M.run()
     local itTable = setmetatable({ love = itLove }, { __call = function(_, ...) return it(...) end })
     _G.describe, _G.it, _G.expect = describe, itTable, expect
-    for _, mod in ipairs(SPECS) do require("tests." .. mod .. "_spec") end
+
+    local only = os.getenv("TEST_ONLY")
+    for _, mod in ipairs(SPECS) do
+        local selected = not only
+        if only then for word in only:gmatch("[^,]+") do if mod:find(word, 1, true) then selected = true end end end
+        if selected then require("tests." .. mod .. "_spec") end
+    end
 
     local passed, failed, skipped, skippedNames = 0, 0, 0, {}
     for _, suite in ipairs(suites) do

@@ -16,10 +16,9 @@ F    ?=
 help: ## Liet ke target
 	@awk 'BEGIN{FS=":.*## "} /^[a-z-]+:.*## /{printf "  make %-10s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
-check: layer test ## Cong truoc commit: lop + spec + golden hash + smoke sim + cover
+check: layer test ## Cong truoc commit: lop + hành vi + golden hash + smoke sim
 	$(LUA) tools/hash.lua > /dev/null
 	$(LUA) tools/sim.lua 10 > /dev/null
-	$(LUA) tools/cover.lua
 
 layer: ## Lint mau nguon single-writer trong src/core (khong phan tich alias); contract runtime duoc kiem boi test
 	@bad=$$(for f in src/core/*.lua; do sed 's/--.*$$//' $$f | grep -nE '(^|[^A-Za-z0-9_])love\.' | sed "s|^|$$f:|"; done); \

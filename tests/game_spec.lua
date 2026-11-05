@@ -63,19 +63,19 @@ describe("game: setup", function()
         for pid = 1, 3 do
             local p = s.players[pid]
             expect.truthy(p.hq)
-            -- nền + thưởng từ 6 ô quanh HQ (D-013)
-            local expectedBonus = 0
+            -- tài nguyên khởi đầu = toàn bộ Tài Nguyên Cơ Bản của 6 ô quanh HQ (GDD 1.6, D-020 #4), không còn phần nền
+            local expected = 0
             for _, n in ipairs(s.map:neighbors(s.map:get(p.hq.q, p.hq.r))) do
-                if C.START_BONUS_BY_TERRAIN[n.terrain] then expectedBonus = expectedBonus + C.START_BONUS_PER_TILE end
+                for _, v in pairs(n.base or {}) do expected = expected + v end
             end
-            local total, base = 0, 0
+            local total = 0
             for _, v in pairs(p.res) do total = total + v end
-            for _, v in pairs(C.STARTING_RESOURCES) do base = base + v end
-            expect.eq(total, base + expectedBonus)
+            expect.eq(total, expected)
             local owned = 0
             for _, t in ipairs(s.map.list) do if s.owner[State.key(t)] == pid then owned = owned + 1 end end
-            expect.eq(owned, 1, "chỉ ô HQ là thực hữu lúc đầu")
+            expect.eq(owned, 7, "ô HQ và 6 ô quanh là thực hữu miễn phí")
             expect.truthy(Hex.distance(p.hq, s.rebel) >= C.REBEL_SPAWN_MIN_HQ_DIST)
+            expect.falsy(Rebel.isHQTile(s, s.map:get(s.rebel.q, s.rebel.r)), "Phiến Quân không đứng trên ô HQ")
         end
         expect.eq(Game.actor(s), s.order[1])
     end)
@@ -114,7 +114,7 @@ describe("game: vòng chơi", function()
         expect.truthy(sevens < rolls)
     end)
 
-    it("đủ 20 vòng thì kết thúc ở pha over; vòng và lượt đúng", function()
+    it("đủ N = 10 x số người vòng thì kết thúc ở pha over; vòng và lượt đúng", function()
         for players = 1, 4 do
             local s = setup(20 + players, players)
             local turns = 0
@@ -123,15 +123,16 @@ describe("game: vòng chơi", function()
                 Game.apply(s, { type = "endTurn" })
                 turns = turns + 1
             end
-            expect.eq(turns, C.ROUNDS_PER_GAME * players)
-            expect.eq(s.round, C.ROUNDS_PER_GAME + 1)
+            expect.eq(s.rounds, C.ROUNDS_PER_PLAYER * players)
+            expect.eq(turns, s.rounds * players)
+            expect.eq(s.round, s.rounds + 1)
             expect.eq(Game.actor(s), nil)
             expect.eq(#Game.legal(s), 0)
             expect.falsy(Game.check(s, { type = "endTurn" }))
         end
     end)
 
-    it("mốc Sự Kiện Tổng (vòng 5/10/15/20) được ghi nhận ở lượt đầu vòng", function()
+    it("mốc Sự Kiện Tổng (mỗi 5 vòng) được ghi nhận ở lượt đầu vòng", function()
         local s = setup(9, 2)
         while s.phase ~= "over" do
             toAction(s)
@@ -141,7 +142,7 @@ describe("game: vòng chơi", function()
         for _, e in ipairs(s.log) do
             if e.kind == "global_event" then rounds[#rounds + 1] = e.round end
         end
-        expect.deepEq(rounds, C.EVENT_ROUNDS)
+        expect.deepEq(rounds, { 5, 10, 15, 20 })
     end)
 
     it("mọi lệnh trong legal() đều qua check()", function()
@@ -165,13 +166,17 @@ describe("game: hành động", function()
         local pid = Game.actor(s)
         local res = s.players[pid].res
 
-        res.culture, res.gold = 3, 6
+        res.culture, res.gold = 9, 12
         local buy = find(s, "buyTile")
-        expect.truthy(buy, "phải có ô mua được quanh HQ")
-        s.map:get(buy.q, buy.r).terrain = "DH-01"
+        expect.truthy(buy, "phải có ô mua được kề lãnh thổ (mở rộng liền kề)")
+        local tile = s.map:get(buy.q, buy.r)
+        tile.terrain = "DH-01"
+        local price = Territory.buyTileCost(s, pid, tile)   -- (1+d) VH + (2+d) V
+        local d = Territory.distanceToAnchor(s, pid, tile)
+        expect.eq(price.culture, 1 + d); expect.eq(price.gold, 2 + d)
         Game.apply(s, buy)
         expect.eq(s.owner[State.key(buy)], pid)
-        expect.eq(res.culture, 2); expect.eq(res.gold, 5)
+        expect.eq(res.culture, 9 - price.culture); expect.eq(res.gold, 12 - price.gold)
         expect.falsy(Game.check(s, buy), "ô đã có chủ")
 
         res.science = 4
@@ -184,9 +189,8 @@ describe("game: hành động", function()
         expect.falsy(Game.check(s, { type = "trade", give = "gold", get = "gold" }))
 
         res.engineering, res.gold = 5, 5
-        local build = find(s, "build")
-        expect.truthy(build, "phải xây được trên ô vừa mua")
-        expect.eq(build.q, buy.q)
+        local build = { type = "build", id = "B-01", q = buy.q, r = buy.r }
+        expect.truthy(Game.check(s, build), "phải xây được trên ô vừa mua")
         local cost = Game.buildCost(s, pid, build.id, s.map:get(build.q, build.r))
         local before = {}
         for k, v in pairs(res) do before[k] = v end
@@ -396,7 +400,7 @@ describe("scoring", function()
         local s = setup(50, 2)
         for pid = 1, 2 do for k in pairs(s.players[pid].res) do s.players[pid].res[k] = 0 end end
         local base = Scoring.score(s)
-        expect.eq(base[1].tiles, 1); expect.eq(base[1].total, 1)
+        expect.eq(base[1].tiles, 7); expect.eq(base[1].total, 7)   -- ô HQ + 6 ô quanh là thực hữu
 
         s.players[1].res.gold = 12                      -- 2 điểm (12 // 5)
         local lm = s.map.landmarks[1]
@@ -407,7 +411,7 @@ describe("scoring", function()
         expect.eq(sc[1].resources, 2)
         expect.eq(sc[1].landmarks, C.SCORE_LANDMARK)
         expect.eq(sc[1].buildings, C.SCORE_BUILDING_C2)
-        expect.eq(sc[1].tileCount, 1 + #lm.tiles)
+        expect.eq(sc[1].tileCount, 7 + #lm.tiles)
 
         -- Danh Thắng tính cho người sở hữu nhiều ô nhất trong cụm (D-013), hòa thì không ai
         if #lm.tiles > 2 then
@@ -450,7 +454,7 @@ describe("game: địa hình và save cũ (D-013)", function()
         expect.eq(Game.buildCost(s, pid, "B-01", tundra).engineering, 2)
     end)
 
-    it("save version 1 được nâng lên version 2 khi nạp", function()
+    it("save version 1 được nâng lên bản hiện tại khi nạp", function()
         local s = setup(61, 2)
         local data = Serialize.load(Game.save(s))
         data.version = 1
@@ -459,5 +463,6 @@ describe("game: địa hình và save cũ (D-013)", function()
         expect.truthy(back, err)
         expect.eq(back.players[1].hqLevel, 1)
         expect.eq(back.players[2].hqLevel, 1)
+        expect.eq(back.rounds, C.ROUNDS_REFERENCE, "save cũ là ván 20 vòng")
     end)
 end)

@@ -35,7 +35,7 @@ T.list = {
       color = { 0.90, 0.68, 0.30 }, sprite = "desert",
       effects = { output = { faith = "none" } } },
     { id = "DH-08", name = "Đầm Lầy",     en = "Swamp",           rarity = "uncommon",
-      canHQ = false, canSub = true,  canBuild = true,  canSpecial = false, passable = true,
+      canHQ = false, canSub = false, canBuild = true,  canSpecial = false, passable = true,   -- GDD 1.6: Đầm Lầy không đặt HQ/Sub (D-020)
       color = { 0.36, 0.45, 0.34 }, sprite = nil },
     { id = "DH-09", name = "Đồi Cỏ",      en = "Grassland Hills", rarity = "uncommon",
       canHQ = true,  canSub = true,  canBuild = true,  canSpecial = true,  passable = true,

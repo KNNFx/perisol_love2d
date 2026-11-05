@@ -1,4 +1,4 @@
--- D-020: ô chiếm nhờ TN-06 (ngưỡng giảm) vẫn thuộc chủ sau khi TN mất; bất biến chỉ nới đúng ca đó.
+-- D-022: ô chiếm nhờ TN-06 vẫn thuộc chủ sau khi TN mất; phiếu được đồng bộ theo ngưỡng hiện hành.
 
 local Game       = require("src.core.game")
 local Hex        = require("src.core.hex")
@@ -44,7 +44,7 @@ local function claimBuildDemolish(s, pid, t)
     expect.eq(Structures.at(s, t), nil)
 end
 
-describe("D-020: ô chiếm nhờ TN-06", function()
+describe("D-022: ô chiếm nhờ TN-06", function()
     it("mất TN-06 sau khi dỡ: chủ giữ ô, bất biến qua, save/load nạp được", function()
         local s, pid, t = setup("TN-06")
         expect.eq(Territory.threshold(s, pid, t), 1)
@@ -52,7 +52,7 @@ describe("D-020: ô chiếm nhờ TN-06", function()
         expect.truthy(s.lostStrategic[key(t)])
         expect.eq(Territory.threshold(s, pid, t), 2, "ngưỡng hiện hành đã tăng lại")
         expect.eq(s.owner[key(t)], pid, "chủ vẫn giữ ô")
-        expect.eq(Territory.votesOn(s, t, pid), 1)
+        expect.eq(Territory.votesOn(s, t, pid), Territory.threshold(s, pid, t))
         local ok, why = Invariants.check(s)
         expect.truthy(ok, why)
         local loaded, err = Game.load(Game.save(s))

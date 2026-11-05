@@ -83,6 +83,11 @@ function U.quotaMax(quota) return C[QUOTA_MAX[quota]] end
 -- trong bán kính TN04_HOME_RADIUS (D-015).
 function U.baseMove(state, u)
     local mp = C[U.TYPES[u.type].base]
+    -- HQ C4 (GDD 1.6 §9.1): Viễn Chinh +1 bước mỗi vòng khi chưa có Hiệp Sĩ (Phase 2)
+    local hq = state.players[u.owner]
+    if u.type == "expedition" and not C.KNIGHTS_ENABLED and hq and (hq.hqLevel or 1) >= 4 then
+        mp = mp + C.HQ_C4_EXPEDITION_BONUS
+    end
     local tile = U.tileOf(state, u)
     if tile then
         local tn = Structures.strategicAt(state, tile)
@@ -342,11 +347,14 @@ function U.suppress(state, u, dir, pay)
     if success then
         local path = Rebel.pushPath(state, dir, C.SUPPRESS_PUSH_TILES)
         local to = path[#path]
-        local from = Rebel.moveTo(state, to.q, to.r)
+        local from = Rebel.position(state)
+        local toll = Rebel.fortressToll(state, from, to)
+        Rebel.moveTo(state, to.q, to.r)
         state.rebel.suppressedRound = state.round
         Wallet.gain(state.players[pid].res, "faith", C.SUPPRESS_REWARD_FAITH)
         events[#events + 1] = { kind = "suppress", pid = pid, uid = u.uid, ok = true, roll = roll, threshold = threshold,
                                 paid = pay or false, from = from, to = { q = to.q, r = to.r }, q = to.q, r = to.r }
+        if toll then events[#events + 1] = toll end
     else
         events[#events + 1] = { kind = "suppress", pid = pid, uid = u.uid, ok = false, roll = roll, threshold = threshold,
                                 paid = false, q = u.q, r = u.r }
@@ -364,9 +372,21 @@ function U.suppress(state, u, dir, pay)
     return events
 end
 
--- HQ C4+: mọi Viễn Chinh của `pid` tự nâng thành Hiệp Sĩ, giữ nguyên điểm di chuyển và trạng thái (Data §2).
+-- HQ C4+ và KNIGHTS_ENABLED: mọi Viễn Chinh của `pid` tự nâng thành Hiệp Sĩ, giữ nguyên điểm di chuyển và trạng thái (Data §2).
+-- GDD 1.6 đưa Hiệp Sĩ sang Phase 2 (D-020): khi tắt, HQ C4 chỉ cho Viễn Chinh +HQ_C4_EXPEDITION_BONUS bước, và Hiệp Sĩ còn sót
+-- (save cũ) được đổi về Viễn Chinh.
 function U.transformArmy(state, pid, events)
     local hq = state.players[pid]
+    if not C.KNIGHTS_ENABLED then
+        for _, u in ipairs(U.ownedBy(state, pid)) do
+            if u.type == "knight" then
+                u.type = "expedition"
+                events[#events + 1] = { kind = "unit_transform", pid = pid, uid = u.uid, from = "knight", to = "expedition",
+                                        q = u.q, r = u.r }
+            end
+        end
+        return
+    end
     if hq.hqLevel < C.HQ_KNIGHT_LEVEL then return end
     for _, u in ipairs(U.ownedBy(state, pid)) do
         if u.type == "expedition" then

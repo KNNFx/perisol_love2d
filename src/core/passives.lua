@@ -68,6 +68,11 @@ function Passives.compute(state, pid)
                         add(b.id, y.res, y.n, tiles[1])
                     end
                 end
+                if b.id == "B-04" then   -- Đá Thiêng TN-07 dưới Đền Thờ: +1 TN thụ động mỗi vòng (GDD 1.6 §3.4)
+                    for _, t in ipairs(tiles) do
+                        if Structures.strategicAt(state, t) == "TN-07" then add("TN-07", "faith", C.TN07_TEMPLE_PASSIVE, tiles[1]) break end
+                    end
+                end
                 local fx = Terrains.byId[tiles[1].terrain].effects
                 for _, p in ipairs(fx and fx.passive or {}) do
                     if p.building == b.id and p.level == b.level then add(b.id, p.res, p.n, tiles[1]) end

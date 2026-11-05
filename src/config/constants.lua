@@ -17,7 +17,8 @@ C.SUPPRESS_THRESHOLD_FLOOR      = 2
 C.SUPPRESS_GUARANTEE_FAITH      = 2
 C.REBEL_BLOCKADE_TILES          = 7
 C.REBEL_MOVE_DICE               = 6
-C.REBEL_MOUNTAIN_LOCK_ROUNDS    = 10
+C.REBEL_MOUNTAIN_LOCK_ROUNDS    = 10   -- ghi cho ván 20 vòng; quy đổi theo số vòng (src/core/rounds.lua)
+C.REBEL_HARASS_BEFORE_EXPEL     = 3    -- bị quấy phá HƠN ngần này lượt liên tiếp thì có Lệnh Đuổi Phiến Quân (GDD 1.6 §6.2)
 C.EXPEDITION_UPKEEP_GOLD        = 1   -- Từ đơn vị thứ 2 (đề xuất)
 C.ROAD_COST_PER_TILE            = 1
 C.TRADE_FEE_PER_TILE            = 1
@@ -62,20 +63,16 @@ C.START_ZONE_MIN_BUILDABLE = 12  -- mỗi vùng tối thiểu
 C.START_ZONE_MAX_SPREAD    = 4   -- chênh lệch tối đa giữa vùng nhiều nhất và ít nhất
 
 -- ─── M1 core loop (docs/Decisions.md D-006..D-010) ─────────────────────────
-C.ROUNDS_PER_GAME = 20
-C.EVENT_ROUNDS    = { 5, 10, 15, 20 }   -- lật Sự Kiện Tổng (stub ở M1)
+-- Số vòng (GDD 1.6 §11.3, D-020 #1): N = ROUNDS_PER_PLAYER x số người, tùy chỉnh theo bội của ROUND_STEP.
+C.ROUNDS_PER_PLAYER = 10
+C.ROUND_STEP        = 10
+C.ROUNDS_REFERENCE  = 20                -- ván mà các mốc vòng của Data (HQ C4 vòng 11, Sub C3 vòng 16...) được ghi cho
+C.MAX_ROUNDS        = 100               -- trần cho menu (GDD "không giới hạn trên")
+C.EVENT_EVERY       = 5                 -- lật Sự Kiện Tổng mỗi 5 vòng (stub tới M2)
 C.SEVEN           = 7                    -- tổng hai mặt kích hoạt Phiến Quân (D-008)
 
--- Khởi đầu (D-013): nền cố định + thưởng từ 6 ô quanh HQ theo bảng địa hình.
-C.STARTING_RESOURCES = { science = 1, culture = 1, engineering = 1, faith = 1, gold = 3 }
-C.START_BONUS_PER_TILE = 1
-C.START_BONUS_BY_TERRAIN = {
-    ["DH-01"] = "gold", ["DH-05"] = "gold", ["DH-07"] = "gold",
-    ["DH-02"] = "science",
-    ["DH-03"] = "engineering", ["DH-06"] = "engineering", ["DH-09"] = "engineering", ["DH-12"] = "engineering",
-    ["DH-04"] = "faith", ["DH-08"] = "faith",
-    ["DH-10"] = "culture", ["DH-11"] = "culture",
-}
+-- Tài nguyên khởi đầu (GDD 1.6 §11.1 bước 8, D-020 #4): toàn bộ Tài Nguyên Cơ Bản của 6 ô quanh HQ, nhận 1 lần.
+-- Không còn phần nền cố định (STARTING_RESOURCES) hay bảng thưởng theo địa hình của D-013. Số liệu CB: src/data/baseresources.lua.
 C.BANK_TRADE_RATE    = 4                 -- 4 tài nguyên cùng loại đổi 1 loại bất kỳ (D-007)
 
 C.VOTES_PER_HEX_FACE = 1                 -- phiếu Chi Phối cho mỗi viên ra mặt Hex (D-006)
@@ -108,7 +105,9 @@ C.SUB_UPGRADE_COST = {
     [2] = { engineering = 4, gold = 3 },
     [3] = { engineering = 6, steel = 2, gold = 5 },
 }
-C.HQ_C4_MIN_ROUND  = 11                  -- HQ C4: từ vòng 11 (tự đổi Viễn Chinh thành Hiệp Sĩ)
+C.KNIGHTS_ENABLED  = false               -- GDD 1.6: Hiệp Sĩ để Phase 2 (D-020); true = hành vi D-017 (HQ C4 đổi Viễn Chinh thành Hiệp Sĩ)
+C.HQ_C4_EXPEDITION_BONUS = 1             -- HQ C4 khi chưa có Hiệp Sĩ: Viễn Chinh +1 bước mỗi vòng (GDD 1.6 §9.1)
+C.HQ_C4_MIN_ROUND  = 11                  -- HQ C4: từ vòng 11 (ghi cho ván 20 vòng)
 C.SUB_C3_MIN_ROUND = 16                  -- Sub C3: từ vòng 16 (Đô Thị Vệ Tinh)
 C.HQ_C5_AURA_RADIUS = 2                  -- HQ C5: +1 sản lượng cho công trình "nội đô" trong bán kính này
 C.KNIGHT_RETREAT_COOLDOWN = 5            -- Hiệp Sĩ thua Trấn Áp thì rút về HQ, tối đa 1 lần mỗi 5 vòng (mỗi người chơi)
@@ -116,11 +115,12 @@ C.SUB_COST = { faith = 3, gold = 3, engineering = 3 }
 C.SUB_MIN_DIST_OWN   = 2                 -- cách HQ/Sub của chính mình >= 2
 C.SUB_MIN_DIST_RIVAL = 3                 -- cách HQ/Sub của đối thủ >= 3
 
--- Mua ô trong vùng ảnh hưởng (GDD §7.2): giá = BASE × GROWTH^(khoảng cách − 1).
-C.BUY_TILE_BASE   = { gold = 1, culture = 1 }
-C.BUY_TILE_GROWTH = 2
+-- Mua ô (GDD 1.6 §7.2, D-020 #5): giá mỗi loại = base + step x d, d = khoảng cách tới HQ/Sub gần nhất, tối thiểu 1.
+-- (1+d) Văn Hóa + (2+d) Vàng: d = 1 là 2 VH + 3 V. Áp dụng cả với ô ngoài vùng ảnh hưởng (mở rộng liền kề).
+C.BUY_TILE_COST = { culture = { base = 1, step = 1 }, gold = { base = 2, step = 1 } }
+C.VOTE_OUTSIDE_BONUS    = 1   -- ngưỡng phiếu +1 cho ô ngoài vùng ảnh hưởng (mở rộng liền kề)
+C.HIGH_VALUE_BASE_TOTAL = 3   -- ô giá trị cao: tổng Tài Nguyên Cơ Bản từ mức này (hoặc có TN) mới bị tranh lại được
 
-C.REBEL_SPAWN_TERRAINS   = { "DH-01", "DH-06", "DH-07" }  -- Data §2 (U-03)
 C.REBEL_SPAWN_MIN_HQ_DIST = 2
 C.REBEL_MOUNTAIN_COST    = 3             -- sau khi hết khóa (REBEL_MOUNTAIN_LOCK_ROUNDS)
 
@@ -153,11 +153,16 @@ C.TN06_MARKET_RATE       = 1        -- TN-06 + Khu Chợ C2+: đổi ngân hàng
 -- Công trình Phái Sinh (phase G, D-018)
 C.DERIVED_MAX_GAP        = 2        -- 3 ô trống trở lên: không thể kết hợp dù có đường (GDD §8.2)
 C.BOND_MAX               = 5        -- D-05: tối đa 5 Tín Phiếu cùng lúc
+C.BOND_ALLOW_PER_GOLD_DIE = 2       -- D-05: mỗi viên Vàng cho phép chuyển tối đa 2 Vàng thành Tín Phiếu (GDD 1.6 §8.2)
+C.BOND_ALLOW_MAX         = 4        -- hạn mức chuyển dồn lại tối đa (cho tới lượt của chủ)
 C.BOND_INTEREST          = 0.5      -- Vàng lãi mỗi Tín Phiếu mỗi vòng
 C.BOND_REDEEM_GOLD       = 2        -- đổi 1 Tín Phiếu lấy 2 Vàng
+C.TN07_TEMPLE_PASSIVE    = 1        -- TN-07 Đá Thiêng dưới Đền Thờ: +1 TN mỗi vòng (GDD 1.6 §3.4)
 C.TN05_ALLOY_BONUS       = 1        -- TN-05 trên ô chủ của D-01: +1 Hợp Kim mỗi vòng
 
-C.SAVE_VERSION       = 4              -- version file save (D-011, v3 = D-014, v4 = State khai đủ trường, M2b-1)
+C.BUILD_ON_RIVER_LOCKED = true   -- GDD 1.6 §3.1: Sông khóa xây tới khi mở khóa (M2: thẻ Tuyến Vận Tải Nước)
+
+C.SAVE_VERSION       = 5              -- v4 = luật M1.6; v5 = schema contract hợp nhất
 
 -- ─── Render ────────────────────────────────────────────────────────────────
 -- Sprite hex pointy-top 32×32; lát gạch bước ngang 32, bước dọc 24.

@@ -55,7 +55,10 @@ describe("data: buildings", function()
         expect.truthy(Buildings.allowedOn("B-01", 2, "DH-03"))
         expect.eq(Buildings.allowedOn("B-02", 1, "DH-02"), "pref")
         expect.eq(Buildings.allowedOn("B-03", 1, "DH-10"), "pref")
-        expect.truthy(Buildings.allowedOn("B-04", 1, "DH-04"))   -- Đền Thờ trên Sông
+        expect.falsy(Buildings.allowedOn("B-04", 1, "DH-04"))   -- Sông bị khóa xây (GDD 1.6)
+        C.BUILD_ON_RIVER_LOCKED = false
+        expect.truthy(Buildings.allowedOn("B-04", 1, "DH-04"))   -- mở khóa: Đền Thờ xây được trên Sông
+        C.BUILD_ON_RIVER_LOCKED = true
         expect.falsy(Buildings.allowedOn("B-05", 3, "DH-10"))
         expect.falsy(Buildings.allowedOn("B-01", 1, "DH-11"))    -- không ai xây trên Danh Thắng
     end)
@@ -83,15 +86,10 @@ describe("data: movement + constants M1", function()
 
     it("hằng số M1 hợp lý", function()
         expect.eq(#C.CHI_PHOI_THRESHOLD, 3)
-        expect.eq(C.ROUNDS_PER_GAME, 20)
-        for _, r in ipairs(C.REBEL_SPAWN_TERRAINS) do expect.truthy(Terrains.byId[r], r) end
-        for key in pairs(C.STARTING_RESOURCES) do expect.truthy(Resources.byKey[key], key) end
-        for key in pairs(C.BUY_TILE_BASE) do expect.truthy(Resources.byKey[key], key) end
+        expect.eq(C.ROUNDS_PER_PLAYER, 10)
+        expect.eq(C.ROUNDS_REFERENCE, 20)
+        for key in pairs(C.BUY_TILE_COST) do expect.truthy(Resources.byKey[key], key) end
         for key in pairs(C.SUB_COST) do expect.truthy(Resources.byKey[key], key) end
-        for terrain, res in pairs(C.START_BONUS_BY_TERRAIN) do
-            expect.truthy(Resources.byKey[res], res)
-            expect.truthy(Terrains.byId[terrain], terrain)
-        end
         expect.eq(#C.INFLUENCE_RADIUS_HQ, C.HQ_MAX_LEVEL)
         expect.eq(#C.INFLUENCE_RADIUS_SUB, C.SUB_MAX_LEVEL)
         for _, group in ipairs({ C.HQ_UPGRADE_COST, C.SUB_UPGRADE_COST }) do

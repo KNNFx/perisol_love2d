@@ -67,7 +67,7 @@ Cột "Trước" là mốc lịch sử 2026-10-12 (giữ nguyên bên dưới). 
 | Vấn đề | Bằng chứng |
 |---|---|
 | Seed test cố định | Spec dùng seed 1000–1029 và 100–112; `--sim` luôn bắt đầu từ seed 1 |
-| Vi phạm bất biến khi đổi seed | Seed 5006, 2 người, `rich`: `ô 3,1 của P2 có 1 phiếu < ngưỡng 2` (xem D-020 bên dưới) |
+| Vi phạm bất biến khi đổi seed | Seed 5006, 2 người, `rich`: `ô 3,1 của P2 có 1 phiếu < ngưỡng 2` (xem D-022 bên dưới) |
 | Bot thường không phủ M1.5 | 300 ván: 9/27 loại lệnh không bao giờ chạy (`foundSub`, `upgradeSub`, `proposeTrade`, `respond`, `buildDerived`, `redeemBond`, `buildSpecial`, `upgradeSpecial`, `fortressStrike`) |
 | Bot `rich` chưa chạm Đặc Biệt | 30 ván seed 5000–5029: 3 lệnh Đặc Biệt vẫn bằng 0; 5,3 giây mỗi ván |
 | Runner dính LÖVE | `tests/runner.lua` dùng `love.filesystem.getDirectoryItems` |
@@ -97,11 +97,11 @@ Chặn một phần Giai đoạn 2. Giai đoạn 1 và 3 không cần chờ.
 
 | # | Câu hỏi | Mặc định đề xuất |
 |---|---|---|
-| D-020 | Ô có TN-06 được chiếm bằng ngưỡng giảm; sau đó công trình trên ô bị dỡ, TN mất, ngưỡng tăng lại. Giữ ô hay xét lại chủ? | Giữ ô và nới bất biến trong `Sim.invariants`; ít bất ngờ cho người chơi |
+| D-022 | Ô có TN-06 được chiếm bằng ngưỡng giảm; sau đó công trình trên ô bị dỡ, TN mất, ngưỡng tăng lại. Giữ ô hay xét lại chủ? | Giữ ô; đồng bộ phiếu tới ngưỡng hiện hành khi TN mất |
 | D-021 | Thứ tự việc đầu lượt | Dỡ → thu nhập thụ động (kèm Phái Sinh) → upkeep đơn vị, để thu nhập lượt đó trả được upkeep |
 | — | Windows còn là máy dev không? | Makefile là nguồn chính; `.bat` giữ làm shim một dòng |
 
-- [x] Chốt D-020 và ghi vào `docs/Decisions.md` — giữ ô
+- [x] Chốt D-022 và ghi vào `docs/Decisions.md` — giữ ô
 - [x] Chốt D-021 và ghi vào `docs/Decisions.md` — dỡ → thụ động → upkeep
 - [x] Chốt vai trò của Windows — `.bat` giữ làm shim
 
@@ -114,7 +114,7 @@ Làm trước vì đây là lưới an toàn cho mọi bước sau. Người, ag
 | Target | Việc | Ghi chú |
 |---|---|---|
 | `make help` | Liệt kê target | Mặc định khi gõ `make` |
-| `make check` | Kiểm tra lớp + `test` + smoke sim + `cover` | Cổng duy nhất trước commit |
+| `make check` | Kiểm tra lớp + spec hành vi + golden hash + smoke sim | Cổng trước commit |
 | `make test` | Chạy spec bằng `luajit` thuần | Từ đó "core không gọi `love.*`" được canh giữ tự động |
 | `make test-love` | Chạy suite trong LÖVE (`--test`) | Cho phần cần LÖVE |
 | `make sim N=` | Batch ván ngẫu nhiên, in thống kê | Thay nhánh `--sim` trong `main.lua` |
@@ -165,7 +165,7 @@ Mỗi dòng: viết test trước, rồi mới sửa code.
 - [x] Chủ sở hữu ghi: `Rebel.moveTo`, `Roads.build/upgrade/damage*`, `Units.spawn/remove` là điểm ghi duy nhất.
   > **Lệch:** canh bằng grep trong `make layer`, không bằng test.
 - [x] Đầu lượt (cần D-021): `Upkeep.steps` khai tường minh (demolish → passives → units); `tests/upkeep_spec.lua` canh thứ tự.
-- [x] Bất biến TN-06 (cần D-020): `Invariants.check` nới cho ô trong `state.lostStrategic`; `tests/tn06_spec.lua`.
+- [x] Bất biến TN-06 (cần D-022): khi dỡ làm mất TN, đồng bộ phiếu với ngưỡng mới và giữ quyền sở hữu; `tests/tn06_spec.lua`.
 
 **Xong khi:** mỗi contract có ít nhất một test đỏ khi vi phạm, và `make check` + `make sweep N=200` xanh.
 
@@ -191,7 +191,7 @@ Không đổi hành vi. `make check` và `make sweep` là lưới an toàn; stat
 ## 7. Giai đoạn 4 — Đồng bộ tài liệu
 
 - [x] `CLAUDE.md`: mục Commands trỏ về `make`; câu "không có Lua standalone" đã sửa; thứ tự upkeep đã khớp D-021; thêm mục "Contracts and tests" kèm bộ lọc 3 câu
-- [x] `docs/Decisions.md`: D-020, D-021 (đã có từ trước, `d5ced22`)
+- [x] `docs/Decisions.md`: D-021, D-022; D-020 được dùng cho quyết định GDD 1.6 trên main
 - [x] `plan.md`: P4 đổi "effect registry and event bus" thành "viết 3 thẻ mỗi loại trước, trích sau"; trỏ sang tài liệu này
 
 ---
@@ -307,10 +307,38 @@ nó có cùng tiền/hậu điều kiện với abstraction đang dùng trước
 3. **Lint cấu trúc:** `make layer` quét mẫu nguồn trong `src/core/*.lua`, có ngoại lệ ghi rõ bằng marker. Nó không
    theo alias (`local r = state.roads[k]`) và không chứng minh quyền ghi được đóng kín. Thêm cách ghi mới phải review
    theo ownership; không diễn giải dòng lint xanh thành bảo đảm runtime.
-4. **Hồi quy tích hợp:** `make check` gồm layer, specs, golden, smoke và coverage đã khai khoảng trống.
+4. **Hồi quy tích hợp:** `make check` gồm layer, specs hành vi, golden và smoke sim. `make cover` là báo cáo tùy chọn về các command/event bot chưa kích hoạt; coverage không phải mục tiêu của test.
    `make test-love` kiểm cả Save.write/read trên filesystem LÖVE. Thay đổi contract giữ nguyên luật phải giữ golden;
    không sinh lại fixture để che lỗi. Save hợp lệ cũ phải tiếp tục chơi được; siết validation không cần đổi version nếu
    hình dạng state hợp lệ không đổi.
 
 Khi thêm API hoặc mở rộng abstraction, cập nhật contract, enforcement và test trong cùng thay đổi. Nếu còn tiền điều kiện
 chỉ được caller bảo đảm, ghi rõ thay vì tuyên bố API an toàn với mọi đầu vào.
+
+---
+
+## 13. Port sang luật M1.6 trên `main` — 2026-11-05
+
+Nhánh hardening được ghép với M1.6. Luật và data từ GDD 1.6 là chuẩn; API Wallet, giá, command, prompt và save được điều chỉnh theo các luật đó.
+
+- D-020 giữ nghĩa đồng bộ GDD 1.6; D-021 là thứ tự đầu lượt; quyết định TN-06 cũ chuyển thành D-022.
+- Save hiện v5: v3→v4 thêm dữ liệu M1.6; v4→v5 chuẩn hóa schema/contract. `Game.replay` và repro giữ `rounds` tùy chỉnh.
+- Prompt `reroll` và `ley` được validate khi mở, trả lời và load. Cờ vắng mặt dùng `false` nhất quán với các guard của M1.6.
+- Khi TN mất, phiếu của chủ được đồng bộ tới ngưỡng hiện hành để giữ quyền sở hữu; save cũ được hòa giải sau khi dựng lại map.
+- Thu nhập từ ô, cướp phá, phí Pháo Đài và chuyển Tín Phiếu đi qua Wallet.
+- Xác minh theo nhóm: 370 ca `luajit` pass, 0 fail; sweep 10 ván thường và 6 ván `rich` sạch; golden hash M1.6 khớp 15/15. `test-love` không chạy được do môi trường thiếu SDL display.
+- `make cover` là công cụ chẩn đoán tùy chọn, không nằm trong `make check`; coverage không phải mục tiêu test.
+
+---
+
+## 13. Port sang luật M1.6 trên `main` — 2026-11-05
+
+Nhánh hardening được ghép với M1.6. Luật và dữ liệu GDD 1.6 từ `main` là chuẩn; các API Wallet, giá, command, prompt và save được port theo các luật đó.
+
+- D-020 giữ nghĩa quyết định GDD 1.6; D-021 là thứ tự đầu lượt; quyết định TN-06 cũ được đánh lại D-022.
+- Save hiện v5: v3→v4 thêm trường luật M1.6; v4→v5 chuẩn hóa schema/contract. `Game.replay` và repro giữ `rounds` tùy chỉnh.
+- Prompt `reroll` và `ley` được validate cùng lúc mở, trả lời và load. Các cờ M1.6 dùng sentinel `false` nhất quán.
+- Khi TN mất, phiếu chủ được đồng bộ tới ngưỡng mới để giữ quyền sở hữu; save cũ được hòa giải sau khi dựng lại map.
+- Các khoản tài nguyên M1.6 (thu nhập ô, cướp phá, Pháo Đài, chuyển Tín Phiếu) đi qua Wallet.
+- Xác minh theo nhóm: 370 ca luajit pass, 0 fail; sweep 10 ván thường và 6 ván rich sạch; golden hash M1.6 khớp 15/15. `test-love` không chạy được do thiếu SDL display.
+- `make cover` là công cụ chẩn đoán tùy chọn; không nằm trong `make check`.

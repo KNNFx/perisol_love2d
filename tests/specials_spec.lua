@@ -49,7 +49,7 @@ describe("specials: dữ liệu", function()
         local base = { ["S-01"] = { alloy = 3, science = 5, paper = 2 }, ["S-02"] = { steel = 3, engineering = 6, gold = 5 },
                        ["S-03"] = { silk = 2, paper = 3, culture = 6, gold = 4 },
                        ["S-04"] = { alloy = 2, paper = 2, science = 4, engineering = 4 },
-                       ["S-05"] = { faith = 8, silk = 2, steel = 1, gold = 4 } }
+                       ["S-05"] = { faith = 6, silk = 2, steel = 1, gold = 4 } }   -- GDD 1.6: 6 TN
         for id, cost in pairs(base) do
             local d = Data.byId[id]
             expect.eq(#d.levels, 3)
@@ -98,7 +98,7 @@ describe("specials: điều kiện xây", function()
         expect.eq(b.id, "S-01"); expect.eq(#b.tiles, 7); expect.eq(b.level, 1)
         expect.truthy(Sim.invariants(s))
         ok, why = Specials.checkBuild(s, pid, "S-01", c.q + 7, c.r - 1, 0)
-        expect.falsy(ok); expect.eq(why, "Bạn đã có Tháp Thiên Văn")
+        expect.falsy(ok); expect.eq(why, "Bạn đã có Tháp Quan Sát Thiên Văn")
     end)
 
     it("từ chối: ô không thuộc mình, đã có công trình, địa hình trung tâm sai, hình vượt bản đồ", function()
@@ -111,9 +111,12 @@ describe("specials: điều kiện xây", function()
         ok, why = Specials.checkBuild(s, pid, "S-01", ctr.q, ctr.r, 0)
         expect.falsy(ok); expect.eq(why, "Mọi ô phải là lãnh thổ thực hữu của bạn")
         s.owner[key(at(s, c, 5, -1))] = pid
-        ctr.terrain = "DH-04"
+        ctr.terrain = "DH-05"
         ok, why = Specials.checkBuild(s, pid, "S-01", ctr.q, ctr.r, 0)
         expect.falsy(ok); expect.truthy(why:find("không xây được", 1, true))
+        ctr.terrain = "DH-04"
+        ok, why = Specials.checkBuild(s, pid, "S-01", ctr.q, ctr.r, 0)
+        expect.falsy(ok); expect.eq(why, "Sông đang bị khóa xây")
         ctr.terrain = "DH-01"
         ok, why = Specials.checkBuild(s, pid, "S-01", -5, -5, 0)
         expect.falsy(ok); expect.eq(why, "Hình vượt ra ngoài bản đồ")
@@ -218,7 +221,7 @@ describe("specials: nâng cấp +1 / +2", function()
     end)
 end)
 
-describe("specials: S-01 Tháp Thiên Văn", function()
+describe("specials: S-01 Tháp Quan Sát Thiên Văn", function()
     it("aura +1 KH mỗi viên KH cho Viện NC của chủ trong bán kính; không cho ô ngoài aura hay của người khác", function()
         local s, pid, c = setup()
         local tower = put(s, pid, c, "S-01", 1, { { 3, -1 }, { 4, -1 }, { 4, -2 }, { 3, -2 }, { 2, -1 }, { 2, 0 }, { 3, 0 } })
@@ -395,50 +398,162 @@ describe("specials: S-03 Bảo Tàng, S-04 Đài Phát Thanh", function()
         s.map.settlements = nil
     end)
 
-    it("S-04: khi chủ đài đổ, công trình (kể cả của đối thủ) trong bán kính 3 sản xuất +1 mỗi viên; người khác đổ thì không", function()
-        local s, pid, c = setup()
-        put(s, pid, c, "S-04", 1, { { 3, -1 }, { 4, -1 }, { 4, -2 }, { 3, -2 }, { 2, -1 }, { 2, 0 }, { 3, 0 } })
-        local mine = put(s, pid, c, "B-01", 1, { { 5, 0 } })
-        local rival = put(s, pid, c, "B-01", 1, { { 5, -1 } })      -- cách tâm 2
-        rival.owner = 3 - pid
-        local far = put(s, pid, c, "B-01", 1, { { 9, 2 } })
-        local function eng(roller)
-            local per = {}
-            for _, e in ipairs(Production.compute(s, { 3, 5 }, roller)) do
-                if e.kind == "produce" and e.res == "engineering" then per[e.key] = e.amount end
-            end
-            return per
-        end
-        local own = eng(pid)
-        expect.eq(own[mine.anchor], 2); expect.eq(own[rival.anchor], 2); expect.eq(own[far.anchor], 1)
-        local theirs = eng(3 - pid)
-        expect.eq(theirs[mine.anchor], 1); expect.eq(theirs[rival.anchor], 1)
-    end)
+    local HEX7 = { { 3, -1 }, { 4, -1 }, { 4, -2 }, { 3, -2 }, { 2, -1 }, { 2, 0 }, { 3, 0 } }
 
-    it("S-04 +2 Phát Sóng: cả hai viên thành mặt cao hơn, hồi 3 vòng, cần nâng cấp +2", function()
+    -- Dựng ván ở pha roll của `pid` với S-04 cấp `level`; tìm seed để hai viên đầu ra `want(d1, d2)`.
+    local function rollSetup(level, want)
         local s, pid, c = setup()
-        local tower = put(s, pid, c, "S-04", 1, { { 3, -1 }, { 4, -1 }, { 4, -2 }, { 3, -2 }, { 2, -1 }, { 2, 0 }, { 3, 0 } })
+        local tower = put(s, pid, c, "S-04", level, HEX7)
+        s.rebel = { q = -99, r = -99 }
         s.phase = "roll"
         for i, id in ipairs(s.order) do if id == pid then s.turn = i end end
-        local ok, why = Game.check(s, { type = "roll", broadcast = true })
-        expect.falsy(ok); expect.eq(why, "Cần Đài Phát Thanh Long Mạch nâng cấp +2")
-        tower.level = 3
-        local legal = Game.legal(s)
-        expect.eq(#legal, 2); expect.truthy(legal[2].broadcast)
-        local ev = Game.apply(s, { type = "roll", broadcast = true })
-        local roll, bc
-        for _, e in ipairs(ev) do
-            if e.kind == "roll" then roll = e end
-            if e.kind == "broadcast" then bc = e end
+        for i = 1, 3000 do
+            local tag = "dice" .. i
+            local d = Dice.roll(Rng.new(tag))
+            if want(d[1], d[2]) then s.rng = Rng.new(tag) break end
         end
-        expect.truthy(bc)
-        expect.eq(roll.dice[1], roll.dice[2]); expect.eq(roll.dice[1], bc.face)
-        expect.eq(s.players[pid].broadcastRound, s.round)
+        return s, pid, c, tower
+    end
+
+    it("S-04 Đài Khí Tượng (GDD 1.6): +1 KH +1 KT mỗi vòng; không còn aura cộng sản lượng", function()
+        local s, pid, c = setup()
+        local tower = put(s, pid, c, "S-04", 1, HEX7)
+        s.rebel = { q = -99, r = -99 }
+        local mine = put(s, pid, c, "B-01", 1, { { 5, 0 } })
+        local sci, eng = s.players[pid].res.science, s.players[pid].res.engineering
+        Upkeep.startTurn(s, pid)
+        expect.eq(s.players[pid].res.science, sci + 1); expect.eq(s.players[pid].res.engineering, eng + 1)
+        local per
+        for _, e in ipairs(Production.compute(s, { 3, 5 }, pid)) do
+            if e.kind == "produce" and e.buildingId == "B-01" then per = e.amount end
+        end
+        expect.eq(per, 1, "công trình trong aura không còn +1 khi chủ đài đổ")
+        expect.eq(Data.byId["S-04"].name, "Đài Khí Tượng")
+    end)
+
+    it("S-04: sau khi đổ, chủ được đổ lại 1 viên; hồi rerollEvery vòng (5, +1: 3)", function()
+        local s, pid = rollSetup(1, function(a, b) return a + b ~= 7 and a ~= 6 and b ~= 6 end)
+        local ev = Game.apply(s, { type = "roll" })
+        expect.eq(s.phase, "prompt")
+        expect.eq(s.prompt.kind, "reroll"); expect.eq(Game.actor(s), pid)
+        local roll
+        for _, e in ipairs(ev) do if e.kind == "roll" then roll = e end end
+        local old1 = s.dice[1]
+        expect.truthy(Game.check(s, { type = "respond", choice = "reroll:1" }))
+        expect.falsy(Game.check(s, { type = "respond", choice = "face:1:2" }), "chọn mặt cần cấp +2")
+        local ev2 = Game.apply(s, { type = "respond", choice = "reroll:1" })
+        local rr
+        for _, e in ipairs(ev2) do if e.kind == "dice_reroll" then rr = e end end
+        expect.truthy(rr); expect.eq(rr.from, old1); expect.eq(rr.to, s.dice[1])
+        expect.eq(s.players[pid].rerollRound, s.round)
+        expect.truthy(s.phase ~= "prompt" or s.prompt.kind ~= "reroll", "đã chốt xúc xắc, sản xuất tiếp")
+
+        -- lượt sau trong chu kỳ: không còn lựa chọn
+        local lv = Data.byId["S-04"].levels
         s.phase = "roll"
-        ok, why = Game.check(s, { type = "roll", broadcast = true })
-        expect.falsy(ok); expect.truthy(why:find("hồi", 1, true))
-        s.round = s.round + Data.BROADCAST_COOLDOWN
-        expect.truthy(Game.check(s, { type = "roll", broadcast = true }))
+        for i, id in ipairs(s.order) do if id == pid then s.turn = i end end
+        expect.eq(Specials.rerollOptions(s, pid, { 1, 2 }), nil)
+        s.round = s.round + lv[1].rerollEvery
+        expect.truthy(Specials.rerollOptions(s, pid, { 1, 2 }))
+        s.players[pid].rerollRound = s.round
+        s.buildings[next(s.buildings)] = s.buildings[next(s.buildings)]
+        for _, b in pairs(s.buildings) do if b.id == "S-04" then b.level = 2 end end
+        s.round = s.round + lv[2].rerollEvery
+        expect.truthy(Specials.rerollOptions(s, pid, { 1, 2 }), "cấp +1: chu kỳ 3 vòng")
+        s.round = s.round - 1
+        expect.eq(Specials.rerollOptions(s, pid, { 1, 2 }), nil)
+    end)
+
+    it("S-04 +2: 1 lần/ván chọn mặt cho 1 viên, không được tạo tổng 7; giữ nguyên thì không tốn lượt", function()
+        local s, pid = rollSetup(3, function(a, b) return a + b ~= 7 and a ~= 6 and b ~= 6 and a ~= 5 end)
+        Game.apply(s, { type = "roll" })
+        expect.eq(s.prompt.kind, "reroll")
+        local d1, d2 = s.dice[1], s.dice[2]
+        local bad = 7 - d2
+        expect.falsy(Game.check(s, { type = "respond", choice = "face:1:" .. bad }), "không được tạo tổng 7")
+        expect.truthy(Game.check(s, { type = "respond", choice = "face:1:5" }))
+        local ev = Game.apply(s, { type = "respond", choice = "face:1:5" })
+        expect.eq(s.dice[1], 5); expect.eq(s.dice[2], d2)
+        expect.truthy(s.players[pid].setFaceUsed)
+        local sf
+        for _, e in ipairs(ev) do if e.kind == "dice_setface" then sf = e end end
+        expect.truthy(sf); expect.eq(sf.from, d1); expect.eq(sf.to, 5)
+        expect.eq(Specials.rerollOptions(s, pid, { 1, 2 }) ~= nil, true, "vẫn có đổ lại (chu kỳ), nhưng hết chọn mặt")
+        for _, o in ipairs(Specials.rerollOptions(s, pid, { 1, 2 })) do expect.falsy(o:find("^face")) end
+    end)
+
+    it("S-04: giữ nguyên (keep) thì sản xuất ngay và không mất lượt hồi", function()
+        local s, pid = rollSetup(1, function(a, b) return a + b ~= 7 and a ~= 6 and b ~= 6 end)
+        Game.apply(s, { type = "roll" })
+        Game.apply(s, { type = "respond", choice = "keep" })
+        expect.truthy(s.phase ~= "prompt")
+        expect.eq(s.players[pid].rerollRound, false)
+    end)
+end)
+
+describe("specials: S-01 +2 giữ 1 viên, đổ lại viên kia; Pháo Đài trả Vàng; Bảo Tàng trên Khu Dân Cư; khóa Sông", function()
+    local HEX7 = { { 3, -1 }, { 4, -1 }, { 4, -2 }, { 3, -2 }, { 2, -1 }, { 2, 0 }, { 3, 0 } }
+
+    it("S-01 +2: giữ viên đã xem trước, viên còn lại đổ lại; cấp thấp hơn thì không có", function()
+        local s, pid, c = setup()
+        local tower = put(s, pid, c, "S-01", 3, HEX7)
+        s.rebel = { q = -99, r = -99 }
+        s.phase = "roll"
+        for i, id in ipairs(s.order) do if id == pid then s.turn = i end end
+        local peek = Specials.peekDice(s, pid)
+        expect.eq(#peek, 2)
+        local legal = Game.legal(s)
+        expect.eq(#legal, 3); expect.eq(legal[2].hold, 1); expect.eq(legal[3].hold, 2)
+        expect.falsy(Game.check(s, { type = "roll", hold = 3 }))
+        local ev = Game.apply(s, { type = "roll", hold = 2 })
+        local roll
+        for _, e in ipairs(ev) do if e.kind == "roll" then roll = e end end
+        expect.eq(roll.dice[2], peek[2], "viên được giữ không đổi")
+        tower.level = 2
+        expect.falsy(Specials.checkHold(s, pid))
+        s.phase = "roll"
+        expect.falsy(Game.check(s, { type = "roll", hold = 1 }))
+    end)
+
+    it("S-02: Phiến Quân bị đẩy ra khỏi aura Pháo Đài thì người kích hoạt nó mất 2 Vàng", function()
+        local s, pid, c = setup()
+        put(s, pid, c, "S-02", 1, { { 3, 0 }, { 4, 0 }, { 3, 1 }, { 2, 1 } })
+        local victim = 3 - pid
+        s.players[victim].res.gold = 10
+        s.rebel = { q = c.q + 5, r = c.r, lastRoller = victim }   -- cách tâm 2: trong aura R2
+        local fort = Aura.fortressAt(s, s.map:get(s.rebel.q, s.rebel.r))
+        expect.truthy(fort)
+        local ev = Rebel.fortressToll(s, s.rebel, { q = c.q + 8, r = c.r })
+        expect.truthy(ev); expect.eq(ev.gold, Data.FORTRESS_TOLL); expect.eq(s.players[victim].res.gold, 10 - Data.FORTRESS_TOLL)
+        expect.eq(Rebel.fortressToll(s, { q = c.q + 8, r = c.r }, { q = c.q + 9, r = c.r }), nil, "ngoài aura thì không")
+        expect.eq(Rebel.fortressToll(s, { q = c.q + 4, r = c.r }, { q = c.q + 5, r = c.r }), nil, "vẫn trong aura thì không")
+    end)
+
+    it("S-03 (GDD 1.6) đặt được trên Khu Dân Cư; Danh Thắng thì không; S-05 cần Rừng/Núi/Sông, bỏ Đầm Lầy", function()
+        local s, pid, c = setup()
+        put(s, pid, c, "B-03", 3, { { 0, 0 }, { 1, 0 }, { 0, 1 }, { 1, 1 } })
+        local d2 = require("src.data.derived")
+        expect.truthy(Data.byId["S-03"].terrains["DH-10"])
+        expect.falsy(Data.byId["S-03"].terrains["DH-05"])
+        expect.truthy(Data.byId["S-05"].terrains["DH-02"] == "pref" and Data.byId["S-05"].terrains["DH-03"] and Data.byId["S-05"].terrains["DH-04"])
+        expect.falsy(Data.byId["S-05"].terrains["DH-08"])
+        -- Khu Dân Cư ở giữa hình tam giác: được; Danh Thắng: không
+        local centre = at(s, c, 3, 0)
+        centre.terrain = "DH-10"
+        local ok, why = Specials.checkBuild(s, pid, "S-03", centre.q, centre.r, 0)
+        expect.falsy(ok); expect.truthy(why ~= "Không xây trên Khu Dân Cư / Danh Thắng", why)   -- bị từ chối vì lý do khác (thiếu Xưởng In Ấn)
+        centre.terrain = "DH-11"
+        ok, why = Specials.checkBuild(s, pid, "S-03", centre.q, centre.r, 0)
+        expect.falsy(ok)
+        centre.terrain = "DH-01"
+    end)
+
+    it("Sông bị khóa xây: Đặc Biệt trên Sông bị từ chối", function()
+        local s, pid, c = setup()
+        for _, o in ipairs({ { 4, 0 }, { 5, 0 }, { 4, 1 } }) do at(s, c, o[1], o[2]).terrain = "DH-04" end
+        put(s, pid, c, "B-04", 3, { { 0, 0 }, { 1, 0 }, { 2, 0 } })
+        local ok, why = Specials.checkBuild(s, pid, "S-05", c.q + 4, c.r, 0)
+        expect.falsy(ok); expect.eq(why, "Sông đang bị khóa xây")
     end)
 end)
 
@@ -464,7 +579,7 @@ describe("specials: S-05 Thiên Đình", function()
     end
 
     it("hủy tổng 7: chủ Thiên Đình được hỏi; hủy thì người đổ +1 TN, Phiến Quân không đi; mỗi ván 1 lần (+1: 2 lần)", function()
-        local s, pid, c = setup()
+        local s, pid, c = setup(5)
         local owner = pid
         local tem = temple(s, pid, c)
         local roller = 3 - pid
@@ -501,7 +616,7 @@ describe("specials: S-05 Thiên Đình", function()
     end)
 
     it("từ chối hủy 7: Phiến Quân hành động như thường", function()
-        local s, pid, c = setup()
+        local s, pid, c = setup(5)
         temple(s, pid, c)
         toRoll(s, 3 - pid)
         rigSeven(s)
@@ -569,7 +684,7 @@ describe("specials: S-05 Thiên Đình", function()
     end)
 
     it("save/load giữ Đặc Biệt, số lần hủy 7 đã dùng, lời nhắc đang mở", function()
-        local s, pid, c = setup()
+        local s, pid, c = setup(5)
         temple(s, pid, c)
         s.players[pid].cancel7Used = 1
         local s2 = assert(Game.load(Game.save(s)))

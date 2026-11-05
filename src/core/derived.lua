@@ -244,27 +244,49 @@ function D.cleanup(state, pid)
     return removed
 end
 
--- ─── Sản xuất theo xúc xắc (Long Mạch chia sẻ) ──────────────────────────────
+-- ─── Sản xuất theo xúc xắc (Sản Xuất Chung) ────────────────────────────────
 
--- Sự kiện produce vật liệu cho mọi Phái Sinh đang hoạt động: +1 vật liệu mỗi viên khớp mặt của nó.
+-- Vật liệu của mọi Phái Sinh đang hoạt động khi ra `dice` (GDD 1.6 §8.2, D-020). Trả events, repl.
+--   events: { kind = "produce", pid, key, buildingId, level, face, res = vật liệu, amount, dice, roller }
+--           và { kind = "bond_allow", pid, amount } (Nhà Ngân Hàng: số Vàng được chuyển sang Tín Phiếu)
+--   repl[hostUid][face] = { mode = "die" | "unit" }: sản lượng của công trình chủ ở mặt đó bị thay một phần
+--           (replaceDie: bớt sản lượng của 1 viên; replaceUnit: bớt 1 đơn vị) để Production.compute trừ đi.
+-- D-01 chọn viên khớp đầu tiên trong `faces` (tự chọn, chưa có lời nhắc).
 function D.produce(state, dice, activePid)
-    local events = {}
+    local events, repl = {}, {}
     for _, inst in ipairs(D.list(state)) do
         local def = D.def(inst.id)
         if D.isActive(state, inst) then
             local anchor = Structures.tilesOf(state, state.buildings[inst.a])[1]
-            for _, face in ipairs(def.faces) do
-                local n = Dice.count(dice, face)
+            local function ev(face, n)
+                events[#events + 1] = {
+                    kind = "produce", pid = inst.owner, key = key(anchor), buildingId = inst.id, level = 1,
+                    face = face, res = def.material, amount = n, dice = n, roller = activePid,
+                }
+            end
+            if def.mode == "add" then
+                for _, face in ipairs(def.faces) do
+                    local n = Dice.count(dice, face)
+                    if n > 0 then ev(face, n) end
+                end
+            elseif def.mode == "replaceDie" or def.mode == "replaceUnit" then
+                for _, face in ipairs(def.faces) do
+                    if Dice.count(dice, face) > 0 then
+                        ev(face, 1)
+                        repl[inst.a] = repl[inst.a] or {}
+                        repl[inst.a][face] = { mode = def.mode == "replaceDie" and "die" or "unit" }
+                        break
+                    end
+                end
+            elseif def.mode == "convert" then
+                local n = Dice.count(dice, 5)
                 if n > 0 then
-                    events[#events + 1] = {
-                        kind = "produce", pid = inst.owner, key = key(anchor), buildingId = inst.id, level = 1,
-                        face = face, res = def.material, amount = n, dice = n, roller = activePid,
-                    }
+                    events[#events + 1] = { kind = "bond_allow", pid = inst.owner, amount = n * C.BOND_ALLOW_PER_GOLD_DIE }
                 end
             end
         end
     end
-    return events
+    return events, repl
 end
 
 -- ─── Thụ động đầu lượt chủ ──────────────────────────────────────────────────

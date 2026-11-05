@@ -27,7 +27,7 @@ for i = 0, count - 1 do
         os.execute("mkdir -p build/repro")
         local path = string.format("build/repro/%d.lua", seed)
         local f = assert(io.open(path, "w"))
-        f:write(Serialize.dump({ seed = seed, players = players, rich = rich, message = msg,
+        f:write(Serialize.dump({ seed = seed, players = players, rounds = trace.rounds, rich = rich, message = msg,
             history = trace.state and trace.state.history or {}, topups = trace.topups or {}, failedCmd = trace.failedCmd }))
         f:close()
         print("  repro: " .. path)

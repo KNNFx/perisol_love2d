@@ -11,6 +11,7 @@ local Buildings = require("src.data.buildings")
 local Resources = require("src.data.resources")
 local State     = require("src.core.state")
 local Derived   = require("src.data.derived")
+local Rounds    = require("src.core.rounds")
 
 local Invariants = {}
 
@@ -20,7 +21,7 @@ Invariants.PHASES = { setup_hq = true, roll = true, rebel_move = true, rebel_los
 local function isInt(v) return type(v) == "number" and v > -math.huge and v < math.huge and v == math.floor(v) end
 local function isTable(v) return type(v) == "table" end
 local function nonnegative(v) return isInt(v) and v >= 0 end
-local function isStampOrFalse(v) return v == false or (isInt(v) and v >= 1 and v <= C.ROUNDS_PER_GAME) end
+local function isStampOrFalse(v) return v == false or (isInt(v) and v >= 1 and v <= C.MAX_ROUNDS) end
 local function array(t)
     if not isTable(t) then return false end
     local n = 0
@@ -35,9 +36,9 @@ local function tileKey(k) return type(k) == "string" and State.unkey(k) ~= nil e
 local function optionalBool(v) return v == nil or type(v) == "boolean" end
 
 -- Mỗi trường: tên, kiểm tra kiểu. Danh sách này đi cùng State.new (src/core/state.lua).
-local STATE_TABLES = { "owner", "votes", "buildings", "occupied", "lostStrategic", "units", "roads", "derived",
+local STATE_TABLES = { "owner", "votes", "buildings", "occupied", "lostStrategic", "units", "roads", "derived", "plundered",
                        "log", "history", "takenStarts", "order", "players", "rng" }
-local STATE_INTS   = { "nextUid", "nextUnitUid", "nextDerivedUid", "round", "turn", "setupIdx", "playerCount" }
+local STATE_INTS   = { "nextUid", "nextUnitUid", "nextDerivedUid", "round", "turn", "setupIdx", "playerCount", "rounds" }
 
 function Invariants.shape(s)
     if not isTable(s) then return false, "state không phải bảng" end
@@ -51,7 +52,8 @@ function Invariants.shape(s)
     local n = s.playerCount
     if n < 1 or n > 4 or not array(s.players) or #s.players ~= n then return false, "số người chơi không hợp lệ" end
     local function pid(v) return isInt(v) and v >= 1 and v <= n end
-    if s.round < 1 or s.round > C.ROUNDS_PER_GAME + 1 then return false, "vòng ngoài khoảng" end
+    if not Rounds.valid(s.rounds) or s.rounds > C.MAX_ROUNDS then return false, "số vòng ngoài khoảng" end
+    if s.round < 1 or s.round > s.rounds + 1 then return false, "vòng ngoài khoảng" end
     if s.turn < 1 or s.turn > n then return false, "lượt ngoài khoảng" end
     if s.setupIdx < 1 or s.setupIdx > n + 1 then return false, "setupIdx ngoài khoảng" end
     if not Invariants.PHASES[s.phase] then return false, "phase lạ: " .. tostring(s.phase) end
@@ -73,10 +75,14 @@ function Invariants.shape(s)
         end
         if p.hq ~= false and not (isTable(p.hq) and isInt(p.hq.q) and isInt(p.hq.r)) then return false, "P" .. pid .. " sai hq" end
         if s.phase ~= "setup_hq" and p.hq == false then return false, "P" .. pid .. " chưa có HQ sau setup" end
-        for _, k in ipairs({ "strikeRound", "broadcastRound", "knightRetreatRound" }) do
+        for _, k in ipairs({ "strikeRound", "broadcastRound", "knightRetreatRound", "rerollRound" }) do
             if not isStampOrFalse(p[k]) then return false, "P" .. pid .. " sai " .. k end
         end
         if not nonnegative(p.cancel7Used) then return false, "P" .. pid .. " sai cancel7Used" end
+        if not nonnegative(p.harass) or not nonnegative(p.bondAllow) or p.bondAllow > C.BOND_ALLOW_MAX
+            or type(p.expelReady) ~= "boolean" or type(p.setFaceUsed) ~= "boolean" then
+            return false, "P" .. pid .. " sai trạng thái M1.6"
+        end
         if not array(p.subs) then return false, "P" .. pid .. " subs không phải danh sách" end
         for _, sub in ipairs(p.subs) do
             if not coordinate(sub) or not isInt(sub.level) or sub.level < 1 or sub.level > C.SUB_MAX_LEVEL then
@@ -146,7 +152,7 @@ function Invariants.shape(s)
     if s.nextUid <= maxBuilding or s.nextUnitUid <= maxUnit or s.nextDerivedUid <= maxDerived then
         return false, "bộ cấp UID có thể ghi đè đối tượng đã tồn tại"
     end
-    if (s.phase == "over") ~= (s.round == C.ROUNDS_PER_GAME + 1) then return false, "phase không khớp vòng kết thúc" end
+    if (s.phase == "over") ~= (s.round == s.rounds + 1) then return false, "phase không khớp vòng kết thúc" end
     for _, name in ipairs({ "history", "log" }) do
         if not array(s[name]) then return false, name .. " không phải danh sách" end
         for _, item in ipairs(s[name]) do
@@ -302,17 +308,28 @@ function Invariants.check(state)
         if not Territory.isAnchorTile(state, tile) then
             local have = Territory.votesOn(state, tile, pid)
             local need = Territory.threshold(state, pid, tile)
-            -- D-020: ô chiếm nhờ TN-06 rồi mất TN (dỡ công trình) vẫn thuộc chủ: xét theo ngưỡng lúc TN-06 còn
-            if state.lostStrategic[k] then need = Territory.thresholdAtClaim(state, pid, tile) end
             if have < need then
                 return false, string.format("ô %s của P%d có %d phiếu < ngưỡng %d", k, pid, have, need)
             end
         end
     end
 
-    if state.phase == "over" and state.round ~= C.ROUNDS_PER_GAME + 1 then
-        return false, "ván kết thúc sai vòng " .. state.round
+    for k, round in pairs(state.plundered) do
+        if type(k) ~= "string" or not isInt(round) or round < 1 or round > state.round then
+            return false, "bảng cướp phá không hợp lệ tại " .. tostring(k)
+        end
     end
+    for pid, p in ipairs(state.players) do
+        if p.expelReady and p.harass <= C.REBEL_HARASS_BEFORE_EXPEL then return false, "P" .. pid .. " có Lệnh Đuổi sớm" end
+    end
+    if state.rebel then
+        for pid, p in ipairs(state.players) do
+            if p.hq and p.hq.q == state.rebel.q and p.hq.r == state.rebel.r then
+                return false, "Phiến Quân đứng trên ô HQ của P" .. pid
+            end
+        end
+    end
+    if state.phase == "over" and state.round ~= state.rounds + 1 then return false, "ván kết thúc sai vòng " .. state.round end
     return true
 end
 

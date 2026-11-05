@@ -31,6 +31,7 @@
 local Rng       = require("src.core.rng")
 local Resources = require("src.data.resources")
 local Hex       = require("src.core.hex")
+local C         = require("src.config.constants")
 
 local State = {}
 
@@ -46,7 +47,8 @@ function State.new(map, playerCount, seed)
         for _, r in ipairs(Resources.core) do res[r.key] = 0 end
         for _, r in ipairs(Resources.materials) do res[r.key] = 0 end
         players[pid] = { id = pid, res = res, votes = 0, hq = false, hqLevel = 1, subs = {}, carry = {},
-                         strikeRound = false, broadcastRound = false, knightRetreatRound = false, cancel7Used = 0 }
+                         strikeRound = false, broadcastRound = false, knightRetreatRound = false, cancel7Used = 0,
+                         harass = 0, expelReady = false, bondAllow = 0, rerollRound = false, setFaceUsed = false }
     end
     local order = {}
     for pid = 1, playerCount do order[pid] = pid end
@@ -60,6 +62,8 @@ function State.new(map, playerCount, seed)
         derived = {}, nextDerivedUid = 1,   -- công trình Phái Sinh (src/core/derived.lua)
         setupIdx = 1, takenStarts = {}, history = {},
         rebel = false, dice = false, prompt = false, log = {},
+        plundered = {},                     -- khóa công trình/Sub -> vòng bị Phiến Quân cướp gần nhất (mỗi vòng 1 lần)
+        rounds = C.ROUNDS_REFERENCE,
     }
 end
 

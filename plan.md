@@ -3,20 +3,21 @@
 
 ## Context
 
-**Current status (updated 2026-10-07):**
+**Current status (updated 2026-11-01):**
 - **M0 complete (2026-10-04):** git repo, `conf.lua`/`main.lua`, hex math, seeded mapgen, camera/render sandbox, 29 headless tests (see the P1 checklist).
-- **M1 implemented (2026-10-06):** see the P2 checklist. Playtest #1 is still pending.
-- **M1.5 implemented (2026-10-07):** phases A–H and most of I are done (rules in D-014..D-019); the industrial layer (step 8) is deferred. Open: playtests for M1 and M1.5, and the owner's call on the open items listed at the end of D-014..D-019. Next: M2 Cards (P4).
+- **M1 implemented (2026-10-06):** see the P2 checklist. The designer ran playtest #1 on the M1/M1.5 build. The results are in GDD 1.6 Appendix D.
+- **M1.5 implemented (2026-10-07):** phases A–H and most of I are done (rules in D-014..D-019); the industrial layer (step 8) is deferred.
+- **GDD 1.6 received (2026-11-01):** written after playtest #1, together with an updated Data xlsx (`docs/Decisions.md` D-020). It changes core rules: base resources on tiles, 6 free starting tiles, the tile price, Rebel plunder and the HQ block, N = 10 × players rounds, a River build lock, and UI requirements. **M1.6 (P3.5) is now implemented; next is playtest #2, then M2.**
 - *(Original scan 2026-10-04: no code, no tests and no git repo existed.)*
-- Design docs are rich and mostly complete: GDD v1.2, Data tables, Buildings v1.0, and 80 cards in Cards v1.2.
+- Design docs: GDD 1.6 (`docs/Perisol_GDD_v1.6_Full.md`), Data tables, Buildings v1.0, and 80 cards in Cards v1.2. When GDD 1.6 and Data disagree, GDD 1.6 wins (D-020).
 - Art: one test sheet, `Image/HexaTiles_Test_V001.png`. It holds pixel-art hex tiles (forest, plains, desert, river/water, mountain, snow, settlements, roads) and is not yet sliced into individual sprites.
 - Engine: **LÖVE 11.5** is installed at `C:\Program Files\LOVE\`. The `New folder/` directory at the project root is empty and can be deleted.
-- Roadmap (GDD §13.1) is M0 Sandbox → M1 Core Loop → M1.5 Buildings & Infra → M2 Cards → M3 Characters → M4 Polish → M5 Multiplayer. M1.5–M3 are designed on paper only.
+- Roadmap (GDD §13.1) is M0 Sandbox → M1 Core Loop → M1.5 Buildings & Infra → M2 Cards → M3 Characters → M4 Polish → M5 Multiplayer. This plan adds **M1.6** (apply GDD 1.6) between M1.5 and M2. M2–M3 are designed on paper only.
 
-**Goal:** turn the design into a playable hot-seat prototype as fast as possible, then layer the systems on in the order of risk and dependency. The guiding rule is to **validate the fun of the core loop (Long Mạch dice + territory) before building the 80 cards**.
+**Goal:** turn the design into a playable hot-seat prototype as fast as possible, then layer the systems on in the order of risk and dependency. The guiding rule is to **validate the fun of the core loop (shared-production dice, "Sản Xuất Chung", formerly Long Mạch, + territory) before building the 80 cards**.
 
 **Guiding principles**
-1. **Pure game logic is separate from rendering.** `src/core/` has no `love.*` calls. That makes it testable headless with the LÖVE mini-runner (`test.bat`, D-003), and it makes M5 multiplayer possible later.
+1. **Pure game logic is separate from rendering.** `src/core/` has no `love.*` calls. Specs and game simulations run headless through the Makefile; this also keeps M5 multiplayer possible later.
 2. **Data-driven.** All static data lives in `src/data/*.lua`, keyed by doc IDs (`DH-01`, `B-01.2`, `U-01`, `T-ENG-02`…). All balance numbers go in `src/config/constants.lua` (Data §8.1).
 3. **Seeded RNG everywhere** (own Park–Miller RNG `src/core/rng.lua`, D-004), so map generation and dice are reproducible for bugs and replays.
 4. **Command pattern for player actions.** Every action is `{type, playerId, args}` and goes through `validate()` then `apply()`. This gives undo, logging, AI, and network sync later.
@@ -135,7 +136,7 @@ This is the most important milestone. It proves whether Long Mạch is fun.
 - [x] 8. Game scene: territory/building/HQ/rebel layers, placement ghost + reasons, HUD (top bar, player panels, dice + animation, actions, log), rebel steering, loss popup, F5/F9
 - [x] 9. Docs + acceptance: CLAUDE.md updated, hot-seat games (2 and 4 players) driven through the real UI to the score screen, `--sim 100` clean
 - [x] Align M1 rules with the full GDD PDF (owner decisions in `docs/Decisions.md` D-013): influence zone vs owned land, HQ C2 + Subsidiary, retake at 2× threshold, buy tile, Settlement/Landmark cluster control, Rebel no-revisit, starting bonus from the 6 HQ tiles, Tundra/Desert effects
-- [ ] Playtest #1 → tune `constants.lua`
+- [x] Playtest #1: run by the designer on the M1/M1.5 build. Results and fixes are in GDD 1.6 Appendix D; they become M1.6 (P3.5) rather than a pure `constants.lua` tune.
 
 ---
 
@@ -167,7 +168,7 @@ Do this in order:
 - **Rotation key:** placement rotation uses **Q**, because E is already End turn.
 
 ### Progress checklist (P3 / M1.5) — added 2026-10-07
-Each phase ends with `test.bat` green, `lovec . --sim 100` clean, a UI check (screenshot or `--drive`), and its own commit.
+Each phase ends with `make test` green, a relevant headless sim clean, a UI check (screenshot or `--drive`), and its own commit.
 
 - [x] **A. Foundation (refactor, no rule change)** — done 2026-10-07
   - [x] Buildings keyed by uid (`state.buildings[uid]` + `state.occupied["q,r"]`) and a new `src/core/structures.lua`. Replace every `state.buildings[key(tile)]` read in game, territory, production, rebel, scoring, sim, render, scene, drive and log_format.
@@ -178,7 +179,7 @@ Each phase ends with `test.bat` green, `lovec . --sim 100` clean, a UI check (sc
   - [x] Generic `prompt` phase + `respond` command, for trade replies and S-05 reactions (and M2 reaction Edicts later).
   - [x] Save v3 + `MIGRATIONS[2]` (v2 → v3) + a load test for an old save.
 - [x] **B. Step 1 — Basic C2/C3 multi-hex + demolish** — done 2026-10-07
-  - [x] `src/data/shapes.lua`: pair, triangle, line3, L, rect, trapezoid, cluster as axial offsets with distinct rotations.
+  - [x] `src/data/shapes.lua`: pair, triangle, line3, L, rect, trapezoid, cluster as axial offsets with distinct rotations. *Superseded by GDD 1.6 (D-020 #18):* the 6-tile C3 shape is the 3+3 parallelogram, and shape codes follow the Data sheet. Done in M1.6 phase E.
   - [x] `upgrade{uid,q,r,rot}` + `Construction.upgradeOptions` (in `src/core/construction.lua`, to avoid a require cycle with territory).
   - [x] `demolish{uid}`: production stops at once; at the owner's next turn start the building is removed, TN goes into `lostStrategic`, and a `strategic_lost` event is logged.
   - [x] Footprint rules:
@@ -208,7 +209,7 @@ Each phase ends with `test.bat` green, `lovec . --sim 100` clean, a UI check (sc
     - TN-02: +1 TN and +1 KH.
     - TN-09: +1 VH.
     - Halves accumulate in `player.carry`.
-  - [x] `passives_spec` (passives, TN on footprint, Ley/Harbor/Fertile/Hills) + a carry invariant in the sim. Passives live in `src/core/passives.lua`, registered as an Upkeep step after demolish completion.
+  - [x] `passives_spec` (passives, TN on footprint, Ley/Harbor/Fertile/Hills) + a carry invariant in the sim. `Upkeep.steps` declares demolish → passives → units.
 - [x] **D. Step 4 — Expedition units** — done 2026-10-07 (rules in D-015)
   - [x] `src/core/units.lua`: `state.units`, Dijkstra reachable/path using `Movement.stepCost`.
   - [x] Commands:
@@ -243,24 +244,23 @@ Each phase ends with `test.bat` green, `lovec . --sim 100` clean, a UI check (sc
   - [x] Gates: HQ C3 needs a road-connected Market, HQ C4 round 11+, HQ C5 a Market C3, Sub C3 round 16+.
   - [x] Effects:
     - HQ C3 unlocks Special buildings.
-    - HQ C4 turns Expeditions into Knights (6 steps, climb Mountains, retreat to HQ once per 5 rounds instead of dying).
-    - HQ C5 adds a +1 production aura in the HQ influence zone.
+    - HQ C4 turns Expeditions into Knights (6 steps, climb Mountains, retreat to HQ once per 5 rounds instead of dying). *Superseded:* GDD 1.6 moves Knights to Phase 2, and HQ C4 gives Expeditions +1 step per round. Done in M1.6 phase F.
     - HQ C5 adds a +1 production aura within radius 2 of the HQ (modifier stage `aura`). HQ C3 "unlocks Special buildings" is enforced in phase H.
     - Sub C3 makes its centre tile blockade-immune.
   - [x] `hq_levels_spec` (gates, costs, Knight transform/retreat, C5 aura, Sub C2/C3, blockade immunity, resource-rich sim). UI: HQ button tooltip shows cost + gate, Sub panel (click your Sub), `--demo sub`. HQ C3+ costs need Hợp Kim/Thép from phase G.
 - [x] **G. Step 6 — Derived D-01..D-05** — done 2026-10-07 (rules in D-018)
-  - [x] `src/data/derived.lua` following Data: materials are **added**, not "instead of" as in the GDD.
+  - [x] `src/data/derived.lua` following Data: materials are **added**, not "instead of" as in the GDD. *Superseded:* the owner chose GDD §8.2 (D-020). D-01 and D-03 replace the source resource, D-02 and D-04 add, and D-05 converts Gold. Done in M1.6 phase F.
   - [x] `buildDerived`:
     - D-01, D-02 and D-04 attach to a host building. D-03 and D-05 take 1 tile.
     - Gap 0 / 1–2 tiles with a road / 3+ impossible, plus each type's own maximum.
   - [x] "Active" status recomputed at production time (a broken road pauses it). Periodic passives. D-05 bonds (max 5, 0.5 V interest each).
   - [x] UI: building panel shows each Derived's status (active / paused + reason) and "Lập <name>" buttons (D-03 and D-05 pick a tile in a new `derivedsite` mode), "Đổi Tín Phiếu" on the bank, materials line in the player card (cards are 10px taller). Dev: `--demo derived`.
   - [x] `derived_spec` (data, D-01..D-05 rules and production, gaps with/without road, blockade, cleanup, periodic passives, bonds and redeem, save/load incl. old saves, resource-rich sim). Sim: build/redeem weights, derived invariants, bond cap.
-- [x] **H. Step 7 — Special S-01..S-05** — done 2026-10-07 (rules in D-019; leftovers listed below)
+- [x] **H. Step 7 — Special S-01..S-05** — done 2026-10-07 (rules in D-019; one leftover carried to M1.6, listed below)
   - [x] `src/data/specials.lua`: footprints (new `hex7`, `fort4` shapes), terrains (Data building sheet), radius prerequisites, material costs, +1/+2 upgrades. HQ C3 gate.
   - [x] `buildSpecial`, `upgradeSpecial`. Auras live in `src/core/aura.lua` and are read by production (modifier stage `aura`), Rebel, Units and Territory.
   - [x] Abilities that work now:
-    - **S-01:** KH aura, peek the next die (1 die, 2 at +2). *Not done:* the +2 "hold one die, reroll the other".
+    - **S-01:** KH aura, peek the next die (1 die, 2 at +2). *Not done:* the +2 "hold one die, reroll the other" (still in GDD 1.6 §8.3; not yet scheduled in M1.6, see below).
     - **S-02:**
       - Rebel no-stop aura; enemy Expeditions −2 steps (+1: stopped).
       - +1 KT per round; own Expeditions spawned there get +2 steps.
@@ -269,17 +269,19 @@ Each phase ends with `test.bat` green, `lovec . --sim 100` clean, a UI check (sc
     - **S-04:**
       - Roller's buildings in radius 3 (any owner) get +1 per die; +1 KH and +1 KT.
       - +2 Broadcast declared before the roll (`roll{broadcast=true}`).
-      - *Not done:* the 3-tile blockade near it (which 3 tiles is undefined).
-    - **S-05:** prompt to push the Rebel for 2 TN (random at build level, owner picks at +1), +2 TN, cancel a 7 via prompt (roller gets +1 TN). *Not done:* "guaranteed suppress costs 1 TN within radius 3" (a Suppress rule tied to Expedition, left for the character/Edict pass).
-  - [x] Stubbed until M2/M3 (listed in D-019, not yet logged in game): Tech discount, Edict surcharge/immunity, Exhibition, Niết Bàn, character-skill discount, the "Long Mạch radius" of S-04 / TN-12.
+      - *Not done:* the 3-tile blockade. *Superseded:* GDD 1.6 redesigns S-04 as the Đài Khí Tượng (weather immunity, reroll one die); the blockade and Broadcast are dropped. Done in M1.6 phase F.
+    - **S-05:** prompt to push the Rebel for 2 TN (random at build level, owner picks at +1), +2 TN, cancel a 7 via prompt (roller gets +1 TN). *Not done:* "guaranteed suppress costs 1 TN within radius 3". GDD 1.6 §8.3 no longer lists it, only the old Data sheet does, so it stays dropped unless the designer asks for it.
+  - [x] Stubbed until M2/M3 (listed in D-019, not yet logged in game): Tech discount, Edict surcharge/immunity, Exhibition, Niết Bàn, character-skill discount. (The "Long Mạch radius" of S-04 / TN-12 is gone in GDD 1.6.)
+  - [ ] **Carried to M1.6 phase F:** S-01 +2 "hold one die, reroll the other" (GDD 1.6 §8.3). It is the only unfinished Special ability that GDD 1.6 still asks for.
   - [x] UI: "Công trình Đặc Biệt" popup (status + cost + Build), placement ghost with Q to cycle, aura ring when a Special is selected, building panel with +1/+2 upgrade and Pháo, peek label + Broadcast toggle on the dice panel, cancel-7 and push-Rebel popups behind a pass-the-screen cover, "Bảo Tàng" column in the results screen. Dev: `--demo special` / `--demo specialpopup`.
   - [x] `specials_spec` (data, build rules, upgrades, each aura/ability, prompts, save/load, resource-rich sim) + `tests/strip.lua` shared helper. Sim: build/upgrade/strike weights, stats for Specials and cancelled 7s.
-- [x] **I. Wrap-up** — done 2026-10-07, except the two items marked open
+- [x] **I. Wrap-up** — done 2026-10-07, except the designer's test of the M1.5 systems (open, below)
   - [x] Dev tooling: `--demo <name>` (canned positions: loss, upgrade, demolish, unit, suppress, trade, reply, derived, sub, special, specialpopup) replaces the planned `--scenario`, and `--give res=n,...` adds resources at start. Neither goes through `history`.
   - [x] Sim: `--sim N --rich` tops up resources and materials after every turn so random games reach C3 / Derived / trade; new stats in `--sim` for every M1.5 system. (Specials still need HQ C3, so they are covered by `specials_spec`, not the sim.)
   - [x] Replay determinism and mid-game save/load (`tests/m15_integration_spec.lua`): 12 sim games replay to an identical state; save, load and continue gives an identical state for 12 checkpoints with units and roads. Real-game states only: test helpers that edit the map (`tests/arena.lua`, `tests/strip.lua`) cannot be saved because the map is regenerated from the seed.
-  - [ ] Settle the open proposals of D-014..D-019 with the owner and record the answers. *Open:* needs the owner (the list is at the end of each decision).
-  - [x] CLAUDE.md updated. Two full games (2 players, seed 11, 43 turns; 4 players, seed 23, 83 turns) driven through the real UI with `lovec.exe . --newgame --drive N` reach the results screen with no errors. *Open:* a human hot-seat playtest.
+  - [x] Settle the open proposals of D-014..D-019 with the owner and record the answers — done 2026-11-01. GDD 1.6 and the owner's choices answer them (6-tile shape = 3+3, ⭐ discount, Sub C2, S-04 redesign, no Long Mạch radius, Knights off, Derived replace the source resource; see D-020). What is left is on the D-020 open list.
+  - [x] CLAUDE.md updated. Two full games (2 players, seed 11, 43 turns; 4 players, seed 23, 83 turns) driven through the real UI with `lovec.exe . --newgame --drive N` reach the results screen with no errors.
+  - [ ] **Designer's hot-seat test of the M1.5 systems.** Playtest #1 covered the M1 loop. GDD 1.6 Appendix D says the designer's own tests of the M1.5 systems (upgrade C2/C3, demolish, Expedition, trade roads, Derived) have no results yet. Run them on the M1.6 build as part of M1.6 phase H (playtest #2).
 
 **Deferred on purpose:**
 - Step 8 (industrial layer).
@@ -288,10 +290,67 @@ Each phase ends with `test.bat` green, `lovec . --sim 100` clean, a UI check (sc
 
 ---
 
+## P3.5 — M1.6 Apply GDD 1.6 (after playtest #1) (≈2–3 weeks)
+
+GDD 1.6 rewrites several core rules after playtest #1. Cards (M2) build on these rules, so they go first.
+- **Owner decisions (2026-11-01):** do M1.6 before M2. When GDD 1.6 and Data disagree, GDD 1.6 wins.
+- **Rule table:** `docs/Decisions.md` D-020 maps every current rule to the new one, numbered #1–#23 and referenced below.
+- **Per phase:** each phase ends with `make test` and a relevant headless sim clean, plus a UI check for visible changes.
+
+### Progress checklist (P3.5 / M1.6) — added 2026-11-01, implemented 2026-11-01
+- [x] **A. Round count (#1)**
+  - `state.rounds = 10 × players` by default, any multiple of 10 from the menu (`-10` / `+10` / default) or `--rounds N`.
+  - The round milestones (HQ C4, Sub C3, Mountain lock) are `⌈m × N ÷ 20⌉` (`src/core/rounds.lua`). Events flip every 5 rounds; the tier is `⌈4 × round ÷ N⌉`.
+  - The top bar shows `round/N`. Save v4 introduced N; the merged contract schema is v5. Legacy saves load as 20-round games. `Game.replay` takes `rounds`.
+- [x] **B. Base resources on tiles (#2, #4, #13)**
+  - Mapgen rolls them from the GDD §3.3 table (`src/data/baseresources.lua`, own RNG fork, exceptions, +10% next to Rivers, `MAX_KINDS_PER_TILE`). Each Landmark gets one random fixed kind. The 0/1/2 image table is not used (D-020 open #10).
+  - `Production.computeTiles` pays `(base + strategic tile bonus) × matching dice` to `Territory.harvester`; the blockade blocks it; buildings produce separately; multi-tile buildings collect from every tile they cover.
+  - Starting resources are the base resources of the 6 home tiles, received once (fixed base removed).
+  - A Rebel stop on an unowned tile pays the steerer ceil(½) of each kind from the bank.
+  - UI: coloured dots on tiles, hover info, floating +x popups.
+- [x] **C. Territory (#3, #5–#9)**
+  - The 6 home tiles start owned. A Sub gets none.
+  - Buy price is `(1+d) VH + (2+d) V`. Adjacent expansion works outside the zone with threshold +1 (TN-06 applied last, floor 1). Settlements and Landmarks are votes only, inside the influence zone.
+  - Retake: high-value tiles only, in the retaker's influence zone, `2 × threshold` votes spent in one `placeVote`. Buildings follow their tile (whole footprint); Specials and Derived site buildings cannot be retaken by votes for now (D-020).
+  - Swamp no longer takes a Subsidiary. Turn order already starts at P1.
+- [x] **D. Rebel (#10–#14)**
+  - Spawn at the map centre, moved to the nearest valid tile; HQ tiles block it (also for pushes).
+  - Plunder on stepping on a building or Subsidiary (passing included), once per building per round, steerer gets everything; tie → the owner picks and the Rebel goes on (`rebel_loss` stage keeps the move state).
+  - Harassment counter and the `expelRebel` command (UI button, log lines).
+  - UI: steps left and steerer on the Rebel, −x popups. **Not done:** camera pan back to the steerer's HQ.
+- [x] **E. Terrain and buildings (#15–#18)**
+  - River build lock, ⭐ discount on C1, 3+3 shape for the two 6-tile C3s (B-02.2 stays a triangle per GDD §8.1), Museum on Settlements. The placement matrix stays as it was (GDD §9.4 is an excerpt).
+  - Renames in UI text: Sản Xuất Chung, Thiên Đàn, Đài Khí Tượng, Tháp Quan Sát Thiên Văn. Old saves keep their footprints.
+- [x] **F. Special buildings, Knights, Derived (#19–#22)**
+  - S-04 Đài Khí Tượng (reroll prompt, set a face, +1 KH +1 KT), TN-12 Hex swap (`ley` prompt), TN-07 Temple passive, S-01 +2 hold-one-die (`roll{hold}`), S-02 toll when the Rebel is pushed out, S-05 costs 6 TN.
+  - Knights off (`C.KNIGHTS_ENABLED`), HQ C4 = Expedition +1 step, old Knights turn back into Expeditions.
+  - Derived per GDD §8.2: D-01 and D-03 replace the source resource, D-02 and D-04 add, D-05 converts Gold (`convertBond`).
+  - **Not done (stubs):** S-04 weather immunity and Event preview (M2), S-01 Rebel path preview.
+- [x] **G. UI from playtest #1 (#23)**
+  - Dashed influence borders, base-resource dots, threshold/price/retake info on hover, auto-roll at turn start (toggle in the pause menu), floating +x / −x, the trade window as before, a score legend on the results screen, Undo (replay) and the seed in the pause menu.
+  - **Not done:** a distinct border for the tile selected to claim, and keeping the trade window open after each trade.
+- [x] **H. Wrap-up** — done 2026-11-01 except the designer's playtest
+  - [x] Save v4 M1.6 migration + v5 contract migration; invariants cover rounds, harassment, Ley/bond allowance, plunder table and Rebel/HQ; `rounds_spec` and `baseres_spec` cover M1.6 behavior.
+  - [x] `CLAUDE.md`, `docs/Decisions.md` D-020 (implementation notes) and this file updated.
+  - [ ] **Playtest #2 with the designer:** early economy speed with no fixed starting base, whether HQ C3 and a Special are reachable in a 20-round game, Rebel harshness (plunder, Expel), and the M1.5 systems that have no results yet.
+
+**Deferred on purpose (GDD 1.6 marks these as drafts or Phase 2):**
+- §7.4 Infantry occupation (unit stats not designed).
+- §7.5 combat.
+- §8.4 Port, Lake and Sea.
+- The Phase 2 list: Hảo Cảm, Sứ Giả, trade with Settlements, Chuồng Ngựa, Chốt Phòng Thủ, and Knights (turned off in M1.6).
+- The two "needs test" proposals of §3.3: building resonance and Landmark aura. They go behind flags, off by default.
+- The industrial layer.
+
+---
+
 ## P4 — M2 Cards (≈3 weeks)
 
-1. **Card engine:** data files `src/data/cards/tech.lua`, `edicts.lua`, `events.lua`, generated from `Perisol_Cards_v1.2.md` (30 + 30 + 20). Each card is `{id, name, cost, levels={...}, effect = function/handler key}`. Build three cards of each timing type first (Tức Thì, Phản Ứng, Nội Tại), using the hooks that already exist: `prompt` (reaction windows), `Upkeep` (passive steps), the `character`/`tech` modifier stages and `Game.price` (cost). Only after those nine cards work, extract the shared part (an effect registry and an event bus) from what they repeat, so cards hook in without editing core code. See `docs/Architecture_Hardening_Plan.md` §1 for the rule.
-2. **Global Events:** 4 decks of 5, one flipped at rounds 5/10/15/20, resolved in the Resolution phase in order.
+1. **Card engine:** data files `src/data/cards/tech.lua`, `edicts.lua`, `events.lua`, generated from `Perisol_Cards_v1.2.md` (30 + 30 + 20). Each card is `{id, name, cost, levels={...}, effect = function/handler key}`. First implement three cards of each timing type (Tức Thì, Phản Ứng, Nội Tại) using the current prompt, upkeep and modifier hooks; extract only the shared mechanism those cards demonstrate. Keep the game rules explicit and test each card through its player-visible result and side effects.
+2. **Global Events:** 4 decks of 5.
+   - One card is flipped every 5 rounds and replaces the previous card's effect. It is resolved in the Resolution phase in order.
+   - With N rounds (M1.6), the tier is `⌈4 × round ÷ N⌉`. A tier deck is reshuffled when it runs out (GDD 1.6 §10.3, §11.3).
+   - Also hook in here: S-04 Đài Khí Tượng weather immunity and its next-Event preview, and the River unlock through the Tech card Tuyến Vận Tải Nước.
 3. **Tech tree:** buy (3 KH + 3 KT), maximum 5 active, upgrade cost `ceil(prev × 1.8) + Gold`, effects registered as modifiers.
 4. **Edicts:** buy (2 VH + 2 KT + 2 V), a hidden hand (opponents see only the count; hot-seat needs a "pass the screen" privacy cover). There are 3 timing types:
    - **Tức Thì:** played in the Action phase.
@@ -329,18 +388,32 @@ Each phase ends with `test.bat` green, `lovec . --sim 100` clean, a UI check (sc
 - **Decisions log:** `docs/Decisions.md`, listing every P0 answer and every doc conflict resolved.
 - **Data sync:** consider a small script that regenerates `src/data/*.lua` from `Perisol Data.xlsx` (exported to CSV), so the designer can tune without touching code.
 - **Debug tools:** a cheat console (give resources, set the dice, teleport the rebel, jump to round N). This is essential for testing round 15/20 events.
-- Run tests on every change: `test.bat` (LÖVE mini-runner, D-003).
+- Run the relevant behavior specs on every change; `make check` is the pre-commit gate. Use `make test-love` for filesystem cases requiring LÖVE.
 
 ## Verification (per milestone)
 
-- **M0:** `love .` → random valid map renders; R regenerates; `test.bat` passes the hex math tests. ✅ Done 2026-10-04.
+- **M0:** `love .` → random valid map renders; R regenerates; hex math specs pass. ✅ Done 2026-10-04.
 - **M1:** play a full 20-round, 2-player hot-seat game to a score screen with no errors. The headless random-move simulation runs 100 seeded games without crashing.
-- **M1.5:** ✅ done 2026-10-07. 255 tests pass, `--sim 100` and `--sim 30 --rich` run clean with every invariant checked each turn, 12 sim games replay identically, save/load mid-game continues identically, and 2- and 4-player games driven through the real UI reach the results screen. Human playtest still open.
+- **M1.5 (historical baseline):** ✅ done 2026-10-07. 255 tests passed before playtest #1; the designer's feedback fed into M1.6.
+- **M1.6:** the same gates as M1.5 under the new rules, and in addition:
+  - The same seed gives the same base resources on tiles.
+  - A 2-player game of N = 20 rounds and a 3-player game of N = 30 rounds both reach the results screen through the real UI.
+  - Playtest #2 with the designer.
 - **M2–M3:** each new system has unit tests plus a debug scenario (`--demo`, `--give`) to exercise it, and a full game is replayed after each.
-- **Playtest gate** after M1 and after M3: collect feedback and tune `constants.lua`.
+- **Playtest gate** after M1.6 and after M3: collect feedback and tune `constants.lua`.
 
-## Immediate next steps (updated 2026-10-07)
+## Immediate next steps (updated 2026-11-01)
 
-1. Owner review of the open items at the end of D-014..D-019 (shapes, S-04 blockade and Long Mạch radius, Tín Phiếu rules, Sub C2 threshold, and so on).
-2. Playtest #1 (M1, P2 checklist) and playtest #2 (M1.5: roads, trade, Derived, Specials). Tuning only touches `constants.lua` and `src/data/*.lua`.
-3. Start P4 (M2 Cards): card data, then three cards of each timing type on the existing hooks before extracting a registry (see P4 item 1). The M1.5 hooks it will use are the `prompt` phase (reaction Edicts), `Upkeep` steps, the modifier stages `character`/`tech`, and the stubs listed in D-019.
+1. Send the designer the open list at the end of D-020:
+   - the Landmark resource list;
+   - the River unlock;
+   - the Forest passive;
+   - plunder ties;
+   - the Sub ring threshold;
+   - long-game scoring;
+   - whether the 0/1/2 base-resource table (image) is a draft or replaces GDD §3.3.
+
+   The starting base, Knights and Derived are settled per GDD 1.6.
+2. ~~Start P3.5 (M1.6)~~ done 2026-11-01 (phases A–H, see the checklist).
+3. Playtest #2 on the M1.6 build with the designer (checklist H).
+4. Then P4 (M2 Cards): start with three cards of each timing type using current prompt, upkeep and modifier hooks; extract shared machinery only where those cards demonstrate a repeated need. Preserve the M1.6 playtest gate and update contract behavior alongside each new card.

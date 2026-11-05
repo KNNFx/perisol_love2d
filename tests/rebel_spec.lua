@@ -21,18 +21,29 @@ local function arena(s)
     s.rebel = { q = here.q, r = here.r }
     for _, n in ipairs(s.map:neighbors(here)) do n.terrain = "DH-01" end
     here.terrain = "DH-01"
+    here.base = nil
+    for _, n in ipairs(s.map:range(here, 3)) do n.base = nil end   -- không Tài Nguyên Cơ Bản: test đo tiền
+    for _, n in ipairs(s.map:neighbors(here)) do n.strategic = nil end
     return here
 end
 
 describe("rebel: xuất hiện và phong tỏa", function()
-    it("xuất hiện đúng luật, cách mọi HQ >= 2, tất định theo seed", function()
+    it("xuất hiện ở giữa bản đồ (dời tới ô hợp lệ gần nhất), cách mọi HQ >= 2, không đứng trên HQ, tất định", function()
         for seed = 1, 20 do
             local s = newState(seed)
             local t = Rebel.spawn(s)
-            expect.truthy(t.terrain == "DH-01" or t.terrain == "DH-06" or t.terrain == "DH-07",
-                "seed " .. seed .. ": " .. t.terrain)
+            expect.truthy(Rebel.stepCost(s, t.terrain) < math.huge, "seed " .. seed .. ": ô phải đi được")
+            expect.falsy(Rebel.isHQTile(s, t))
             for _, p in ipairs(s.players) do
                 expect.truthy(Hex.distance(p.hq, t) >= C.REBEL_SPAWN_MIN_HQ_DIST)
+            end
+            local mid = Hex.fromOffset(math.floor((s.map.cols - 1) / 2), math.floor((s.map.rows - 1) / 2))
+            for _, o in ipairs(s.map.list) do   -- không có ô hợp lệ nào gần tâm hơn
+                local okTile = Rebel.stepCost(s, o.terrain) < math.huge and not Rebel.isHQTile(s, o)
+                for _, p in ipairs(s.players) do
+                    if Hex.distance(p.hq, o) < C.REBEL_SPAWN_MIN_HQ_DIST then okTile = false end
+                end
+                if okTile then expect.truthy(Hex.distance(mid, o) >= Hex.distance(mid, t), "seed " .. seed) end
             end
             local s2 = newState(seed)
             local t2 = Rebel.spawn(s2)
@@ -119,63 +130,136 @@ describe("rebel: di chuyển", function()
     end)
 end)
 
-describe("rebel: hiệu ứng khi dừng", function()
-    local function setup(victimRes)
+describe("rebel: cướp phá khi bước lên công trình (GDD 1.6 §6.2)", function()
+    -- Phiến Quân đứng ở giữa, công trình của P2 ở ô kề `target`; P1 điều khiển với 3 điểm.
+    local function setup(victimRes, points)
         local s = newState()
         local here = arena(s)
-        Structures.place(s, { id = "B-01", level = 1, owner = 2 }, { here })
+        local target = s.map:neighbors(here)[1]
+        Structures.place(s, { id = "B-01", level = 1, owner = 2 }, { target })
         for k, v in pairs(victimRes) do s.players[2].res[k] = v end
-        s.rebel.pending = { stage = "move", points = 3, roller = 1 }
-        return s, here
+        s.rebel.pending = { stage = "move", points = points or 3, roller = 1, visited = { [State.key(here)] = true } }
+        return s, here, target
     end
 
-    it("chủ mất ceil(1/2) loại nhiều nhất; người đổ nhận ceil(1/2) số đó (5 -> mất 3, nhận 2)", function()
-        local s = setup({ gold = 5, science = 1 })
-        local ev = Rebel.stop(s)
+    it("bước lên: chủ mất ceil(1/2) loại nhiều nhất, người điều khiển nhận TOÀN BỘ (5 -> mất 3, nhận 3), kể cả đi ngang", function()
+        local s, here, target = setup({ gold = 5, science = 1 })
+        local ev = Rebel.step(s, target.q, target.r)
         expect.eq(s.players[2].res.gold, 2)
-        expect.eq(s.players[1].res.gold, 2)
+        expect.eq(s.players[1].res.gold, 3)
         expect.eq(s.players[2].res.science, 1)
-        local loss = ev[#ev]
-        expect.eq(loss.kind, "rebel_loss"); expect.eq(loss.lost, 3); expect.eq(loss.gained, 2)
-        expect.eq(Rebel.stage(s), nil)
+        local loss
+        for _, e in ipairs(ev) do if e.kind == "rebel_loss" then loss = e end end
+        expect.truthy(loss); expect.eq(loss.lost, 3); expect.eq(loss.gained, 3)
+        expect.eq(Rebel.stage(s), "move", "còn điểm nên chưa dừng (đi ngang qua vẫn bị cướp)")
+        for _, e in ipairs(ev) do expect.truthy(e.kind ~= "rebel_stop") end
     end)
 
-    it("hòa loại nhiều nhất: chờ chủ chọn", function()
-        local s = setup({ gold = 4, culture = 4 })
-        local ev = Rebel.stop(s)
+    it("mỗi công trình chỉ bị cướp 1 lần mỗi vòng; sang vòng sau bị cướp lại", function()
+        local s, here, target = setup({ gold = 10 })
+        s.round = 3
+        Rebel.step(s, target.q, target.r)
+        expect.eq(s.players[2].res.gold, 5)
+        s.rebel.q, s.rebel.r = here.q, here.r           -- đưa Phiến Quân lui về rồi bước lên lần nữa
+        s.rebel.pending = { stage = "move", points = 3, roller = 1, visited = { [State.key(here)] = true } }
+        Rebel.step(s, target.q, target.r)
+        expect.eq(s.players[2].res.gold, 5, "cùng vòng: không bị cướp lại")
+        s.round = 4
+        s.rebel.q, s.rebel.r = here.q, here.r
+        s.rebel.pending = { stage = "move", points = 3, roller = 1, visited = { [State.key(here)] = true } }
+        Rebel.step(s, target.q, target.r)
+        expect.eq(s.players[2].res.gold, 2, "vòng sau: ceil(5/2) = 3 nữa")
+    end)
+
+    it("hòa loại nhiều nhất: chủ chọn, rồi Phiến Quân đi tiếp", function()
+        local s, here, target = setup({ gold = 4, culture = 4 })
+        local ev = Rebel.step(s, target.q, target.r)
         expect.eq(Rebel.stage(s), "loss")
         expect.eq(ev[#ev].kind, "rebel_choose")
         expect.eq(s.players[2].res.gold, 4)               -- chưa mất gì
         expect.error(function() Rebel.resolveLoss(s, "faith") end)
         ev = Rebel.resolveLoss(s, "culture")
         expect.eq(s.players[2].res.culture, 2)
-        expect.eq(s.players[1].res.culture, 1)
+        expect.eq(s.players[1].res.culture, 2)
         expect.eq(s.players[2].res.gold, 4)
+        expect.eq(Rebel.stage(s), "move", "trả lại quyền đi tiếp cho người điều khiển")
+        expect.eq(s.rebel.pending.points, 2)
+        expect.truthy(#Rebel.legalSteps(s) > 0)
+    end)
+
+    it("hòa ở bước cuối thì dừng sau khi chủ chọn", function()
+        local s, here, target = setup({ gold = 4, culture = 4 }, 1)
+        Rebel.step(s, target.q, target.r)
+        expect.eq(Rebel.stage(s), "loss")
+        local ev = Rebel.resolveLoss(s, "gold")
+        expect.eq(ev[#ev].kind, "rebel_stop")
         expect.eq(Rebel.stage(s), nil)
     end)
 
-    it("dừng trên HQ của người khác cũng bị tính", function()
-        local s = newState()
-        local hq = s.players[3].hq
-        s.rebel = { q = hq.q, r = hq.r, pending = { stage = "move", points = 1, roller = 1 } }
-        s.players[3].res.gold = 6
-        Rebel.stop(s)
-        expect.eq(s.players[3].res.gold, 3)
-        expect.eq(s.players[1].res.gold, 2)
+    it("cướp cả Khu Trực Thuộc; không cướp công trình của chính người điều khiển hay chủ không có gì", function()
+        local s, here, target = setup({})
+        expect.eq(#select(1, Rebel.plunder(s, target)), 0, "chủ có 0 tài nguyên")
+        s.players[2].res.gold = 5
+        Structures.at(s, target).owner = 1
+        expect.eq(#select(1, Rebel.plunder(s, target)), 0, "của chính người điều khiển")
+        local s2 = newState()
+        local here2 = arena(s2)
+        local t2 = s2.map:neighbors(here2)[2]
+        s2.players[3].subs = { { q = t2.q, r = t2.r, level = 1 } }
+        s2.players[3].res.gold = 6
+        s2.rebel.pending = { stage = "move", points = 3, roller = 1 }
+        local ev = Rebel.plunder(s2, t2)
+        expect.eq(ev[1].kind, "rebel_loss"); expect.eq(s2.players[3].res.gold, 3); expect.eq(s2.players[1].res.gold, 3)
     end)
 
-    it("ô trống, công trình của chính người đổ, hoặc chủ không có gì: không hiệu ứng", function()
-        local s = setup({})
-        local ev = Rebel.stop(s)                           -- chủ có 0 tài nguyên
-        expect.eq(#ev, 1)
-        local s2, here = setup({ gold = 5 })
-        Structures.at(s2, here).owner = 1           -- của chính người đổ
-        Rebel.stop(s2)
-        expect.eq(s2.players[2].res.gold, 5)
+    it("ô Nhà Chính là ô chặn: không vào, không dừng, không bị đẩy tới", function()
+        local s = newState()
+        local hq = s.players[3].hq
+        local here = s.map:neighbors(s.map:get(hq.q, hq.r))[1]
+        s.rebel = { q = here.q, r = here.r, pending = { stage = "move", points = 6, roller = 1, visited = { [State.key(here)] = true } } }
+        for _, t in ipairs(Rebel.legalSteps(s)) do expect.falsy(t.q == hq.q and t.r == hq.r) end
+        expect.truthy(Rebel.isHQTile(s, s.map:get(hq.q, hq.r)))
+        -- đẩy (Trấn Áp / Thiên Đàn) cũng không đi vào HQ
+        for dir = 1, 6 do
+            for _, t in ipairs(Rebel.pushPath(s, dir, 2)) do expect.falsy(t.q == hq.q and t.r == hq.r) end
+        end
+    end)
+
+    it("dừng trên ô chưa có chủ có Tài Nguyên Cơ Bản: người điều khiển nhận ceil(1/2) mỗi loại từ ngân hàng", function()
+        local s = newState()
+        local here = arena(s)
+        here.base = { gold = 3, science = 1, culture = 2 }
+        s.rebel.pending = { stage = "move", points = 1, roller = 1 }
+        local ev = Rebel.stop(s)
+        local bank
+        for _, e in ipairs(ev) do if e.kind == "rebel_bank" then bank = e end end
+        expect.truthy(bank)
+        expect.eq(s.players[1].res.gold, 2); expect.eq(s.players[1].res.science, 1); expect.eq(s.players[1].res.culture, 1)
+        s.owner[State.key(here)] = 2                       -- ô đã có chủ thì không
+        s.rebel.pending = { stage = "move", points = 1, roller = 1 }
+        local before = s.players[1].res.gold
+        Rebel.stop(s)
+        expect.eq(s.players[1].res.gold, before)
+    end)
+
+    it("ô trống và dừng không cướp: chỉ có sự kiện dừng", function()
         local s3 = newState()
         arena(s3)
         s3.rebel.pending = { stage = "move", points = 1, roller = 1 }
         expect.eq(#Rebel.stop(s3), 1)
+    end)
+
+    it("người bị quấy phá được tính theo ô thực hữu hoặc công trình trong vùng phong tỏa", function()
+        local s = newState()
+        local here = arena(s)
+        expect.falsy(Rebel.harassed(s, 2))
+        s.owner[State.key(s.map:neighbors(here)[3])] = 2
+        expect.truthy(Rebel.harassed(s, 2))
+        s.owner = {}
+        Structures.place(s, { id = "B-01", level = 1, owner = 3 }, { s.map:neighbors(here)[4] })
+        expect.truthy(Rebel.harassed(s, 3)); expect.falsy(Rebel.harassed(s, 2))
+        s.rebel.suppressedRound = s.round
+        expect.falsy(Rebel.harassed(s, 3), "đang được Trấn Áp thì không bị quấy phá")
     end)
 end)
 
